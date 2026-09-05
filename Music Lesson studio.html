@@ -1,0 +1,3521 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Music Lesson Studio Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Gowun+Batang:wght@400;700&family=Figtree:wght@400;500;600;700;800&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Nanum+Pen+Script&family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Warm Studio Humanism — cream/terracotta/sage analog-studio palette,
+     sampled directly from the Claude Design "1a 목재 콘솔" mockup. */
+  :root{
+    --bg:#e7dcc8; --panel:#f9f4ed; --panel-alt:#f3ecdf; --panel-hover:#efe4cf;
+    --border:rgba(32,30,29,0.12); --border-focus:rgba(198,113,57,0.45);
+    --text:#201e1d; --text-dim:#7a6f5e; --text-muted:#a69c8a;
+    --accent:#c67139; --accent-hover:#8c491a; --accent-dim:rgba(198,113,57,0.16);
+    --danger:#c1432a; --danger-dim:rgba(193,67,42,0.15);
+    --shadow:0 10px 28px rgba(48,38,20,0.14); --shadow-sm:0 2px 8px rgba(48,38,20,0.08);
+    --beat-accent:#c67139; --beat-normal:#d9c9a8; --beat-mute:#f3ecdf;
+    --sage-bg:#e1eecc; --sage-text:#56633f;
+    --radius-sm:10px; --radius:16px; --radius-lg:22px;
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  [hidden]{display:none !important;}
+  html,body{margin:0; height:100%; overflow:hidden;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Figtree', "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display:flex; flex-direction:column; height:100vh;
+  }
+
+  /* SVG Icons inline helper */
+  .icon-svg{width:16px; height:16px; fill:currentColor; display:inline-block; vertical-align:middle; flex-shrink:0;}
+
+  header{
+    display:flex; align-items:center; gap:12px; padding:10px 20px; margin:12px 16px 0;
+    background:var(--panel); border-radius:999px; flex-shrink:0; height:52px;
+    box-shadow:var(--shadow-sm); z-index:10;
+  }
+  header h1{
+    font-family:'Caprasimo', 'Gowun Batang', serif; font-size:17px; font-weight:400; margin:0; white-space:nowrap;
+    display:flex; align-items:center; gap:8px; letter-spacing:-0.01em; color:var(--text);
+  }
+  header h1 span.logo-badge{
+    background:var(--sage-bg); color:var(--sage-text);
+    font-size:10px; font-weight:800; padding:2px 10px; border-radius:999px; text-transform:uppercase;
+  }
+  #saveStatus{font-size:11px; color:var(--text-muted); margin-left:12px; white-space:nowrap;}
+  #currentProjectLabel{
+    font-size:12px; font-weight:600; color:var(--text-dim); white-space:nowrap; margin-left:auto;
+    background:var(--panel-alt); padding:4px 10px; border-radius:999px; border:1px solid var(--border);
+  }
+
+  .app-layout{flex:1; display:flex; gap:12px; min-height:0; position:relative; padding:12px 16px 16px;}
+
+  aside{
+    background:var(--panel); overflow-y:auto; flex-shrink:0;
+    padding:16px; display:flex; flex-direction:column; gap:18px;
+    border-radius:var(--radius-lg); box-shadow:var(--shadow-sm);
+    transition:transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s;
+  }
+  .sidebar-left{width:300px;}
+  .sidebar-right{width:300px;}
+  aside.collapsed{display:none;}
+
+  @media (max-width: 900px){
+    .app-layout{ position:relative; }
+    aside.sidebar-left, aside.sidebar-right{
+      position:absolute; top:12px; bottom:16px; z-index:40; box-shadow:var(--shadow);
+    }
+    aside.sidebar-left{ left:16px; }
+    aside.sidebar-right{ right:16px; }
+    main.sheet-panel{ width:100%; }
+  }
+
+  main.sheet-panel{
+    flex:1; display:flex; flex-direction:column; min-width:0; background:var(--panel);
+    border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); overflow:hidden;
+  }
+
+  section{
+    background:var(--panel-alt); border:1px solid var(--border); border-radius:var(--radius); padding:14px;
+  }
+  h2{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--text-muted); margin:0 0 12px; display:flex; align-items:center; gap:6px;
+  }
+  label{font-size:11px; font-weight:600; color:var(--text-dim); display:block; margin-bottom:4px;}
+
+  input[type=number], select, input[type=text]{
+    background:var(--panel); border:1px solid var(--border); color:var(--text);
+    border-radius:var(--radius-sm); padding:6px 10px; font-size:12px; font-weight:500;
+    outline:none; transition:border-color 0.15s; width:100%;
+  }
+  input[type=number]:focus, select:focus, input[type=text]:focus{
+    border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-dim);
+  }
+
+  /* Range Sliders */
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:4px; background:var(--panel-hover);
+    border-radius:2px; outline:none; margin:8px 0;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+    background:var(--accent); cursor:pointer; transition:transform 0.1s; box-shadow:0 2px 4px rgba(0,0,0,0.2);
+  }
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
+
+  /* Buttons UI */
+  button{
+    font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; border-radius:999px;
+    border:1px solid var(--border); background:var(--panel); color:var(--text);
+    padding:7px 14px; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    transition:all 0.12s ease; user-select:none; white-space:nowrap;
+  }
+  button:hover{background:var(--panel-hover); border-color:var(--accent);}
+  button:active{transform:scale(0.98);}
+  button.primary{
+    background:var(--accent); border-color:var(--accent); color:#fffdf8;
+    box-shadow:0 3px 10px rgba(198,113,57,0.35);
+  }
+  button.primary:hover{background:var(--accent-hover); border-color:var(--accent-hover);}
+  button.active{background:var(--text); border-color:var(--text); color:var(--panel);}
+  button.icon{padding:7px 10px; font-size:13px; border-radius:999px;}
+
+  .row{display:flex; align-items:center; gap:8px;}
+  .row.wrap{flex-wrap:wrap;}
+
+  /* Metronome Display */
+  .bpm-row{display:flex; align-items:center; gap:12px;}
+  #bpmInput{
+    width:110px; font-size:44px; font-weight:400; text-align:center; padding:2px 4px;
+    font-family:'Caprasimo', serif; background:transparent; border:none; border-radius:0;
+    color:var(--text); line-height:1;
+  }
+  .beatDots{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
+  .beatDot{
+    width:32px; height:32px; border-radius:50%; border:1px solid var(--border);
+    background:var(--beat-mute); display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700; cursor:pointer; color:var(--text-muted); user-select:none;
+    transition:all 0.08s ease;
+  }
+  .beatDot[data-state="accent"]{background:var(--beat-accent); border-color:var(--beat-accent); color:#fffdf8; box-shadow:0 0 0 3px var(--accent-dim);}
+  .beatDot[data-state="normal"]{background:var(--beat-normal); border-color:var(--beat-normal); color:var(--text);}
+  .beatDot.flash{transform:scale(1.15); filter:brightness(1.08);}
+
+  .transportRow{display:flex; gap:8px;}
+  #playBtn{flex:1; font-size:13px; font-weight:700; padding:12px;}
+
+  /* Toolbars & Top Header */
+  .sheetTopBar{
+    display:flex; align-items:center; gap:12px; padding:10px 16px; background:var(--panel);
+    border-bottom:1px solid var(--border); height:52px;
+  }
+  #bigPlayBtn{
+    width:36px; height:36px; border-radius:50%; background:var(--text); border:none; color:var(--panel);
+    font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    box-shadow:var(--shadow-sm); cursor:pointer; transition:transform 0.12s;
+  }
+  #bigPlayBtn:hover{transform:scale(1.05);}
+  .miniDots{display:flex; gap:5px; align-items:center;}
+  .miniDot{width:9px; height:9px; border-radius:50%; background:var(--beat-mute); transition:all 0.05s;}
+  .miniDot.on{background:var(--beat-accent);}
+  .miniDot.flash{transform:scale(1.4); background:var(--accent); box-shadow:0 0 6px var(--accent);}
+
+  .toolbar{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 16px;
+    border-bottom:1px solid var(--border); background:var(--panel);
+  }
+  .toolbar-group{
+    display:flex; align-items:center; gap:4px; background:var(--panel-alt); padding:4px;
+    border-radius:999px; border:1px solid var(--border);
+  }
+  .toolbar-group button{border:none; background:transparent; border-radius:999px; padding:6px 10px;}
+  .toolbar-group button:hover{background:var(--panel-hover);}
+  .toolbar-group button.active{background:var(--text); color:var(--panel);}
+  /* Pen/annotation cluster reads as its own dark "ink" capsule, matching the mockup. */
+  .toolbar-group:has(#penTool){background:var(--text);}
+  .toolbar-group:has(#penTool) button{color:var(--panel);}
+  .toolbar-group:has(#penTool) button:hover{background:rgba(249,244,237,0.15);}
+  .toolbar-group:has(#penTool) button.active{background:var(--accent); color:#fffdf8;}
+  .toolbar-group:has(#penTool) input[type=range]{background:rgba(249,244,237,0.25);}
+
+  .swatch{width:18px; height:18px; border-radius:50%; border:2px solid transparent; cursor:pointer; transition:transform 0.1s;}
+  .swatch:hover{transform:scale(1.2);}
+  .swatch.selected{border-color:var(--text); box-shadow:0 0 0 2px var(--bg);}
+
+  /* Sheet Viewport */
+  .sheetViewport{flex:1; overflow:auto; display:flex; justify-content:center; padding:24px; position:relative; background:var(--bg); touch-action:pan-x pan-y;}
+  .sheetStage{position:relative; width:100%; max-width:1200px; background:#ffffff; box-shadow:var(--shadow); height:fit-content; border-radius:4px; overflow:hidden;}
+  .sheetStage.placing{cursor:crosshair;}
+  .sheetStage img{display:block; width:100%; height:auto; user-select:none; pointer-events:none;}
+
+  #annotationCanvas{position:absolute; top:0; left:0; width:100%; height:100%; touch-action:pan-x pan-y;}
+
+  .emptySheet{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:12px; color:var(--text-muted); padding:80px 20px; text-align:center;
+  }
+
+  /* Form Type Badges & Markers */
+  .markerPill{
+    position:absolute; transform:translate(-50%,-50%); padding:4px 10px; border-radius:20px;
+    font-size:11px; font-weight:700; color:#fff; white-space:nowrap; cursor:grab; user-select:none;
+    box-shadow:0 4px 12px rgba(0,0,0,0.25); z-index:5; display:flex; align-items:center; gap:4px;
+    backdrop-filter:blur(4px); border:1px solid rgba(255,255,255,0.2);
+  }
+  .markerPill:active{cursor:grabbing;}
+  .markerPill .del{opacity:0.7; font-weight:400; padding:0 2px;}
+  .markerPill .del:hover{opacity:1;}
+  .markerPill .bar{opacity:0.9; font-weight:500; font-size:10px; background:rgba(0,0,0,0.2); padding:1px 5px; border-radius:10px;}
+
+  .snapGrid{position:absolute; inset:0; pointer-events:none; z-index:3; display:none;}
+  .sheetStage.placing.snapOn .snapGrid{display:block;}
+
+  .formTypeBtn{display:flex; align-items:center; gap:6px; padding:4px 8px; font-size:11px; border-radius:14px; border:1px solid var(--border);}
+  .formTypeBtn .dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+  .formTypeBtn.armed{color:#fff; border-color:transparent; box-shadow:0 0 0 2px var(--text) inset;}
+
+  .textBoxWrap{position:absolute; transform:translate(-50%,-50%); z-index:6;}
+  .textBoxEl{
+    min-width:40px; min-height:1.4em; padding:4px 8px; outline:none; cursor:text;
+    white-space:pre-wrap; background:rgba(255,255,255,0.001); line-height:1.3; border-radius:4px;
+  }
+  .textBoxWrap.selected .textBoxEl{box-shadow:0 0 0 2px var(--accent); background:rgba(255,255,255,0.8); color:#000;}
+  .textBoxWrap .tbHandle{
+    position:absolute; top:-10px; left:-10px; width:18px; height:18px; border-radius:50%;
+    background:var(--accent); cursor:grab; display:none; z-index:7; border:2px solid #fff;
+  }
+  .textBoxWrap.selected .tbHandle{display:block;}
+  .textBoxWrap .tbDel{
+    position:absolute; top:-10px; right:-10px; width:18px; height:18px; border-radius:50%;
+    background:var(--danger); color:#fff; font-size:10px; line-height:18px; text-align:center;
+    cursor:pointer; display:none; z-index:7; border:2px solid #fff;
+  }
+  .textBoxWrap.selected .tbDel{display:block;}
+
+  .navEdge{
+    position:absolute; top:0; bottom:0; width:56px; border:none; background:transparent;
+    color:var(--text-dim); font-size:24px; cursor:pointer; z-index:4; opacity:0; transition:opacity 0.15s, background 0.15s;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sheetViewport:hover .navEdge{opacity:0.4;}
+  .navEdge:hover{opacity:1 !important; background:linear-gradient(to var(--edge-dir,right), rgba(0,0,0,0.15), transparent);}
+  .navEdge.navLeft{left:0;}
+  .navEdge.navRight{right:0; --edge-dir:left;}
+
+  /* Focus Mode UI Overlay */
+  body.focusMode > header{ display:none; }
+  .app-layout.focusMode > aside{ display:none; }
+  .app-layout.focusMode .sheetTopBar,
+  .app-layout.focusMode .toolbar,
+  .app-layout.focusMode .pageStrip,
+  .app-layout.focusMode #placingHint{ display:none !important; }
+  .app-layout.focusMode main.sheet-panel{ width:100%; }
+  .app-layout.focusMode .sheetViewport{ padding:8px; }
+  .focusBar{
+    position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:20;
+    display:none; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--border);
+    border-radius:30px; padding:6px 16px; box-shadow:var(--shadow); backdrop-filter:blur(10px);
+  }
+  .app-layout.focusMode .focusBar{ display:flex; }
+  #focusPageLabel{ font-size:12px; font-weight:600; color:var(--text-dim); }
+
+  /* ============ 모드 전환 (작업 / 레슨 / 연주) ============ */
+  .modeSwitch{display:flex; gap:2px; background:var(--panel-alt); padding:3px; border-radius:999px; border:1px solid var(--border);}
+  .modeSwitch button{border:none; background:transparent; padding:5px 12px; font-size:12px; border-radius:999px;}
+  .modeSwitch button.active{background:var(--text); color:var(--panel);}
+
+  /* 기본(작업 모드)에서는 1b 요소 모두 숨김 */
+  .toolRail, .railFlyout, .metroDock, .lessonPanel, .lessonTabsFloat, .performHead{display:none;}
+
+  /* ---- 레슨 모드: 악보 최대화 + 플로팅 도크 ---- */
+  .app-layout.mode-lesson > aside.sidebar-left,
+  .app-layout.mode-lesson > aside.sidebar-right{display:none;}
+  .app-layout.mode-lesson .sheetTopBar,
+  .app-layout.mode-lesson .toolbar,
+  .app-layout.mode-lesson .pageStrip{display:none;}
+  .app-layout.mode-lesson main.sheet-panel{width:100%;}
+  .app-layout.mode-lesson .sheetViewport{padding:16px 16px 110px 84px;}
+  .app-layout.mode-lesson .toolRail{display:flex;}
+  .app-layout.mode-lesson .metroDock{display:flex;}
+  .app-layout.mode-lesson .lessonTabsFloat{display:flex;}
+  .app-layout.mode-lesson .lessonPanel:not([hidden]){display:flex;}
+  .app-layout.mode-lesson .railFlyout:not([hidden]){display:flex;}
+
+  /* 왼쪽 원형 도구 레일 */
+  .toolRail{
+    position:absolute; left:14px; top:50%; transform:translateY(-50%); z-index:22;
+    flex-direction:column; align-items:center; gap:6px; padding:8px 6px;
+    background:var(--text); border-radius:999px; box-shadow:var(--shadow);
+  }
+  .toolRail .railSlot{display:flex; flex-direction:column; gap:6px; align-items:center;}
+  .toolRail button{
+    width:40px; height:40px; padding:0; border-radius:50%; border:none;
+    background:transparent; color:var(--panel); font-size:14px;
+  }
+  .toolRail button:hover{background:rgba(249,244,237,0.16);}
+  .toolRail button.active{background:var(--accent); color:#fffdf8;}
+  .toolRail select, .toolRail input[type=range]{display:none;}
+  .railFlyout{
+    position:absolute; left:66px; top:50%; transform:translateY(-50%); z-index:23;
+    flex-direction:column; gap:10px; padding:12px 14px; width:210px;
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
+  }
+  .railFlyout .row{flex-wrap:wrap;}
+
+  /* 링 펄스 메트로놈 도크 */
+  .metroDock{
+    position:absolute; left:50%; bottom:18px; transform:translateX(-50%); z-index:22;
+    align-items:center; gap:16px; padding:10px 20px;
+    background:var(--text); border-radius:999px; box-shadow:var(--shadow); color:var(--panel);
+  }
+  .dockPlay{
+    position:relative; width:44px; height:44px; border-radius:50%; padding:0; flex-shrink:0;
+    background:var(--accent); border:none; color:#fffdf8; font-size:15px;
+  }
+  .dockPlay:hover{background:var(--accent-hover);}
+  .dockPlayIcon{position:relative; z-index:2;}
+  .dockRing{
+    position:absolute; inset:-6px; border-radius:50%; border:2px solid var(--accent);
+    opacity:0; pointer-events:none;
+  }
+  .dockRing.pulse{animation:dockPulse 0.42s ease-out;}
+  .dockRing.pulse.accent{border-color:var(--sage-bg);}
+  @keyframes dockPulse{
+    0%{opacity:0.85; transform:scale(0.86);}
+    100%{opacity:0; transform:scale(1.5);}
+  }
+  @media (prefers-reduced-motion: reduce){ .dockRing.pulse{animation:none;} }
+  .dockTempo{display:flex; align-items:baseline; gap:4px; color:var(--panel);}
+  .dockBpmNum{font-family:'Caprasimo', serif; font-size:30px; line-height:1;}
+  .dockBpmUnit{font-size:10px; font-weight:700; opacity:0.7; letter-spacing:0.04em;}
+  .dockStack{display:flex; flex-direction:column; gap:6px;}
+  .dockChip{
+    background:rgba(249,244,237,0.14); border:none; color:var(--panel);
+    padding:4px 10px; font-size:11px; border-radius:999px;
+  }
+  .dockChip:hover{background:rgba(249,244,237,0.28); border-color:transparent;}
+  .dockMeta{font-size:11px; color:rgba(249,244,237,0.7); white-space:nowrap;}
+  .dockLoop{
+    background:#7a8a5e; border:none; color:#f5ead8; font-size:11px; font-weight:700;
+    padding:5px 12px; border-radius:999px; white-space:nowrap;
+  }
+  .metroDock .miniDot{background:rgba(249,244,237,0.22);}
+  .metroDock .miniDot.on{background:var(--beat-accent);}
+
+  /* 오른쪽 탭 패널 */
+  .lessonTabsFloat{
+    position:absolute; right:14px; top:14px; z-index:22; gap:2px; padding:3px;
+    background:var(--panel); border:1px solid var(--border); border-radius:999px; box-shadow:var(--shadow-sm);
+  }
+  .lessonTabsFloat button{border:none; background:transparent; font-size:12px; padding:6px 12px; border-radius:999px;}
+  .lessonTabsFloat button.active{background:var(--text); color:var(--panel);}
+  .lessonPanel{
+    position:absolute; right:14px; top:60px; bottom:96px; width:330px; z-index:21;
+    flex-direction:column; gap:12px; padding:14px;
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow); overflow:hidden;
+  }
+  .lessonPanelHead{display:flex; align-items:center; justify-content:space-between;}
+  #lessonPanelTitle{font-family:'Caprasimo','Gowun Batang',serif; font-size:16px;}
+  .lessonPanelBody{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:14px;}
+  .lessonPanelBody > section{background:var(--panel-alt);}
+  .app-layout.mode-lesson .lessonPanelBody .pageStrip{display:flex; background:transparent; border:none; padding:0; flex-wrap:wrap;}
+  .lessonPanelBody .row{flex-wrap:wrap;}
+  .practiceCard{background:#fff2eb; border-radius:20px; padding:14px;}
+  .practiceCardLabel{font-size:10px; font-weight:800; letter-spacing:0.06em; color:var(--accent-hover);}
+  .practiceCardMain{font-family:'Caprasimo','Gowun Batang',serif; font-size:17px; margin-top:4px;}
+  .practiceCardSub{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+  /* ---- 연주 모드 ---- */
+  .app-layout.focusMode .performHead{
+    display:flex; position:absolute; left:50%; top:14px; transform:translateX(-50%); z-index:21;
+    align-items:center; gap:10px; padding:6px 16px; background:var(--panel);
+    border:1px solid var(--border); border-radius:999px; box-shadow:var(--shadow-sm);
+    font-size:12px; font-weight:600; color:var(--text-dim);
+  }
+  .performSection{background:#7a8a5e; color:#f5ead8; padding:3px 10px; border-radius:999px; font-weight:700;}
+  .app-layout.focusMode .focusBar{top:auto; bottom:18px; background:var(--text); border-color:transparent; color:var(--panel);}
+  .app-layout.focusMode .focusBar button{background:rgba(249,244,237,0.14); border-color:transparent; color:var(--panel);}
+  .app-layout.focusMode .focusBar button:hover{background:rgba(249,244,237,0.28);}
+  .app-layout.focusMode .focusBar #focusPageLabel,
+  .app-layout.focusMode .focusBar #focusBpmLabel{color:var(--panel);}
+  .app-layout.focusMode .focusBar .miniDot{background:rgba(249,244,237,0.22);}
+  .app-layout.focusMode .focusBar .miniDot.on{background:var(--beat-accent);}
+
+  /* ---- 마디 구간 브래킷 마커 ---- */
+  .markerBracket{position:absolute; z-index:5; display:flex; align-items:flex-start; cursor:grab; user-select:none;}
+  .markerBracket:active{cursor:grabbing;}
+  .markerBracket .bkLine{
+    width:4px; border-radius:2px; background:currentColor; flex-shrink:0;
+    box-shadow:0 0 0 1px rgba(255,253,248,0.55);
+  }
+  .markerBracket .bkCap{position:absolute; left:0; width:14px; height:4px; border-radius:2px; background:currentColor;}
+  .markerBracket .bkCap.top{top:0;}
+  .markerBracket .bkCap.bottom{bottom:0;}
+  .markerBracket .bkLabel{
+    margin-left:10px; margin-top:-2px; padding:3px 10px; border-radius:999px; white-space:nowrap;
+    font-size:11px; font-weight:700; color:#fffdf8;
+    box-shadow:0 3px 10px rgba(48,38,20,0.28); display:flex; align-items:center; gap:6px;
+  }
+  .markerBracket .bkLabel span{color:#fffdf8;}
+  .markerBracket .bkBars{background:rgba(0,0,0,0.22); padding:1px 6px; border-radius:999px; font-weight:600;}
+  .markerBracket.practicing .bkLabel{box-shadow:0 0 0 3px rgba(122,138,94,0.55), 0 3px 10px rgba(48,38,20,0.28);}
+  .markerBracket .bkResize{
+    position:absolute; left:-6px; bottom:-8px; width:16px; height:16px; border-radius:50%;
+    background:var(--panel); border:2px solid currentColor; cursor:ns-resize; display:none;
+  }
+  .markerBracket:hover .bkResize, .markerBracket.practicing .bkResize{display:block;}
+
+  textarea#notesArea{
+    flex:1; width:100%; resize:none; background:var(--panel-alt); border:1.5px dashed var(--border);
+    color:var(--text); border-radius:var(--radius); padding:14px; font-size:14px; line-height:1.7;
+    outline:none; transition:border-color 0.15s; font-family:'Gowun Batang', 'Nanum Myeongjo', serif;
+  }
+  textarea#notesArea:focus{border-color:var(--accent); border-style:solid;}
+  .notesHead{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .notesHead h2{font-family:'Caprasimo', 'Gowun Batang', serif; text-transform:none; letter-spacing:0; font-size:16px; color:var(--text);}
+
+  .pageNav{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--text-dim);}
+  #fileInput,#addPageInput{display:none;}
+  .hint{font-size:11px; color:var(--text-muted); padding:6px 12px;}
+
+  /* Page Strip Thumbnails */
+  .pageStrip{
+    display:flex; gap:10px; padding:10px 16px; overflow-x:auto; background:var(--panel);
+    border-bottom:1px solid var(--border); flex-shrink:0;
+  }
+  .pageThumb{
+    position:relative; width:48px; height:64px; border-radius:var(--radius-sm); border:2px solid var(--border);
+    overflow:hidden; cursor:pointer; flex-shrink:0; background:var(--panel-alt); display:flex; align-items:center; justify-content:center;
+    transition:border-color 0.15s, transform 0.1s;
+  }
+  .pageThumb:hover{transform:translateY(-2px);}
+  .pageThumb img{width:100%; height:100%; object-fit:cover; pointer-events:none;}
+  .pageThumb.current{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-dim);}
+  .pageThumb.dragOver{outline:2px dashed var(--accent); outline-offset:2px;}
+  .pageThumb.missing{color:var(--text-muted); font-size:16px;}
+  .pageThumbNum{
+    position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.65); color:#fff;
+    font-size:9px; font-weight:700; text-align:center; line-height:1.4; 
+  }
+  .pageThumbDel{
+    position:absolute; top:-4px; right:-4px; width:16px; height:16px; border-radius:50%;
+    background:var(--danger); color:#fff; font-size:10px; line-height:16px; text-align:center;
+    cursor:pointer; opacity:0; transition:opacity 0.1s; box-shadow:0 2px 4px rgba(0,0,0,0.2);
+  }
+  .pageThumb:hover .pageThumbDel{opacity:1;}
+  .pageThumb.addTile{font-size:18px; color:var(--text-muted); border-style:dashed;}
+
+  /* Project Library Overlay Modal */
+  .libraryOverlay{position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:50; display:flex; justify-content:flex-end; backdrop-filter:blur(4px);}
+  .libraryOverlay[hidden]{display:none;}
+  .libraryPanel{width:420px; max-width:92vw; height:100%; background:var(--panel); box-shadow:var(--shadow); display:flex; flex-direction:column; border-left:1px solid var(--border);}
+  .libraryHead{display:flex; align-items:center; gap:8px; padding:16px 20px; border-bottom:1px solid var(--border); flex-shrink:0;}
+  .libraryHead h2{margin:0; font-size:15px; font-weight:700; text-transform:none; letter-spacing:0; color:var(--text);}
+  .libraryBody{flex:1; overflow-y:auto; padding:20px;}
+  .saveRow{display:flex; gap:8px; margin-bottom:16px;}
+  .projectItem{
+    display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--border);
+    border-radius:var(--radius); margin-bottom:8px; background:var(--panel-alt); transition:background 0.12s;
+  }
+  .projectItem:hover{background:var(--panel-hover);}
+  .projectThumb{width:40px; height:52px; object-fit:cover; background:var(--panel); border-radius:4px; flex-shrink:0; border:1px solid var(--border);}
+  .projectMeta{flex:1; min-width:0;}
+  .projectMeta .pname{font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text);}
+  .projectMeta .pinfo{font-size:11px; color:var(--text-muted); margin-top:2px;}
+  .projectActions{display:flex; gap:4px; flex-shrink:0;}
+  .projectActions button{padding:4px 8px; font-size:11px;}
+  .libraryEmpty{text-align:center; color:var(--text-muted); font-size:13px; padding:40px 10px;}
+
+  .libTabs{display:flex; gap:6px; margin-bottom:16px; background:var(--panel-alt); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border);}
+  .libTabs button{flex:1; border:none; background:transparent; border-radius:4px;}
+  .libTabs button.active{background:var(--panel); color:var(--text); box-shadow:var(--shadow-sm);}
+  #folderNameLabel{font-size:12px; color:var(--text-dim);}
+
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text-muted);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+    Music Lesson Studio
+    <span class="logo-badge">PRO</span>
+  </h1>
+  <div id="saveStatus">저장 준비 중…</div>
+  <div id="currentProjectLabel"></div>
+  <button id="openLibraryBtn">
+    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+    프로젝트
+  </button>
+  <button class="panelToggle active" id="toggleLeftPanel" title="메트로놈 패널">
+    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+    메트로놈
+  </button>
+  <button class="panelToggle active" id="toggleRightPanel" title="노트 패널">
+    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+    노트
+  </button>
+  <div class="modeSwitch" id="modeSwitch">
+    <button data-mode="studio" class="active" title="책상에서 준비 · 3패널">작업</button>
+    <button data-mode="lesson" title="악기 앞에서 · 악보 최대화">레슨</button>
+    <button data-mode="perform" title="연주 전용 · 최소 UI">연주</button>
+  </div>
+</header>
+
+<div class="app-layout">
+
+  <aside class="sidebar-left" id="metronomePanel">
+    <section>
+      <h2>
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+        메트로놈
+      </h2>
+      <div class="bpm-row">
+        <input type="number" id="bpmInput" inputmode="numeric" value="100">
+        <input type="range" id="bpmSlider" min="20" max="300" value="100">
+      </div>
+      <div class="hint" id="tempoMarking" style="padding:0 0 4px; font-style:italic;">Andante · 걷는 속도</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="icon" id="bpmDown">−5</button>
+        <button class="icon" id="bpmUp">+5</button>
+        <button id="tapTempoBtn" style="flex:1;">TAP TEMPO</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>박자 및 패턴</h2>
+      <div class="row">
+        <select id="numeratorSel"></select>
+        <span style="color:var(--text-muted); font-weight:700;">/</span>
+        <select id="denominatorSel">
+          <option value="2">2</option>
+          <option value="4" selected>4</option>
+          <option value="8">8</option>
+          <option value="16">16</option>
+        </select>
+      </div>
+      <div class="beatDots" id="beatDots"></div>
+    </section>
+
+    <section>
+      <h2>사운드 엔진</h2>
+      <div class="row" style="margin-bottom:12px;">
+        <button class="modeBtn active" id="modeClick" style="flex:1;" data-mode="click">클릭</button>
+        <button class="modeBtn" id="modeDrum" style="flex:1;" data-mode="drum">드럼 리듬</button>
+      </div>
+
+      <div id="clickOptions">
+        <label>음색</label>
+        <select id="timbreSel">
+          <option value="sine">사인파 (클래식)</option>
+          <option value="wood">우드블록</option>
+          <option value="click">디지털 클릭</option>
+          <option value="cowbell">카우벨</option>
+          <option value="rim">사이드스틱</option>
+        </select>
+        <label style="margin-top:12px;">피치 (반음)</label>
+        <div class="row">
+          <input type="range" id="pitchSlider" min="-12" max="12" step="1" value="0">
+          <span id="pitchLabel" style="font-size:11px; color:var(--text-dim); width:28px; text-align:right;">0</span>
+        </div>
+      </div>
+
+      <div id="drumOptions" style="display:none;">
+        <label>드럼 킷</label>
+        <select id="drumKitSel">
+          <option value="acoustic">어쿠스틱 (기본)</option>
+          <option value="808">808 (일렉트로닉)</option>
+          <option value="909">909 (일렉트로닉)</option>
+          <option value="brush">브러시 (부드럽게)</option>
+        </select>
+        <label style="margin-top:12px;">필</label>
+        <div class="row" style="margin-bottom:10px;">
+          <button class="feelBtn active" style="flex:1;" data-feel="straight">스트레이트</button>
+          <button class="feelBtn" style="flex:1;" data-feel="swing">바운스</button>
+        </div>
+        <label>스윙량</label>
+        <div class="row">
+          <input type="range" id="swingSlider" min="50" max="75" step="1" value="58" disabled>
+          <span id="swingLabel" style="font-size:11px; color:var(--text-dim); width:34px; text-align:right;">58%</span>
+        </div>
+        <label style="margin-top:12px;">서브디비전</label>
+        <select id="subdivisionSel">
+          <option value="2">8분음표</option>
+          <option value="4" selected>16분음표</option>
+        </select>
+        <label style="margin-top:12px;">하이햇 레벨</label>
+        <input type="range" id="hihatLevel" min="0" max="1" step="0.01" value="0.5">
+      </div>
+    </section>
+
+    <section>
+      <h2>볼륨</h2>
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8">
+    </section>
+
+    <section>
+      <h2>재생 Control</h2>
+      <div class="transportRow">
+        <button class="primary" id="playBtn">▶ 시작</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>오디오 플레이어</h2>
+      <input type="file" id="audioFileInput" accept="audio/*" style="display:none;">
+      <button id="loadAudioBtn" style="width:100%;">음악 파일 불러오기</button>
+      <div id="audioPlayerControls" style="display:none; margin-top:12px;">
+        <div class="row" style="margin-bottom:8px;">
+          <button class="icon" id="audioPlayBtn">▶</button>
+          <input type="range" id="audioSeek" min="0" max="100" value="0" step="0.1" style="flex:1;">
+        </div>
+        <div class="hint" id="audioTimeLabel" style="padding:0 0 8px; ">0:00 / 0:00</div>
+
+        <label>재생 속도: <span id="audioRateLabel">100%</span></label>
+        <input type="range" id="audioRateSlider" min="0.5" max="1.5" step="0.05" value="1">
+        <div class="row" style="margin:6px 0 10px;">
+          <input type="checkbox" id="preservePitchChk" checked style="width:auto;">
+          <label for="preservePitchChk" style="margin:0;">음정 유지</label>
+        </div>
+
+        <label>재생 볼륨</label>
+        <input type="range" id="audioVolumeSlider" min="0" max="1" step="0.01" value="0.8">
+
+        <label style="margin-top:12px;">구간 반복</label>
+        <div class="row" style="margin-top:4px;">
+          <button class="icon" id="setLoopStartBtn" style="flex:1;">A 지점</button>
+          <button class="icon" id="setLoopEndBtn" style="flex:1;">B 지점</button>
+          <button class="icon" id="clearLoopBtn">✕</button>
+        </div>
+        <div class="hint" id="loopStatusHint" style="padding:6px 0 0;">구간 반복: 꺼짐</div>
+
+        <button id="analyzeTempoBtn" style="width:100%; margin-top:12px;">템포 분석</button>
+        <div class="hint" id="tempoResultHint" style="padding:6px 0 0; display:none;"></div>
+      </div>
+    </section>
+  </aside>
+
+  <main class="sheet-panel">
+    <div class="sheetTopBar">
+      <button id="bigPlayBtn">▶</button>
+      <div class="miniDots" id="miniDots"></div>
+      <div style="font-size:13px; font-weight:700; " id="bpmLabel">100 BPM</div>
+      <button class="icon" id="focusModeBtn" style="margin-left:auto;" title="악보 전체화면">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+        <span id="focusModeBtnLabel">전체화면</span>
+      </button>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <button class="primary" id="uploadBtn">악보 업로드</button>
+        <button id="addPageBtn">＋ 페이지</button>
+      </div>
+      <input type="file" id="fileInput" accept="image/*,.pdf">
+      <input type="file" id="addPageInput" accept="image/*,.pdf">
+
+      <div class="toolbar-group">
+        <button class="icon" id="prevPage">‹</button>
+        <span id="pageLabel" style="padding:0 4px;">0 / 0</span>
+        <button class="icon" id="nextPage">›</button>
+      </div>
+
+      <div class="toolbar-group">
+        <button class="icon" id="zoomOut">－</button>
+        <span id="zoomLabel" style="font-size:11px; padding:0 4px;">100%</span>
+        <button class="icon" id="zoomIn">＋</button>
+      </div>
+
+      <div class="toolbar-group">
+        <button class="icon active" id="penTool" title="펜">✏️</button>
+        <div class="row" id="colorSwatches" style="padding:0 4px;"></div>
+        <input type="range" id="penWidth" min="1" max="12" value="3" style="width:50px;" title="굵기">
+        <button class="icon" id="eraserTool" title="지우개">🧽</button>
+        <button class="icon" id="undoBtn" title="실행취소">↺</button>
+        <button class="icon" id="redoBtn" title="다시실행">↻</button>
+        <button class="icon" id="clearBtn" title="전체지우기">🗑</button>
+      </div>
+
+      <div class="toolbar-group">
+        <button class="icon" id="textTool">🔤 텍스트</button>
+        <div class="row" id="textFontControls" style="display:none; padding-left:4px;">
+          <select id="fontFamilySel" style="padding:2px 4px; font-size:11px;">
+            <option value="inherit">기본</option>
+            <option value="'Noto Sans KR', sans-serif">Noto Sans</option>
+            <option value="'Nanum Gothic', sans-serif">나눔고딕</option>
+            <option value="'Nanum Myeongjo', serif">나눔명조</option>
+            <option value="'Nanum Pen Script', cursive">나눔손글씨</option>
+            <option value="'Gaegu', cursive">개구체</option>
+            <option value="monospace">모노스페이스</option>
+          </select>
+          <button class="icon" id="fontSizeDown">A-</button>
+          <span id="fontSizeLabel" style="font-size:11px; ">16</span>
+          <button class="icon" id="fontSizeUp">A+</button>
+        </div>
+      </div>
+
+      <div class="toolbar-group">
+        <button class="icon" id="snapToggle">🧲 스냅</button>
+        <select id="snapDivisionsSel" style="padding:2px 4px; font-size:11px;">
+          <option value="8">8칸</option>
+          <option value="16" selected>16칸</option>
+          <option value="32">32칸</option>
+        </select>
+      </div>
+
+      <div class="row" style="gap:6px; align-items:center;">
+        <span style="font-size:11px; font-weight:700; color:var(--text-dim);">송폼</span>
+        <button class="icon" id="markerShapeBtn" title="마커 모양: 마디 구간 브래킷 ↔ 지점 핀">▐ 구간</button>
+        <div class="row wrap" id="formTypeBar" style="gap:4px;"></div>
+      </div>
+    </div>
+
+    <div class="pageStrip" id="pageStrip"></div>
+
+    <div class="sheetViewport" id="sheetViewport">
+      <button class="navEdge navLeft" id="navEdgeLeft" title="이전 페이지">‹</button>
+      <div class="sheetStage" id="sheetStage">
+        <div class="emptySheet" id="emptySheet">
+          <div style="width:64px; height:64px; border-radius:50%; background:var(--panel-alt); display:flex; align-items:center; justify-content:center;">
+            <svg class="icon-svg" style="width:28px; height:28px; opacity:0.55;" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+          </div>
+          <div style="font-family:'Caprasimo','Gowun Batang',serif; font-size:20px;">첫 악보를 올려주세요</div>
+          <div style="font-size:13px; color:var(--text-dim); max-width:320px; line-height:1.6;">이미지나 PDF를 끌어다 놓으면 페이지가 만들어집니다. 그 위에 펜으로 표시하고, 송폼 마커를 찍고, 레슨 노트를 함께 남길 수 있습니다.</div>
+          <button class="primary" id="emptyStateUploadBtn">파일 선택</button>
+          <div class="hint" style="padding:0;">JPG · PNG · PDF</div>
+          <button class="icon" id="emptyStateLibraryBtn" style="background:transparent; border-color:transparent; color:var(--text-dim); text-decoration:underline;">보관함에서 열기</button>
+        </div>
+      </div>
+      <button class="navEdge navRight" id="navEdgeRight" title="다음 페이지">›</button>
+
+      <div class="focusBar" id="focusBar">
+        <button class="icon" id="focusPrevBtn">‹</button>
+        <span id="focusPageLabel">1 / 1</span>
+        <button class="icon" id="focusNextBtn">›</button>
+        <button class="icon" id="focusPlayBtn">▶</button>
+        <div class="miniDots" id="focusMiniDots"></div>
+        <span id="focusBpmLabel" style="font-size:12px; font-weight:700; ">100 BPM</span>
+        <button class="icon" id="focusExitBtn">✕ 나가기</button>
+      </div>
+
+      <!-- 연주 모드 상단: 곡·페이지·지금 연습 중인 구간 -->
+      <div class="performHead" id="performHead">
+        <span id="performTitle">연주 모드</span>
+        <span id="performSection" class="performSection" hidden></span>
+      </div>
+
+      <!-- 레슨 모드: 왼쪽 원형 도구 레일 -->
+      <div class="toolRail" id="toolRail">
+        <div class="railSlot" id="railSlot"></div>
+        <button class="railBtn" id="railMoreBtn" title="세부 도구">⋯</button>
+      </div>
+      <div class="railFlyout" id="railFlyout" hidden></div>
+
+      <!-- 레슨 모드: 링 펄스 메트로놈 도크 -->
+      <div class="metroDock" id="metroDock">
+        <button class="dockPlay" id="dockPlayBtn" title="시작/정지"><span class="dockRing" id="dockRing"></span><span class="dockPlayIcon" id="dockPlayIcon">▶</span></button>
+        <div class="dockTempo">
+          <span class="dockBpmNum" id="dockBpmNum">100</span><span class="dockBpmUnit">BPM</span>
+        </div>
+        <div class="dockStack">
+          <div class="row" style="gap:4px;">
+            <button class="dockChip" id="dockBpmDown">−5</button>
+            <button class="dockChip" id="dockBpmUp">+5</button>
+            <button class="dockChip" id="dockTapBtn">탭</button>
+          </div>
+          <div class="miniDots" id="dockDots"></div>
+        </div>
+        <div class="dockMeta" id="dockMeta">4/4 · 사인파</div>
+        <button class="dockLoop" id="dockLoop" hidden>A-B</button>
+        <button class="dockChip" id="dockPanelBtn" title="패널 열기">⋯</button>
+      </div>
+
+      <!-- 레슨 모드: 오른쪽 탭 패널 -->
+      <div class="lessonTabsFloat" id="lessonTabsFloat">
+        <button data-ltab="form">송폼</button>
+        <button data-ltab="page">페이지</button>
+        <button data-ltab="audio">오디오</button>
+        <button data-ltab="note">노트</button>
+      </div>
+      <aside class="lessonPanel" id="lessonPanel" hidden>
+        <div class="lessonPanelHead">
+          <span id="lessonPanelTitle">송폼</span>
+          <button class="icon" id="lessonPanelClose">✕</button>
+        </div>
+        <div class="practiceCard" id="practiceCard" hidden>
+          <div class="practiceCardLabel">지금 연습 중</div>
+          <div class="practiceCardMain" id="practiceCardMain">—</div>
+          <div class="practiceCardSub" id="practiceCardSub"></div>
+        </div>
+        <div class="lessonPanelBody" id="lessonPanelBody"></div>
+      </aside>
+    </div>
+    <div class="hint" id="placingHint" style="display:none; background:var(--panel); border-top:1px solid var(--border);">송폼 표시 위치를 클릭하세요. (Esc 취소)</div>
+  </main>
+
+  <aside class="sidebar-right" id="notesPanel">
+    <section style="flex:1; display:flex; flex-direction:column;">
+      <div class="notesHead">
+        <h2>레슨 노트</h2>
+        <button class="icon" id="timestampBtn" title="시각 삽입">🕒</button>
+      </div>
+      <textarea id="notesArea" placeholder="레슨 기록 및 카피 메모를 작성하세요…"></textarea>
+    </section>
+  </aside>
+
+</div>
+
+<div class="libraryOverlay" id="libraryOverlay" hidden>
+  <div class="libraryPanel">
+    <div class="libraryHead">
+      <h2>프로젝트 보관함</h2>
+      <button class="icon" id="closeLibraryBtn" style="margin-left:auto;">✕</button>
+    </div>
+    <div class="libraryBody">
+      <div class="libTabs">
+        <button class="active" id="tabCloud" data-tab="cloud">클라우드</button>
+        <button id="tabLocal" data-tab="local">컴퓨터 폴더</button>
+      </div>
+
+      <div id="cloudSection">
+        <div class="saveRow">
+          <input type="text" id="projectNameInput" placeholder="프로젝트 이름 입력">
+          <button class="primary" id="saveProjectBtn" disabled>확인 중…</button>
+        </div>
+        <div id="cloudUnavailableNote" class="hint" style="display:none; padding:0 0 12px;">클라우드 저장소를 사용할 수 없습니다. 로컬 탭을 이용하세요.</div>
+        <input type="text" id="librarySearch" placeholder="🔍 프로젝트 검색" style="margin-bottom:12px;">
+        <div id="projectList"></div>
+      </div>
+
+      <div id="localSection" style="display:none;">
+        <div id="fsAccessUI">
+          <div class="row" style="margin-bottom:12px;">
+            <button id="chooseFolderBtn">📂 폴더 선택</button>
+            <span id="folderNameLabel">선택 폴더 없음</span>
+          </div>
+          <div class="saveRow">
+            <input type="text" id="localProjectNameInput" placeholder="프로젝트 이름">
+            <button class="primary" id="saveToFolderBtn">폴더 저장</button>
+          </div>
+          <div id="localFileList"></div>
+        </div>
+        <div id="fallbackFileUI" style="display:none;">
+          <div class="saveRow">
+            <input type="text" id="fallbackProjectNameInput" placeholder="프로젝트 이름">
+            <button class="primary" id="fallbackSaveBtn">파일 저장</button>
+          </div>
+          <button id="fallbackLoadBtn" style="width:100%; margin-top:8px;">📂 파일에서 불러오기</button>
+          <input type="file" id="fallbackLoadInput" accept=".json,application/json" style="display:none;">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+if(typeof pdfjsLib !== "undefined"){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+
+/* ---------- Storage helper (IndexedDB, falls back to localStorage) ---------- */
+const DB_NAME = "music-lesson-studio", STORE = "kv";
+let idbUnavailable = false;
+
+function idb(){
+  return new Promise((resolve,reject)=>{
+    if(idbUnavailable || !window.indexedDB) return reject(new Error("no-idb"));
+    let req;
+    try{ req = indexedDB.open(DB_NAME, 1); }
+    catch(err){ return reject(err); }
+    req.onupgradeneeded = ()=> req.result.createObjectStore(STORE);
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+async function idbGet(key){
+  try{
+    const db = await idb();
+    return await new Promise((resolve,reject)=>{
+      const tx = db.transaction(STORE,"readonly");
+      const r = tx.objectStore(STORE).get(key);
+      r.onsuccess = ()=>resolve(r.result);
+      r.onerror = ()=>reject(r.error);
+    });
+  }catch(err){
+    idbUnavailable = true;
+    try{
+      const raw = localStorage.getItem("mls:"+key);
+      return raw ? JSON.parse(raw) : undefined;
+    }catch(e2){ return undefined; }
+  }
+}
+async function idbPut(key,val){
+  try{
+    const db = await idb();
+    await new Promise((resolve,reject)=>{
+      const tx = db.transaction(STORE,"readwrite");
+      tx.objectStore(STORE).put(val,key);
+      tx.oncomplete = ()=>resolve();
+      tx.onerror = ()=>reject(tx.error);
+    });
+  }catch(err){
+    idbUnavailable = true;
+    const safe = JSON.parse(JSON.stringify(val, (k,v)=> (v instanceof Blob ? undefined : v)));
+    try{ localStorage.setItem("mls:"+key, JSON.stringify(safe)); }catch(e2){}
+  }
+}
+
+/* ---------- State ---------- */
+const FORM_TYPES = [
+  {key:"intro", label:"인트로", color:"#8a8073"},
+  {key:"verse", label:"벌스", color:"#7c8f5e"},
+  {key:"prechorus", label:"프리코러스", color:"#a6748b"},
+  {key:"chorus", label:"코러스", color:"#c67139"},
+  {key:"bridge", label:"브릿지", color:"#c99a3b"},
+  {key:"interlude", label:"간주", color:"#5e8b7e"},
+  {key:"outro", label:"아웃트로", color:"#8c6e4f"},
+  {key:"tag", label:"태그", color:"#b2622d"},
+];
+const CUSTOM_TYPE_COLORS = ["#a6748b","#c99a3b","#7c8f5e","#5e8b7e","#8c6e4f","#b2622d","#8a8073","#c67139"];
+let customFormTypes = [];
+function allFormTypes(){ return FORM_TYPES.concat(customFormTypes); }
+function findFormType(key){ return allFormTypes().find(f=>f.key===key); }
+const COLORS = ["#201e1d","#c67139","#7c8f5e","#5e8b7e","#c99a3b"];
+
+function uid(){
+  return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,10);
+}
+
+function safeSetHash(value){
+  try{ location.hash = value; }catch(err){ console.warn("could not update URL hash", err); }
+}
+function safeClearHash(){
+  try{ history.replaceState(null, "", location.pathname + location.search); }
+  catch(err){ console.warn("could not clear URL hash", err); }
+}
+
+function defaultPatternFor(n){
+  const mid = Math.floor(n/2);
+  return Array.from({length:n}, (_,i)=> i===0 ? "accent" : (i===mid ? "normal" : "mute"));
+}
+
+let state = {
+  bpm:100, beatsPerBar:4, beatUnit:4,
+  beatPattern: defaultPatternFor(4),
+  volume:0.8, notes:"",
+  sheets:[], currentIndex:0,
+  soundMode:"click", timbre:"sine", pitch:0, drumKit:"acoustic",
+  feel:"straight", swingAmount:58, subdivision:4, hihatLevel:0.5,
+  leftPanelOpen:true, rightPanelOpen:true,
+  snapEnabled:false, snapDivisions:16,
+  uiMode:"studio", markerShape:"bracket", practicingId:null,
+};
+
+let objectUrls = [];
+
+/* ---------- Save / Load ---------- */
+let saveTimer=null;
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  document.getElementById("saveStatus").textContent = "저장 중…";
+  saveTimer = setTimeout(doSave, 800);
+}
+async function doSave(){
+  await idbPut("state", state);
+  const t = new Date().toLocaleTimeString("ko-KR",{hour12:false});
+  let statusText = "자동 저장됨 · " + t;
+  if(cloudReady && currentProjectId){
+    try{
+      await syncCurrentProjectQuiet();
+      statusText += " · ☁️ 동기화됨";
+    }catch(err){
+      console.error("cloud sync failed", err);
+      statusText += " · ☁️ 동기화 실패";
+    }
+  }
+  document.getElementById("saveStatus").textContent = statusText;
+}
+async function loadState(){
+  const saved = await idbGet("state");
+  if(saved){
+    state = Object.assign(state, saved);
+    if(!Array.isArray(state.sheets)) state.sheets = [];
+    state.sheets.forEach(s=>{ if(!Array.isArray(s.textBoxes)) s.textBoxes = []; });
+  }
+}
+
+/* ---------- Cloud project library ---------- */
+let cloudDb = null;
+let cloudReady = false;
+let currentProjectId = null;
+let currentProjectName = "";
+let cachedProjectList = [];
+let unsubscribeProjects = null;
+
+async function initCloud(){
+  try{
+    if(window.claude && typeof window.claude.use === "function"){
+      cloudDb = await window.claude.use("db");
+    }
+  }catch(err){ cloudDb = null; }
+  cloudReady = !!cloudDb;
+  document.getElementById("cloudUnavailableNote").style.display = cloudReady ? "none" : "block";
+  document.getElementById("saveProjectBtn").disabled = !cloudReady;
+  document.getElementById("saveProjectBtn").textContent = "저장";
+  document.getElementById("librarySearch").disabled = !cloudReady;
+  if(cloudReady) subscribeProjectList();
+  return cloudReady;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function subscribeProjectList(){
+  if(unsubscribeProjects) unsubscribeProjects();
+  unsubscribeProjects = cloudDb.collection("projects")
+    .orderBy("updatedAt","desc")
+    .limit(200)
+    .onSnapshot((snap)=>{
+      cachedProjectList = snap.docs.map(d=>Object.assign({id:d.id}, d.data()));
+      renderProjectList();
+    }, (err)=>{ console.error("project list subscription error", err); });
+}
+
+function renderProjectList(){
+  const wrap = document.getElementById("projectList");
+  const q = document.getElementById("librarySearch").value.trim().toLowerCase();
+  const filtered = cachedProjectList.filter(p => !q || (p.name||"").toLowerCase().includes(q));
+  wrap.innerHTML = "";
+  if(!filtered.length){
+    const empty = document.createElement("div");
+    empty.className = "libraryEmpty";
+    empty.textContent = cachedProjectList.length ? "검색 결과가 없어요." : "저장된 프로젝트가 없어요.";
+    wrap.appendChild(empty);
+    return;
+  }
+  filtered.forEach(p=>{
+    const item = document.createElement("div");
+    item.className = "projectItem";
+    const thumb = document.createElement("img");
+    thumb.className = "projectThumb";
+    if(p.thumbnail) thumb.src = p.thumbnail; else thumb.style.visibility = "hidden";
+    const meta = document.createElement("div");
+    meta.className = "projectMeta";
+    const dateStr = p.updatedAt ? new Date(p.updatedAt).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
+    meta.innerHTML = `<div class="pname">${escapeHtml(p.name||"(제목 없음)")}${p.id===currentProjectId ? " · 현재" : ""}</div><div class="pinfo">${dateStr} · 페이지 ${p.pageCount||0}</div>`;
+    const actions = document.createElement("div");
+    actions.className = "projectActions";
+    const openBtn = document.createElement("button");
+    openBtn.className = "icon"; openBtn.textContent = "열기";
+    openBtn.addEventListener("click", ()=> openProject(p.id));
+    const linkBtn = document.createElement("button");
+    linkBtn.className = "icon"; linkBtn.textContent = "🔗";
+    linkBtn.addEventListener("click", ()=> copyProjectLink(p.id));
+    const renameBtn = document.createElement("button");
+    renameBtn.className = "icon"; renameBtn.textContent = "✏️";
+    renameBtn.addEventListener("click", ()=> renameProject(p.id, p.name));
+    const delBtn = document.createElement("button");
+    delBtn.className = "icon"; delBtn.textContent = "🗑";
+    delBtn.addEventListener("click", ()=> deleteProject(p.id, p.name));
+    actions.append(openBtn, linkBtn, renameBtn, delBtn);
+    item.append(thumb, meta, actions);
+    wrap.appendChild(item);
+  });
+}
+
+function updateCurrentProjectLabel(){
+  const el = document.getElementById("currentProjectLabel");
+  if(currentProjectId) el.textContent = "☁️ " + currentProjectName;
+  else if(currentProjectName) el.textContent = "💻 " + currentProjectName;
+  else el.textContent = "새 프로젝트";
+}
+
+function loadImageFromBlob(blob){
+  return new Promise((resolve,reject)=>{
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = ()=>{ URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = (e)=>{ URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
+function canvasToCompactDataUrl(canvas, quality){
+  const webp = canvas.toDataURL("image/webp", quality);
+  if(webp.indexOf("data:image/webp") === 0) return webp;
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+async function compressBlobToBase64(blob, maxBytes){
+  maxBytes = maxBytes || 220000;
+  const img = await loadImageFromBlob(blob);
+  const dims = [1600,1300,1000,800,600];
+  const qualities = [0.8,0.65,0.5,0.35];
+  let best = null;
+  for(const dim of dims){
+    const ratio = Math.min(1, dim / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth*ratio));
+    const h = Math.max(1, Math.round(img.naturalHeight*ratio));
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const cx = c.getContext("2d");
+    cx.fillStyle = "#fff"; cx.fillRect(0,0,w,h);
+    cx.drawImage(img, 0, 0, w, h);
+    for(const q of qualities){
+      const dataUrl = canvasToCompactDataUrl(c, q);
+      best = dataUrl;
+      if(dataUrl.length <= maxBytes) return dataUrl;
+    }
+  }
+  return best;
+}
+
+function shrinkForThumbnail(dataUrl){
+  if(!dataUrl) return Promise.resolve(null);
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const w = 120;
+      const h = Math.max(1, Math.round(img.naturalHeight * (w/img.naturalWidth)));
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img,0,0,w,h);
+      resolve(canvasToCompactDataUrl(c, 0.6));
+    };
+    img.onerror = ()=> resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+function dataUrlToBlob(dataUrl){
+  return fetch(dataUrl).then(r=>r.blob());
+}
+
+async function pruneExtraPageDocs(projectId, keepCount){
+  try{
+    const pagesCol = cloudDb.doc("projects/"+projectId).collection("pages");
+    const snap = await pagesCol.orderBy("index","asc").limit(500).get();
+    for(const d of snap.docs){
+      if((d.data().index) >= keepCount) await pagesCol.doc(d.id).delete();
+    }
+  }catch(err){}
+}
+
+async function buildPagesData(){
+  const pagesData = [];
+  for(let i=0;i<state.sheets.length;i++){
+    const sheet = state.sheets[i];
+    if(sheet.kind==="pdf" && !(sheet.blob instanceof Blob)) await ensurePageBlob(sheet);
+    let imageB64 = sheet._cloudImageCache || null;
+    if((sheet.dirtyImage || !imageB64) && sheet.blob instanceof Blob){
+      imageB64 = await compressBlobToBase64(sheet.blob);
+      sheet._cloudImageCache = imageB64;
+      sheet.dirtyImage = false;
+    }
+    pagesData.push({index:i, image:imageB64, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[]});
+  }
+  return pagesData;
+}
+
+function buildProjectFields(name){
+  const fields = {
+    updatedAt: Date.now(),
+    bpm: state.bpm, beatsPerBar: state.beatsPerBar, beatUnit: state.beatUnit, beatPattern: state.beatPattern,
+    volume: state.volume, notes: state.notes,
+    soundMode: state.soundMode, timbre: state.timbre, pitch: state.pitch, drumKit: state.drumKit,
+    feel: state.feel, swingAmount: state.swingAmount, subdivision: state.subdivision, hihatLevel: state.hihatLevel,
+  };
+  if(name !== undefined) fields.name = name;
+  return fields;
+}
+
+async function persistProjectPages(projectId, pagesData){
+  const pagesCol = cloudDb.doc("projects/"+projectId).collection("pages");
+  for(const p of pagesData){
+    await pagesCol.doc("page-"+String(p.index).padStart(3,"0")).set(p);
+  }
+  await pruneExtraPageDocs(projectId, pagesData.length);
+}
+
+async function saveCurrentProject(name){
+  if(!cloudReady){ alert("클라우드 저장소를 사용할 수 없습니다."); return; }
+  if(!name){ alert("프로젝트 이름을 입력해주세요."); return; }
+  const btn = document.getElementById("saveProjectBtn");
+  btn.disabled = true; btn.textContent = "저장 중...";
+  try{
+    let projectId = currentProjectId;
+    let isNew = true;
+    if(projectId){
+      const snap = await cloudDb.doc("projects/"+projectId).get();
+      isNew = !snap.exists;
+    } else {
+      projectId = cloudDb.collection("projects").doc().id;
+    }
+    const pagesData = await buildPagesData();
+    const fields = buildProjectFields(name);
+    fields.pageCount = pagesData.length;
+    if(pagesData[0] && pagesData[0].image) fields.thumbnail = await shrinkForThumbnail(pagesData[0].image);
+    const projectRef = cloudDb.doc("projects/"+projectId);
+    if(isNew){ fields.createdAt = Date.now(); await projectRef.set(fields); }
+    else await projectRef.update(fields);
+
+    currentProjectId = projectId;
+    currentProjectName = name;
+    updateCurrentProjectLabel();
+
+    await persistProjectPages(projectId, pagesData);
+    safeSetHash("project="+projectId);
+    alert("저장되었습니다: " + name);
+  }catch(err){
+    console.error("save project failed", err);
+    alert("저장에 실패했습니다: " + (err && err.message ? err.message : err));
+  }finally{
+    btn.disabled = false; btn.textContent = "저장";
+  }
+}
+
+async function syncCurrentProjectQuiet(){
+  if(!currentProjectId) return;
+  const pagesData = await buildPagesData();
+  const fields = buildProjectFields(undefined);
+  fields.pageCount = pagesData.length;
+  if(pagesData[0] && pagesData[0].image) fields.thumbnail = await shrinkForThumbnail(pagesData[0].image);
+  await cloudDb.doc("projects/"+currentProjectId).update(fields);
+  await persistProjectPages(currentProjectId, pagesData);
+}
+
+function refreshUiFromState(){
+  rebuildNumeratorOptions();
+  document.getElementById("numeratorSel").value = state.beatsPerBar;
+  document.getElementById("denominatorSel").value = state.beatUnit;
+  document.getElementById("volumeSlider").value = state.volume;
+  notesArea.value = state.notes;
+  syncBpmUI();
+  renderBeatDots();
+  document.getElementById("timbreSel").value = state.timbre;
+  document.getElementById("drumKitSel").value = state.drumKit;
+  document.getElementById("pitchSlider").value = state.pitch;
+  document.getElementById("pitchLabel").textContent = (state.pitch>0?"+":"")+state.pitch;
+  document.getElementById("swingSlider").value = state.swingAmount;
+  document.getElementById("swingLabel").textContent = state.swingAmount+"%";
+  document.getElementById("subdivisionSel").value = state.subdivision;
+  document.getElementById("hihatLevel").value = state.hihatLevel;
+  applySoundModeUI();
+  applyFeelUI();
+  renderSheet();
+  scheduleSave();
+}
+
+function applyLoadedProjectFields(proj){
+  state.bpm = proj.bpm ?? state.bpm;
+  state.beatsPerBar = proj.beatsPerBar ?? state.beatsPerBar;
+  state.beatUnit = proj.beatUnit ?? state.beatUnit;
+  state.beatPattern = proj.beatPattern ?? defaultPatternFor(state.beatsPerBar);
+  state.volume = proj.volume ?? state.volume;
+  state.notes = proj.notes || "";
+  state.soundMode = proj.soundMode || state.soundMode;
+  state.timbre = proj.timbre || state.timbre;
+  state.drumKit = proj.drumKit || state.drumKit;
+  state.pitch = proj.pitch ?? state.pitch;
+  state.feel = proj.feel || state.feel;
+  state.swingAmount = proj.swingAmount ?? state.swingAmount;
+  state.subdivision = proj.subdivision ?? state.subdivision;
+  state.hihatLevel = proj.hihatLevel ?? state.hihatLevel;
+}
+
+async function loadProjectData(id){
+  const projSnap = await cloudDb.doc("projects/"+id).get();
+  if(!projSnap.exists) throw new Error("프로젝트를 찾을 수 없습니다.");
+  const proj = projSnap.data();
+  const pagesSnap = await cloudDb.doc("projects/"+id).collection("pages").orderBy("index","asc").limit(500).get();
+  const sheets = [];
+  for(const d of pagesSnap.docs){
+    const pd = d.data();
+    const blob = pd.image ? await dataUrlToBlob(pd.image) : null;
+    sheets.push({
+      id: uid(), blob, dirtyImage:false, _cloudImageCache: pd.image || null,
+      annotations: pd.annotations||[], markers: pd.markers||[], textBoxes: pd.textBoxes||[],
+    });
+  }
+  applyLoadedProjectFields(proj);
+  state.sheets = sheets;
+  state.currentIndex = 0;
+
+  currentProjectId = id;
+  currentProjectName = proj.name || "";
+  safeSetHash("project="+id);
+
+  refreshUiFromState();
+  document.getElementById("projectNameInput").value = currentProjectName;
+  updateCurrentProjectLabel();
+}
+
+async function confirmSwitchAway(){
+  if(state.sheets.length && !currentProjectId && !currentProjectName){
+    return confirm("현재 작업 중인 내용이 저장되지 않았습니다. 계속할까요?");
+  }
+  return true;
+}
+
+async function flushCurrentProject(){
+  if(cloudReady && currentProjectId){
+    try{ await syncCurrentProjectQuiet(); }catch(err){}
+  }
+  try{ await idbPut("state", state); }catch(err){}
+}
+
+async function openProject(id){
+  if(!cloudReady) return;
+  if(!(await confirmSwitchAway())) return;
+  try{
+    await flushCurrentProject();
+    await loadProjectData(id);
+    closeLibrary();
+  }catch(err){
+    alert("프로젝트 실패: " + (err && err.message ? err.message : err));
+  }
+}
+
+async function renameProject(id, oldName){
+  const name = prompt("새 이름을 입력하세요.", oldName||"");
+  if(!name || name===oldName) return;
+  try{
+    await cloudDb.doc("projects/"+id).update({name, updatedAt: Date.now()});
+    if(id===currentProjectId){
+      currentProjectName = name;
+      updateCurrentProjectLabel();
+      document.getElementById("projectNameInput").value = name;
+    }
+  }catch(err){ alert("이름 변경 실패: " + (err && err.message ? err.message : err)); }
+}
+
+async function deleteProject(id, name){
+  if(!confirm(`"${name||'(제목 없음)'}" 프로젝트를 삭제할까요?`)) return;
+  try{
+    const pagesCol = cloudDb.doc("projects/"+id).collection("pages");
+    const snap = await pagesCol.limit(500).get();
+    for(const d of snap.docs) await pagesCol.doc(d.id).delete();
+    await cloudDb.doc("projects/"+id).delete();
+    cachedProjectList = cachedProjectList.filter(p=>p.id!==id);
+    renderProjectList();
+    if(id===currentProjectId){
+      currentProjectId = null; currentProjectName = "";
+      updateCurrentProjectLabel();
+      safeClearHash();
+    }
+  }catch(err){ alert("삭제 실패: " + (err && err.message ? err.message : err)); }
+}
+
+function copyProjectLink(id){
+  const url = location.origin + location.pathname + "#project=" + id;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(()=>alert("링크 복사 완료")).catch(()=> prompt("아래 링크 복사:", url));
+  } else {
+    prompt("아래 링크 복사:", url);
+  }
+}
+
+function openLibrary(){
+  document.getElementById("libraryOverlay").hidden = false;
+  document.getElementById("projectNameInput").value = currentProjectId ? currentProjectName : "";
+  document.getElementById("localProjectNameInput").value = currentProjectName || "";
+  if(cloudReady) renderProjectList();
+}
+function closeLibrary(){ document.getElementById("libraryOverlay").hidden = true; }
+document.getElementById("openLibraryBtn").addEventListener("click", openLibrary);
+document.getElementById("closeLibraryBtn").addEventListener("click", closeLibrary);
+document.getElementById("libraryOverlay").addEventListener("click", (e)=>{
+  if(e.target.id==="libraryOverlay") closeLibrary();
+});
+document.getElementById("librarySearch").addEventListener("input", renderProjectList);
+document.getElementById("saveProjectBtn").addEventListener("click", ()=>{
+  saveCurrentProject(document.getElementById("projectNameInput").value.trim());
+});
+
+document.querySelectorAll(".libTabs button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".libTabs button").forEach(b=>b.classList.toggle("active", b===btn));
+    const isCloud = btn.dataset.tab==="cloud";
+    document.getElementById("cloudSection").style.display = isCloud ? "block" : "none";
+    document.getElementById("localSection").style.display = isCloud ? "none" : "block";
+  });
+});
+
+/* ---------- Local computer folder ---------- */
+let folderHandle = null;
+const FS_ACCESS_SUPPORTED = "showDirectoryPicker" in window;
+
+async function initLocalFolder(){
+  if(!FS_ACCESS_SUPPORTED){
+    document.getElementById("fsAccessUI").style.display = "none";
+    document.getElementById("fallbackFileUI").style.display = "block";
+    await initDownloadsCapability();
+    return;
+  }
+  document.getElementById("fsAccessUI").style.display = "block";
+  document.getElementById("fallbackFileUI").style.display = "none";
+  try{
+    const handle = await idbGet("folderHandle");
+    if(!handle) return;
+    const perm = await handle.queryPermission({mode:"readwrite"});
+    if(perm==="granted"){
+      folderHandle = handle;
+      document.getElementById("folderNameLabel").textContent = "📁 " + handle.name;
+      refreshLocalFileList();
+    }
+  }catch(err){}
+}
+
+async function pickFolder(){
+  if(!FS_ACCESS_SUPPORTED) return;
+  try{
+    folderHandle = await window.showDirectoryPicker({mode:"readwrite"});
+    await idbPut("folderHandle", folderHandle);
+    document.getElementById("folderNameLabel").textContent = "📁 " + folderHandle.name;
+    refreshLocalFileList();
+  }catch(err){}
+}
+
+function sanitizeFilename(name){
+  return name.replace(/[\\/:*?"<>|]/g,"_").trim() || "untitled";
+}
+
+async function compressBlobForLocalSave(blob){
+  const img = await loadImageFromBlob(blob);
+  const maxDim = 2000;
+  const ratio = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth*ratio));
+  const h = Math.max(1, Math.round(img.naturalHeight*ratio));
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const cx = c.getContext("2d");
+  cx.fillStyle = "#fff"; cx.fillRect(0,0,w,h);
+  cx.drawImage(img, 0, 0, w, h);
+  return canvasToCompactDataUrl(c, 0.85);
+}
+
+async function buildProjectFileData(name){
+  const pages = [];
+  for(const sheet of state.sheets){
+    if(sheet.kind==="pdf" && !(sheet.blob instanceof Blob)) await ensurePageBlob(sheet);
+    const image = sheet.blob instanceof Blob ? await compressBlobForLocalSave(sheet.blob) : null;
+    pages.push({image, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[]});
+  }
+  return {
+    __type:"music-lesson-studio-project", version:1,
+    name, savedAt: Date.now(),
+    bpm:state.bpm, beatsPerBar:state.beatsPerBar, beatUnit:state.beatUnit, beatPattern:state.beatPattern,
+    volume:state.volume, notes:state.notes,
+    soundMode:state.soundMode, timbre:state.timbre, pitch:state.pitch, drumKit:state.drumKit,
+    feel:state.feel, swingAmount:state.swingAmount, subdivision:state.subdivision, hihatLevel:state.hihatLevel,
+    pages,
+  };
+}
+
+async function saveToFolder(name){
+  if(!folderHandle){ alert("폴더를 먼저 선택하세요."); return; }
+  if(!name){ alert("이름을 입력하세요."); return; }
+  const btn = document.getElementById("saveToFolderBtn");
+  btn.disabled = true; btn.textContent = "저장 중...";
+  try{
+    const perm = await folderHandle.requestPermission({mode:"readwrite"});
+    if(perm !== "granted"){ alert("권한이 필요합니다."); return; }
+    const projectData = await buildProjectFileData(name);
+    const filename = sanitizeFilename(name) + ".mlsproj.json";
+    const fileHandle = await folderHandle.getFileHandle(filename, {create:true});
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(projectData));
+    await writable.close();
+    refreshLocalFileList();
+    currentProjectName = name;
+    updateCurrentProjectLabel();
+    alert("저장 완료: " + filename);
+  }catch(err){ alert("저장 실패: " + (err && err.message ? err.message : err)); }
+  finally{ btn.disabled = false; btn.textContent = "폴더 저장"; }
+}
+
+let downloadsApi = null;
+async function initDownloadsCapability(){
+  try{
+    if(window.claude && typeof window.claude.use === "function"){
+      downloadsApi = await window.claude.use("downloads");
+    }
+  }catch(err){}
+}
+
+async function saveProjectAsFile(name){
+  if(!name){ alert("이름을 입력하세요."); return; }
+  const btn = document.getElementById("fallbackSaveBtn");
+  btn.disabled = true; btn.textContent = "준비 중...";
+  try{
+    const projectData = await buildProjectFileData(name);
+    const jsonText = JSON.stringify(projectData);
+    const filename = sanitizeFilename(name) + ".json";
+    if(downloadsApi){
+      await downloadsApi.save({filename, data: jsonText});
+    } else {
+      const blob = new Blob([jsonText], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    }
+    currentProjectName = name;
+    updateCurrentProjectLabel();
+  }catch(err){ alert("저장 실패: " + (err && err.message ? err.message : err)); }
+  finally{ btn.disabled = false; btn.textContent = "파일 저장"; }
+}
+
+document.getElementById("fallbackSaveBtn").addEventListener("click", ()=>{
+  saveProjectAsFile(document.getElementById("fallbackProjectNameInput").value.trim());
+});
+document.getElementById("fallbackLoadBtn").addEventListener("click", ()=>document.getElementById("fallbackLoadInput").click());
+document.getElementById("fallbackLoadInput").addEventListener("change", async (e)=>{
+  const file = e.target.files[0]; e.target.value = "";
+  if(!file) return;
+  if(!(await confirmSwitchAway())) return;
+  try{
+    const data = JSON.parse(await file.text());
+    await flushCurrentProject();
+    await applyProjectFileData(data);
+    closeLibrary();
+  }catch(err){ alert("불러오기 실패: " + (err && err.message ? err.message : err)); }
+});
+
+async function refreshLocalFileList(){
+  const wrap = document.getElementById("localFileList"); wrap.innerHTML = "";
+  if(!folderHandle) return;
+  try{
+    const files = [];
+    for await (const [name, handle] of folderHandle.entries()){
+      if(handle.kind==="file" && name.endsWith(".mlsproj.json")) files.push(name);
+    }
+    files.sort();
+    if(!files.length){
+      wrap.innerHTML = `<div class="libraryEmpty">프로젝트가 없습니다.</div>`; return;
+    }
+    files.forEach(fname=>{
+      const item = document.createElement("div");
+      item.className = "projectItem";
+      const meta = document.createElement("div");
+      meta.className = "projectMeta";
+      meta.innerHTML = `<div class="pname">${escapeHtml(fname.replace(/\.mlsproj\.json$/,""))}</div>`;
+      const actions = document.createElement("div");
+      actions.className = "projectActions";
+      const openBtn = document.createElement("button");
+      openBtn.className="icon"; openBtn.textContent="열기";
+      openBtn.addEventListener("click", ()=> loadFromFolder(fname));
+      const delBtn = document.createElement("button");
+      delBtn.className="icon"; delBtn.textContent="🗑";
+      delBtn.addEventListener("click", async ()=>{
+        if(!confirm(`"${fname}" 파일을 삭제할까요?`)) return;
+        try{ await folderHandle.removeEntry(fname); refreshLocalFileList(); }catch(err){}
+      });
+      actions.append(openBtn, delBtn);
+      item.append(meta, actions);
+      wrap.appendChild(item);
+    });
+  }catch(err){}
+}
+
+async function applyProjectFileData(data){
+  const sheets = [];
+  for(const p of (data.pages||[])){
+    const blob = p.image ? await dataUrlToBlob(p.image) : null;
+    sheets.push({id:uid(), blob, dirtyImage:true, annotations:p.annotations||[], markers:p.markers||[], textBoxes:p.textBoxes||[]});
+  }
+  applyLoadedProjectFields(data);
+  state.sheets = sheets;
+  state.currentIndex = 0;
+  currentProjectId = null;
+  currentProjectName = data.name || "";
+  safeClearHash();
+  refreshUiFromState();
+  document.getElementById("localProjectNameInput").value = currentProjectName;
+  updateCurrentProjectLabel();
+}
+
+async function loadFromFolder(fname){
+  if(!(await confirmSwitchAway())) return;
+  try{
+    const fileHandle = await folderHandle.getFileHandle(fname);
+    const file = await fileHandle.getFile();
+    const data = JSON.parse(await file.text());
+    await flushCurrentProject();
+    await applyProjectFileData(data);
+    closeLibrary();
+  }catch(err){ alert("불러오기 실패: " + (err && err.message ? err.message : err)); }
+}
+
+async function loadProjectFromDroppedFile(file){
+  if(!(await confirmSwitchAway())) return;
+  try{
+    const data = JSON.parse(await file.text());
+    await flushCurrentProject();
+    await applyProjectFileData(data);
+    if(!currentProjectName) currentProjectName = file.name.replace(/\.mlsproj\.json$/i, "").replace(/\.json$/i, "");
+    updateCurrentProjectLabel();
+  }catch(err){ alert("불러오기 실패: " + (err && err.message ? err.message : err)); }
+}
+
+document.getElementById("chooseFolderBtn").addEventListener("click", pickFolder);
+document.getElementById("saveToFolderBtn").addEventListener("click", ()=>{
+  saveToFolder(document.getElementById("localProjectNameInput").value.trim());
+});
+
+/* ============ METRONOME / SOUND ENGINE ============ */
+let audioCtx=null, isPlaying=false, nextNoteTime=0, currentBeat=0, noteQueue=[];
+const LOOKAHEAD=25, SCHEDULE_AHEAD=0.12;
+let noiseBufferCache=null;
+
+let metronomeWorker = null;
+function getMetronomeWorker(){
+  if(metronomeWorker) return metronomeWorker;
+  const code = `
+    let intervalId = null;
+    self.onmessage = (e) => {
+      if(e.data && e.data.cmd === "start"){
+        if(intervalId) clearInterval(intervalId);
+        intervalId = setInterval(() => self.postMessage("tick"), e.data.ms);
+      } else if(e.data && e.data.cmd === "stop"){
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+  `;
+  const blob = new Blob([code], {type:"application/javascript"});
+  metronomeWorker = new Worker(URL.createObjectURL(blob));
+  metronomeWorker.onmessage = (e)=>{ if(e.data==="tick" && isPlaying) scheduler(); };
+  return metronomeWorker;
+}
+
+function ensureAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+}
+function secondsPerBeat(){
+  return (60.0/state.bpm) * (4/state.beatUnit);
+}
+function pitchMul(){
+  return Math.pow(2, (state.pitch||0)/12);
+}
+function getNoiseBuffer(){
+  if(noiseBufferCache) return noiseBufferCache;
+  const len = audioCtx.sampleRate * 0.5;
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<len;i++) data[i] = Math.random()*2-1;
+  noiseBufferCache = buf;
+  return buf;
+}
+
+function playTone(time, freq, {duration=0.06, type="sine", gainMul=1} = {}){
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(state.volume*gainMul, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time+duration);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(time); osc.stop(time+duration);
+}
+
+function playNoiseBurst(time, {duration=0.05, filterFreq=2000, filterType="bandpass", q=1, gainMul=1} = {}){
+  const src = audioCtx.createBufferSource();
+  src.buffer = getNoiseBuffer();
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = filterType;
+  filt.frequency.value = filterFreq;
+  filt.Q.value = q;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(state.volume*gainMul, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time+duration);
+  src.connect(filt); filt.connect(gain); gain.connect(audioCtx.destination);
+  src.start(time); src.stop(time+duration);
+}
+
+/* ---------- Drum kits ----------
+ * All synthesized (no sample audio can be embedded in a single HTML file
+ * without shipping real recorded assets), but each kit uses a distinct,
+ * period-appropriate synthesis technique — the 808/909 hi-hats in particular
+ * use the real classic trick (a bank of inharmonic square oscillators through
+ * a high-pass filter) rather than just filtered noise, which is what actually
+ * gives them their metallic ring. */
+function makeDistortionCurve(amount){
+  const n = 1024;
+  const curve = new Float32Array(n);
+  for(let i=0;i<n;i++){
+    const x = i*2/n - 1;
+    curve[i] = (1+amount)*x / (1+amount*Math.abs(x));
+  }
+  return curve;
+}
+let distortionCurveCache = null;
+function getDistortionCurve(){
+  if(!distortionCurveCache) distortionCurveCache = makeDistortionCurve(8);
+  return distortionCurveCache;
+}
+function playMetallicHat(time, {duration=0.05, gainMul=1, brightness=1}={}){
+  const partials = [205, 304, 369, 522, 541, 800]; // classic 808-style inharmonic ratios
+  const hp = audioCtx.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = 6500*brightness;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(state.volume*gainMul*0.5, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time+duration);
+  hp.connect(gain); gain.connect(audioCtx.destination);
+  partials.forEach(f=>{
+    const osc = audioCtx.createOscillator();
+    osc.type = "square";
+    osc.frequency.value = f*brightness*pitchMul();
+    osc.connect(hp);
+    osc.start(time); osc.stop(time+duration);
+  });
+}
+
+const DRUM_KITS = {
+  acoustic: {
+    label: "어쿠스틱 (기본)",
+    kick(time){
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(170*pitchMul(), time);
+      osc.frequency.exponentialRampToValueAtTime(48*pitchMul(), time+0.11);
+      g.gain.setValueAtTime(state.volume, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time+0.17);
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.start(time); osc.stop(time+0.18);
+      playNoiseBurst(time, {duration:0.008, filterFreq:2500, filterType:"highpass", q:0.5, gainMul:0.5}); // beater click
+    },
+    snare(time){
+      playNoiseBurst(time, {duration:0.13, filterFreq:2200, filterType:"bandpass", q:0.8, gainMul:0.75});
+      playNoiseBurst(time, {duration:0.05, filterFreq:5500, filterType:"highpass", q:0.6, gainMul:0.35});
+      playTone(time, 190*pitchMul(), {duration:0.09, type:"triangle", gainMul:0.4});
+      playTone(time, 224*pitchMul(), {duration:0.07, type:"triangle", gainMul:0.25});
+    },
+    hihat(time, gainMul){ playMetallicHat(time, {duration:0.05, gainMul, brightness:1.1}); },
+  },
+  "808": {
+    label: "808",
+    kick(time){
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      const shaper = audioCtx.createWaveShaper();
+      shaper.curve = getDistortionCurve();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(160*pitchMul(), time);
+      osc.frequency.exponentialRampToValueAtTime(38*pitchMul(), time+0.35);
+      g.gain.setValueAtTime(state.volume, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time+0.42);
+      osc.connect(shaper); shaper.connect(g); g.connect(audioCtx.destination);
+      osc.start(time); osc.stop(time+0.45);
+    },
+    snare(time){
+      [0,0.012,0.024].forEach(dt=>{ // layered quick bursts read as a clap, like the real 808 snare
+        playNoiseBurst(time+dt, {duration:0.05, filterFreq:1600, filterType:"bandpass", q:1.2, gainMul:0.45});
+      });
+      playNoiseBurst(time+0.02, {duration:0.15, filterFreq:1500, filterType:"bandpass", q:0.6, gainMul:0.5});
+      playTone(time, 180*pitchMul(), {duration:0.06, type:"triangle", gainMul:0.3});
+    },
+    hihat(time, gainMul){ playMetallicHat(time, {duration:0.035, gainMul, brightness:1}); },
+  },
+  "909": {
+    label: "909",
+    kick(time){
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(180*pitchMul(), time);
+      osc.frequency.exponentialRampToValueAtTime(55*pitchMul(), time+0.18);
+      g.gain.setValueAtTime(state.volume, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time+0.22);
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.start(time); osc.stop(time+0.24);
+      playNoiseBurst(time, {duration:0.006, filterFreq:3500, filterType:"highpass", q:0.4, gainMul:0.6}); // click attack
+    },
+    snare(time){
+      playNoiseBurst(time, {duration:0.1, filterFreq:2500, filterType:"bandpass", q:0.9, gainMul:0.8});
+      playTone(time, 185*pitchMul(), {duration:0.06, type:"square", gainMul:0.35});
+      playTone(time, 330*pitchMul(), {duration:0.05, type:"square", gainMul:0.25});
+    },
+    hihat(time, gainMul){ playMetallicHat(time, {duration:0.04, gainMul, brightness:1.25}); },
+  },
+  brush: {
+    label: "브러시 (부드럽게)",
+    kick(time){
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(120*pitchMul(), time);
+      osc.frequency.exponentialRampToValueAtTime(55*pitchMul(), time+0.09);
+      g.gain.setValueAtTime(state.volume*0.7, time);
+      g.gain.exponentialRampToValueAtTime(0.001, time+0.14);
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.start(time); osc.stop(time+0.15);
+    },
+    snare(time){
+      playNoiseBurst(time, {duration:0.22, filterFreq:2000, filterType:"bandpass", q:0.4, gainMul:0.4});
+      playNoiseBurst(time, {duration:0.15, filterFreq:4500, filterType:"lowpass", q:0.3, gainMul:0.25});
+    },
+    hihat(time, gainMul){ playNoiseBurst(time, {duration:0.06, filterFreq:5500, filterType:"highpass", q:0.5, gainMul:gainMul*0.6}); },
+  },
+};
+function currentKit(){ return DRUM_KITS[state.drumKit] || DRUM_KITS.acoustic; }
+function playKick(time){ currentKit().kick(time); }
+function playSnare(time){ currentKit().snare(time); }
+function playHihat(time, gainMul){ currentKit().hihat(time, gainMul); }
+
+function playClickTimbre(time, accentLevel){
+  const base = accentLevel==="accent" ? 1500 : 900;
+  const freq = base * pitchMul();
+  switch(state.timbre){
+    case "wood":
+      playNoiseBurst(time, {duration:0.035, filterFreq:freq, filterType:"bandpass", q:6, gainMul:1});
+      break;
+    case "click":
+      playNoiseBurst(time, {duration:0.015, filterFreq:freq*3, filterType:"highpass", q:0.5, gainMul:0.9});
+      break;
+    case "cowbell": {
+      playTone(time, freq*0.63, {duration:0.14, type:"square", gainMul:0.35});
+      playTone(time, freq*0.9, {duration:0.14, type:"square", gainMul:0.35});
+      break;
+    }
+    case "rim":
+      playNoiseBurst(time, {duration:0.03, filterFreq:2500, filterType:"bandpass", q:3, gainMul:0.8});
+      playTone(time, freq*0.5, {duration:0.03, type:"square", gainMul:0.3});
+      break;
+    default:
+      playTone(time, freq, {duration:0.06, type:"sine", gainMul:1});
+  }
+}
+
+function playClick(time, mode){
+  if(mode==="mute") return;
+  playClickTimbre(time, mode);
+}
+
+function playDrumHit(time, mode){
+  if(mode==="accent") playKick(time);
+  else if(mode==="normal") playSnare(time);
+}
+
+function scheduleNote(beat, time){
+  noteQueue.push({beat,time});
+  const mode = state.beatPattern[beat] || "normal";
+  if(state.soundMode==="drum") playDrumHit(time, mode);
+  else playClick(time, mode);
+
+  if(state.soundMode==="drum"){
+    const subdivisions = state.subdivision || 4;
+    const beatDur = secondsPerBeat();
+    const unit = beatDur/subdivisions;
+    const swingRatio = state.feel==="swing" ? (state.swingAmount/100) : 0.5;
+    for(let s=0;s<subdivisions;s++){
+      let subTime;
+      const pairIndex = Math.floor(s/2);
+      if(s%2===0){
+        subTime = time + pairIndex*2*unit;
+      } else {
+        subTime = time + pairIndex*2*unit + swingRatio*2*unit;
+      }
+      playHihat(subTime, state.hihatLevel!=null ? state.hihatLevel : 0.5);
+    }
+  }
+}
+
+function scheduler(){
+  while(nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD){
+    scheduleNote(currentBeat, nextNoteTime);
+    nextNoteTime += secondsPerBeat();
+    currentBeat = (currentBeat+1) % state.beatsPerBar;
+  }
+}
+
+function startMetronome(){
+  ensureAudio();
+  if(audioCtx.state==="suspended") audioCtx.resume();
+  isPlaying = true;
+  currentBeat = 0;
+  nextNoteTime = audioCtx.currentTime + 0.05;
+  noteQueue = [];
+  getMetronomeWorker().postMessage({cmd:"start", ms:LOOKAHEAD});
+  requestAnimationFrame(visualLoop);
+  updatePlayButtons();
+}
+
+function stopMetronome(){
+  isPlaying = false;
+  if(metronomeWorker) metronomeWorker.postMessage({cmd:"stop"});
+  noteQueue = [];
+  clearBeatFlash();
+  updatePlayButtons();
+}
+function toggleMetronome(){ isPlaying ? stopMetronome() : startMetronome(); }
+
+function updatePlayButtons(){
+  document.getElementById("playBtn").textContent = isPlaying ? "■ 정지" : "▶ 시작";
+  document.getElementById("playBtn").classList.toggle("active", isPlaying);
+  document.getElementById("bigPlayBtn").textContent = isPlaying ? "■" : "▶";
+  if(focusMode) updateFocusBar();
+  updateDock();
+}
+
+function clearBeatFlash(){
+  document.querySelectorAll(".beatDot").forEach(d=>d.classList.remove("flash"));
+  document.querySelectorAll(".miniDot").forEach(d=>d.classList.remove("flash"));
+}
+
+let lastFlashedBeat=-1;
+function visualLoop(){
+  if(!isPlaying) return;
+  const now = audioCtx.currentTime;
+  while(noteQueue.length && noteQueue[0].time < now){
+    lastFlashedBeat = noteQueue.shift().beat;
+    flashBeat(lastFlashedBeat);
+  }
+  requestAnimationFrame(visualLoop);
+}
+
+function flashBeat(beat){
+  pulseDockRing((state.beatPattern[beat] || "normal") === "accent");
+  clearBeatFlash();
+  const dot = document.querySelector(`.beatDot[data-index="${beat}"]`);
+  if(dot) dot.classList.add("flash");
+  const mini = document.querySelectorAll(".miniDot")[beat];
+  if(mini) mini.classList.add("flash");
+}
+
+/* ============ AUDIO FILE PLAYER ============ */
+let audioEl = null;
+let audioGainNode = null;
+let loopStart = null, loopEnd = null;
+
+function fmtTime(s){
+  s = Math.max(0, Math.floor(s||0));
+  return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0");
+}
+
+function refreshPracticeReadouts(){ updateDock(); updatePracticeCard(); }
+function updateLoopHint(){
+  const hint = document.getElementById("loopStatusHint");
+  if(loopStart==null && loopEnd==null) hint.textContent = "구간 반복: 꺼짐";
+  else hint.textContent = `구간 반복: ${loopStart!=null?fmtTime(loopStart):"?"} ~ ${loopEnd!=null?fmtTime(loopEnd):"?"}`;
+  refreshPracticeReadouts();
+}
+
+function loadAudioFile(file){
+  ensureAudio();
+  if(audioEl){ try{ audioEl.pause(); }catch(err){} }
+  const url = URL.createObjectURL(file);
+  audioEl = new Audio(url);
+  audioEl.preload = "auto";
+  const source = audioCtx.createMediaElementSource(audioEl);
+  audioGainNode = audioCtx.createGain();
+  audioGainNode.gain.value = parseFloat(document.getElementById("audioVolumeSlider").value);
+  source.connect(audioGainNode).connect(audioCtx.destination);
+
+  const rate = parseFloat(document.getElementById("audioRateSlider").value);
+  audioEl.playbackRate = rate;
+  const preserve = document.getElementById("preservePitchChk").checked;
+  audioEl.preservesPitch = preserve;
+  audioEl.webkitPreservesPitch = preserve;
+  audioEl.mozPreservesPitch = preserve;
+
+  loopStart = null; loopEnd = null;
+  updateLoopHint();
+  document.getElementById("audioPlayerControls").style.display = "block";
+  document.getElementById("tempoResultHint").style.display = "none";
+  document.getElementById("audioPlayBtn").textContent = "▶";
+
+  audioEl.addEventListener("loadedmetadata", ()=>{
+    document.getElementById("audioSeek").max = audioEl.duration || 0;
+    document.getElementById("audioTimeLabel").textContent = fmtTime(0) + " / " + fmtTime(audioEl.duration);
+  });
+  audioEl.addEventListener("timeupdate", ()=>{
+    document.getElementById("audioSeek").value = audioEl.currentTime;
+    document.getElementById("audioTimeLabel").textContent = fmtTime(audioEl.currentTime) + " / " + fmtTime(audioEl.duration);
+    if(loopEnd!=null && audioEl.currentTime >= loopEnd){
+      audioEl.currentTime = loopStart!=null ? loopStart : 0;
+    }
+  });
+  audioEl.addEventListener("play", ()=> document.getElementById("audioPlayBtn").textContent = "⏸");
+  audioEl.addEventListener("pause", ()=> document.getElementById("audioPlayBtn").textContent = "▶");
+  audioEl.addEventListener("ended", ()=> document.getElementById("audioPlayBtn").textContent = "▶");
+}
+
+document.getElementById("loadAudioBtn").addEventListener("click", ()=>document.getElementById("audioFileInput").click());
+document.getElementById("audioFileInput").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  if(file) loadAudioFile(file);
+  e.target.value = "";
+});
+document.getElementById("audioPlayBtn").addEventListener("click", ()=>{
+  if(!audioEl) return;
+  if(audioCtx.state==="suspended") audioCtx.resume();
+  if(audioEl.paused) audioEl.play(); else audioEl.pause();
+});
+document.getElementById("audioSeek").addEventListener("input", (e)=>{
+  if(audioEl) audioEl.currentTime = parseFloat(e.target.value);
+});
+document.getElementById("audioRateSlider").addEventListener("input", (e)=>{
+  const rate = parseFloat(e.target.value);
+  document.getElementById("audioRateLabel").textContent = Math.round(rate*100)+"%";
+  if(audioEl) audioEl.playbackRate = rate;
+  refreshPracticeReadouts();
+});
+document.getElementById("preservePitchChk").addEventListener("change", (e)=>{
+  if(!audioEl) return;
+  audioEl.preservesPitch = e.target.checked;
+  audioEl.webkitPreservesPitch = e.target.checked;
+  audioEl.mozPreservesPitch = e.target.checked;
+});
+document.getElementById("audioVolumeSlider").addEventListener("input", (e)=>{
+  if(audioGainNode) audioGainNode.gain.value = parseFloat(e.target.value);
+});
+document.getElementById("setLoopStartBtn").addEventListener("click", ()=>{
+  if(!audioEl) return;
+  loopStart = audioEl.currentTime;
+  if(loopEnd!=null && loopEnd <= loopStart) loopEnd = null;
+  updateLoopHint();
+});
+document.getElementById("setLoopEndBtn").addEventListener("click", ()=>{
+  if(!audioEl) return;
+  loopEnd = audioEl.currentTime;
+  if(loopStart!=null && loopEnd <= loopStart) loopStart = null;
+  updateLoopHint();
+});
+document.getElementById("clearLoopBtn").addEventListener("click", ()=>{
+  loopStart = null; loopEnd = null; updateLoopHint();
+});
+
+function average(arr){
+  let s=0; for(let i=0;i<arr.length;i++) s+=arr[i];
+  return arr.length ? s/arr.length : 0;
+}
+
+async function detectTempo(audioUrl){
+  const resp = await fetch(audioUrl);
+  const arrayBuf = await resp.arrayBuffer();
+  const decodeCtx = new (window.AudioContext||window.webkitAudioContext)();
+  let audioBuffer;
+  try{ audioBuffer = await decodeCtx.decodeAudioData(arrayBuf); }
+  finally{ decodeCtx.close(); }
+
+  const sr = audioBuffer.sampleRate;
+  const raw = audioBuffer.getChannelData(0);
+  const maxSamples = Math.min(raw.length, sr*60);
+  const startSample = Math.max(0, Math.floor((raw.length-maxSamples)/2));
+  const data = raw.subarray(startSample, startSample+maxSamples);
+
+  const windowSize = Math.max(1, Math.floor(sr*0.01));
+  const frames = Math.floor(data.length/windowSize);
+  if(frames < 20) throw new Error("길이가 너무 짧습니다.");
+  const envelope = new Float32Array(frames);
+  for(let i=0;i<frames;i++){
+    let sum=0;
+    const base=i*windowSize;
+    for(let j=0;j<windowSize;j++){ const v=data[base+j]; sum += v*v; }
+    envelope[i] = Math.sqrt(sum/windowSize);
+  }
+  const diff = new Float32Array(frames);
+  for(let i=1;i<frames;i++) diff[i] = Math.max(0, envelope[i]-envelope[i-1]);
+
+  const frameRate = sr/windowSize;
+  const minGapFrames = Math.floor(frameRate*0.25);
+  const threshold = average(diff)*1.5;
+  const peaks = [];
+  for(let i=1;i<frames-1;i++){
+    if(diff[i] > threshold && diff[i] >= diff[i-1] && diff[i] >= diff[i+1]){
+      if(!peaks.length || (i-peaks[peaks.length-1]) >= minGapFrames) peaks.push(i);
+    }
+  }
+  if(peaks.length < 4) throw new Error("리듬을 감지하지 못했습니다.");
+
+  const buckets = new Map();
+  for(let i=1;i<peaks.length;i++){
+    const sec = (peaks[i]-peaks[i-1])/frameRate;
+    let bpm = 60/sec;
+    while(bpm < 60) bpm *= 2;
+    while(bpm > 200) bpm /= 2;
+    const key = Math.round(bpm);
+    buckets.set(key, (buckets.get(key)||0)+1);
+  }
+  let bestBpm = 120, bestCount = 0;
+  for(const [bpm,count] of buckets){
+    if(count > bestCount){ bestCount = count; bestBpm = bpm; }
+  }
+  return bestBpm;
+}
+
+document.getElementById("analyzeTempoBtn").addEventListener("click", async ()=>{
+  if(!audioEl){ alert("음악 파일을 불러와주세요."); return; }
+  const btn = document.getElementById("analyzeTempoBtn");
+  const resultHint = document.getElementById("tempoResultHint");
+  btn.disabled = true; btn.textContent = "분석 중...";
+  resultHint.style.display = "none";
+  try{
+    const bpm = await detectTempo(audioEl.src);
+    resultHint.style.display = "block";
+    resultHint.innerHTML = `추정 템포: <b>${bpm} BPM</b> &nbsp;`;
+    const applyBtn = document.createElement("button");
+    applyBtn.className = "icon";
+    applyBtn.textContent = "적용";
+    applyBtn.addEventListener("click", ()=>{
+      state.bpm = bpm; syncBpmUI(); scheduleSave();
+    });
+    resultHint.appendChild(applyBtn);
+  }catch(err){
+    resultHint.style.display = "block";
+    resultHint.textContent = "분석 실패: " + (err && err.message ? err.message : err);
+  }finally{
+    btn.disabled = false; btn.textContent = "템포 분석";
+  }
+});
+
+/* ---------- Beat pattern UI ---------- */
+function rebuildNumeratorOptions(){
+  const sel = document.getElementById("numeratorSel");
+  sel.innerHTML = "";
+  for(let i=1;i<=16;i++){
+    const o = document.createElement("option");
+    o.value=i; o.textContent=i;
+    sel.appendChild(o);
+  }
+}
+
+function renderBeatDots(){
+  const wrap = document.getElementById("beatDots");
+  wrap.innerHTML = "";
+  for(let i=0;i<state.beatsPerBar;i++){
+    const d = document.createElement("div");
+    d.className = "beatDot";
+    d.dataset.index = i;
+    d.dataset.state = state.beatPattern[i] || "normal";
+    d.textContent = i+1;
+    d.addEventListener("click", ()=>{
+      const cycle = {accent:"normal", normal:"mute", mute:"accent"};
+      const cur = state.beatPattern[i] || "normal";
+      state.beatPattern[i] = cycle[cur];
+      d.dataset.state = state.beatPattern[i];
+      scheduleSave();
+    });
+    wrap.appendChild(d);
+  }
+  renderMiniDots();
+}
+
+function renderMiniDots(){
+  const wrap = document.getElementById("miniDots");
+  wrap.innerHTML = "";
+  for(let i=0;i<state.beatsPerBar;i++){
+    const d = document.createElement("div");
+    d.className = "miniDot" + (state.beatPattern[i]==="accent" ? " on" : "");
+    wrap.appendChild(d);
+  }
+  updateDock();
+}
+
+function applyTimeSignature(){
+  const n = parseInt(document.getElementById("numeratorSel").value,10);
+  const den = parseInt(document.getElementById("denominatorSel").value,10);
+  state.beatUnit = den;
+  const old = state.beatPattern;
+  const defaults = defaultPatternFor(n);
+  const fresh = [];
+  for(let i=0;i<n;i++){ fresh.push(old[i] || defaults[i]); }
+  state.beatsPerBar = n;
+  state.beatPattern = fresh;
+  renderBeatDots();
+  scheduleSave();
+}
+
+/* ============ SHEET MUSIC ============ */
+let scale = 1.0;
+let currentTool = "pen";
+let penColor = COLORS[0];
+let placingType = null;
+let strokeInProgress = null;
+let canvasEl = null, ctx = null;
+let dragMarker = null;
+
+function currentSheet(){ return state.sheets[state.currentIndex] || null; }
+function revokeUrls(){ objectUrls.forEach(u=>URL.revokeObjectURL(u)); objectUrls = []; }
+
+let pdfBuffers = new Map();
+let pdfDocCache = new Map();
+
+function getPdfDoc(sourceId){
+  if(!pdfDocCache.has(sourceId)){
+    pdfDocCache.set(sourceId, pdfjsLib.getDocument({data:pdfBuffers.get(sourceId)}).promise);
+  }
+  return pdfDocCache.get(sourceId);
+}
+
+async function ensurePageBlob(sheet){
+  if(sheet.blob instanceof Blob) return sheet.blob;
+  if(sheet.kind !== "pdf") return null;
+  const pdf = await getPdfDoc(sheet.pdfSourceId);
+  const page = await pdf.getPage(sheet.pageNumber);
+  const viewport = page.getViewport({scale:2});
+  const c = document.createElement("canvas");
+  c.width = viewport.width; c.height = viewport.height;
+  await page.render({canvasContext:c.getContext("2d"), viewport}).promise;
+  const blob = await new Promise(res=>c.toBlob(res,"image/png"));
+  sheet.blob = blob;
+  return blob;
+}
+
+async function fileToPages(file){
+  const pages = [];
+  if(file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")){
+    if(typeof pdfjsLib === "undefined"){
+      throw new Error("PDF 라이브러리를 불러오지 못했습니다.");
+    }
+    const buf = await file.arrayBuffer();
+    const sourceId = uid();
+    pdfBuffers.set(sourceId, buf);
+    const pdf = await getPdfDoc(sourceId);
+    for(let p=1;p<=pdf.numPages;p++){
+      pages.push({
+        id:uid(), kind:"pdf", pdfSourceId:sourceId, pageNumber:p,
+        blob:null, dirtyImage:true, annotations:[], markers:[], textBoxes:[],
+      });
+    }
+  } else {
+    pages.push({id:uid(), kind:"image", blob:file, dirtyImage:true, annotations:[], markers:[], textBoxes:[]});
+  }
+  return pages;
+}
+
+async function handleIncomingFiles(fileList, {forceReplace}={}){
+  const files = Array.from(fileList).filter(f =>
+    f.type.startsWith("image/") || f.type==="application/pdf" || /\.pdf$/i.test(f.name)
+  );
+  if(!files.length) return;
+  const replace = forceReplace || state.sheets.length===0;
+  if(replace && state.sheets.length && !confirm("현재 악보를 교체할까요?")) return;
+  try{
+    let newPages = [];
+    for(const f of files) newPages = newPages.concat(await fileToPages(f));
+    if(replace){
+      state.sheets = newPages;
+      state.currentIndex = 0;
+    } else {
+      state.sheets.push(...newPages);
+      state.currentIndex = state.sheets.length - newPages.length;
+    }
+    renderSheet();
+    scheduleSave();
+  }catch(err){ alert("업로드 실패: " + (err && err.message ? err.message : err)); }
+}
+
+document.getElementById("uploadBtn").addEventListener("click", ()=>document.getElementById("fileInput").click());
+document.getElementById("fileInput").addEventListener("change", async (e)=>{
+  if(e.target.files.length) await handleIncomingFiles(e.target.files, {forceReplace:true});
+  e.target.value = "";
+});
+
+document.getElementById("addPageBtn").addEventListener("click", ()=>document.getElementById("addPageInput").click());
+document.getElementById("addPageInput").addEventListener("change", async (e)=>{
+  if(e.target.files.length) await handleIncomingFiles(e.target.files, {forceReplace:false});
+  e.target.value = "";
+});
+
+(function setupFileDropUpload(){
+  const viewport = document.getElementById("sheetViewport");
+  function hasFiles(e){ return e.dataTransfer && Array.from(e.dataTransfer.types||[]).includes("Files"); }
+  ["dragenter","dragover"].forEach(evt => viewport.addEventListener(evt, (e)=>{
+    if(!hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    viewport.classList.add("dropHighlight");
+  }));
+  viewport.addEventListener("dragleave", (e)=>{
+    if(e.target===viewport) viewport.classList.remove("dropHighlight");
+  });
+  viewport.addEventListener("drop", (e)=>{
+    if(!hasFiles(e)) return;
+    e.preventDefault();
+    viewport.classList.remove("dropHighlight");
+    const files = e.dataTransfer.files;
+    if(!files.length) return;
+    const projectFile = Array.from(files).find(f => /\.mlsproj\.json$/i.test(f.name));
+    if(projectFile) loadProjectFromDroppedFile(projectFile);
+    else handleIncomingFiles(files, {forceReplace:false});
+  });
+})();
+
+function wireEmptyStateButtons(){
+  const uploadBtn2 = document.getElementById("emptyStateUploadBtn");
+  if(uploadBtn2) uploadBtn2.addEventListener("click", ()=>document.getElementById("fileInput").click());
+  const libBtn2 = document.getElementById("emptyStateLibraryBtn");
+  if(libBtn2) libBtn2.addEventListener("click", openLibrary);
+}
+function renderSheet(){
+  const stage = document.getElementById("sheetStage");
+  stage.innerHTML = "";
+  stage.classList.toggle("placing", !!placingType);
+  const sheet = currentSheet();
+
+  document.getElementById("pageLabel").textContent =
+    state.sheets.length ? `${state.currentIndex+1} / ${state.sheets.length}` : "0 / 0";
+  if(focusMode) updateFocusBar();
+  updatePerformHead();
+
+  if(sheet && sheet.kind==="pdf" && !(sheet.blob instanceof Blob)){
+    const loading = document.createElement("div");
+    loading.className = "emptySheet";
+    loading.innerHTML = `<div style="font-size:13px;">페이지 로딩 중...</div>`;
+    stage.appendChild(loading);
+    canvasEl = null; ctx = null;
+    renderPageStrip();
+    const requestedSheet = sheet;
+    ensurePageBlob(sheet).then(()=>{
+      if(currentSheet() !== requestedSheet) return;
+      renderSheet();
+    }).catch(err=>{
+      if(currentSheet() === requestedSheet){
+        stage.innerHTML = `<div class="emptySheet"><div>페이지를 불러오지 못했습니다.</div></div>`;
+      }
+    });
+    return;
+  }
+
+  if(!sheet || !(sheet.blob instanceof Blob)){
+    const empty = document.createElement("div");
+    empty.className = "emptySheet";
+    if(sheet){
+      empty.innerHTML = `<div style="font-size:13px;">이미지를 불러오지 못했습니다. 다시 업로드해 주세요.</div>`;
+    } else {
+      empty.innerHTML = `
+        <div style="width:64px; height:64px; border-radius:50%; background:var(--panel-alt); display:flex; align-items:center; justify-content:center;">
+          <svg class="icon-svg" style="width:28px; height:28px; opacity:0.55;" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+        </div>
+        <div style="font-family:'Caprasimo','Gowun Batang',serif; font-size:20px;">첫 악보를 올려주세요</div>
+        <div style="font-size:13px; color:var(--text-dim); max-width:320px; line-height:1.6;">이미지나 PDF를 끌어다 놓으면 페이지가 만들어집니다. 그 위에 펜으로 표시하고, 송폼 마커를 찍고, 레슨 노트를 함께 남길 수 있습니다.</div>
+        <button class="primary" id="emptyStateUploadBtn">파일 선택</button>
+        <div class="hint" style="padding:0;">JPG · PNG · PDF</div>
+        <button class="icon" id="emptyStateLibraryBtn" style="background:transparent; border-color:transparent; color:var(--text-dim); text-decoration:underline;">보관함에서 열기</button>
+      `;
+    }
+    stage.appendChild(empty);
+    canvasEl = null; ctx = null;
+    renderPageStrip();
+    wireEmptyStateButtons();
+    return;
+  }
+
+  revokeUrls();
+  const url = URL.createObjectURL(sheet.blob);
+  objectUrls.push(url);
+
+  const img = new Image();
+  stage.appendChild(img);
+
+  canvasEl = document.createElement("canvas");
+  canvasEl.id = "annotationCanvas";
+  stage.appendChild(canvasEl);
+  ctx = canvasEl.getContext("2d");
+
+  img.addEventListener("load", ()=>{
+    canvasEl.width = img.naturalWidth;
+    canvasEl.height = img.naturalHeight;
+    redrawAnnotations();
+  });
+  img.src = url;
+
+  renderMarkers();
+  renderTextBoxes();
+  renderSnapGrid();
+  attachCanvasEvents();
+  renderPageStrip();
+}
+
+let pageThumbUrls = new Map();
+
+function cleanupThumbUrls(){
+  const liveIds = new Set(state.sheets.map(s=>s.id));
+  for(const [id, url] of pageThumbUrls){
+    if(!liveIds.has(id)){ URL.revokeObjectURL(url); pageThumbUrls.delete(id); }
+  }
+}
+
+function renderPageStrip(){
+  cleanupThumbUrls();
+  const strip = document.getElementById("pageStrip");
+  strip.innerHTML = "";
+  state.sheets.forEach((sheet, i)=>{
+    const item = document.createElement("div");
+    item.className = "pageThumb" + (i===state.currentIndex ? " current" : "");
+    item.draggable = true;
+
+    if(sheet.blob instanceof Blob){
+      let url = pageThumbUrls.get(sheet.id);
+      if(!url){ url = URL.createObjectURL(sheet.blob); pageThumbUrls.set(sheet.id, url); }
+      const img = document.createElement("img");
+      img.src = url;
+      item.appendChild(img);
+    } else if(sheet.kind==="pdf"){
+      item.classList.add("missing");
+      item.textContent = "📄";
+    } else {
+      item.classList.add("missing");
+      item.textContent = "⚠️";
+    }
+
+    const num = document.createElement("div");
+    num.className = "pageThumbNum";
+    num.textContent = i+1;
+    item.appendChild(num);
+
+    const del = document.createElement("div");
+    del.className = "pageThumbDel";
+    del.textContent = "✕";
+    del.addEventListener("click", (ev)=>{ ev.stopPropagation(); deletePage(i); });
+    item.appendChild(del);
+
+    item.addEventListener("click", ()=>{
+      if(state.currentIndex===i) return;
+      state.currentIndex = i; renderSheet(); scheduleSave();
+    });
+    item.addEventListener("dragstart", (ev)=>{
+      ev.dataTransfer.setData("application/x-page-index", String(i));
+      ev.dataTransfer.effectAllowed = "move";
+    });
+    item.addEventListener("dragover", (ev)=>{
+      if(Array.from(ev.dataTransfer.types||[]).includes("application/x-page-index")){
+        ev.preventDefault();
+        item.classList.add("dragOver");
+      }
+    });
+    item.addEventListener("dragleave", ()=> item.classList.remove("dragOver"));
+    item.addEventListener("drop", (ev)=>{
+      const raw = ev.dataTransfer.getData("application/x-page-index");
+      if(raw==="") return;
+      ev.preventDefault(); ev.stopPropagation();
+      item.classList.remove("dragOver");
+      const from = parseInt(raw,10);
+      if(from!==i) movePage(from, i);
+    });
+
+    strip.appendChild(item);
+  });
+
+  const addTile = document.createElement("div");
+  addTile.className = "pageThumb addTile";
+  addTile.textContent = "＋";
+  addTile.addEventListener("click", ()=> document.getElementById("addPageInput").click());
+  strip.appendChild(addTile);
+}
+
+function movePage(from, to){
+  const [moved] = state.sheets.splice(from,1);
+  state.sheets.splice(to,0,moved);
+  if(state.currentIndex===from) state.currentIndex = to;
+  else if(from < state.currentIndex && to >= state.currentIndex) state.currentIndex--;
+  else if(from > state.currentIndex && to <= state.currentIndex) state.currentIndex++;
+  renderSheet();
+  scheduleSave();
+}
+
+function deletePage(i){
+  if(!confirm(`${i+1}번 페이지를 삭제할까요?`)) return;
+  state.sheets.splice(i,1);
+  if(state.currentIndex >= state.sheets.length) state.currentIndex = Math.max(0, state.sheets.length-1);
+  renderSheet();
+  scheduleSave();
+}
+
+function redrawAnnotations(){
+  if(!ctx) return;
+  ctx.clearRect(0,0,canvasEl.width, canvasEl.height);
+  const sheet = currentSheet();
+  if(!sheet) return;
+  sheet.annotations.forEach(stroke=>{
+    ctx.globalCompositeOperation = stroke.mode==="erase" ? "destination-out" : "source-over";
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    stroke.points.forEach((p,i)=> i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.stroke();
+  });
+  ctx.globalCompositeOperation = "source-over";
+}
+
+function canvasCoords(evt){
+  const rect = canvasEl.getBoundingClientRect();
+  const x = (evt.clientX - rect.left) * (canvasEl.width / rect.width);
+  const y = (evt.clientY - rect.top) * (canvasEl.height / rect.height);
+  return {x,y};
+}
+
+function attachCanvasEvents(){
+  if(!canvasEl) return;
+  canvasEl.addEventListener("pointerdown", onPointerDown);
+  canvasEl.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", onPointerUp);
+  document.getElementById("sheetStage").addEventListener("click", onStageClickForMarker);
+}
+
+function onPointerDown(e){
+  if(placingType || placingText) return;
+  if(e.pointerType === "touch") return;
+  const sheet = currentSheet();
+  if(!sheet) return;
+  e.preventDefault();
+  const {x,y} = canvasCoords(e);
+  strokeInProgress = {
+    color: currentTool==="eraser" ? "#000" : penColor,
+    width: currentTool==="eraser" ? 22 : parseInt(document.getElementById("penWidth").value,10),
+    mode: currentTool==="eraser" ? "erase" : "draw",
+    points: [{x,y}],
+  };
+}
+
+function onPointerMove(e){
+  if(!strokeInProgress) return;
+  const {x,y} = canvasCoords(e);
+  strokeInProgress.points.push({x,y});
+  ctx.globalCompositeOperation = strokeInProgress.mode==="erase" ? "destination-out" : "source-over";
+  ctx.strokeStyle = strokeInProgress.color;
+  ctx.lineWidth = strokeInProgress.width;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const pts = strokeInProgress.points;
+  ctx.beginPath();
+  ctx.moveTo(pts[pts.length-2].x, pts[pts.length-2].y);
+  ctx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
+  ctx.stroke();
+  ctx.globalCompositeOperation = "source-over";
+}
+
+function onPointerUp(){
+  if(!strokeInProgress) return;
+  if(strokeInProgress.points.length > 1){
+    const sheet = currentSheet();
+    if(sheet){
+      sheet.annotations.push(strokeInProgress);
+      sheet.redoStack = [];
+    }
+    scheduleSave();
+  }
+  strokeInProgress = null;
+}
+
+function undoAnnotation(){
+  const sheet = currentSheet();
+  if(!sheet || !sheet.annotations.length) return;
+  if(!sheet.redoStack) sheet.redoStack = [];
+  sheet.redoStack.push(sheet.annotations.pop());
+  redrawAnnotations();
+  scheduleSave();
+}
+
+function redoAnnotation(){
+  const sheet = currentSheet();
+  if(!sheet || !sheet.redoStack || !sheet.redoStack.length) return;
+  sheet.annotations.push(sheet.redoStack.pop());
+  redrawAnnotations();
+  scheduleSave();
+}
+
+document.getElementById("undoBtn").addEventListener("click", undoAnnotation);
+document.getElementById("redoBtn").addEventListener("click", redoAnnotation);
+document.getElementById("clearBtn").addEventListener("click", ()=>{
+  const sheet = currentSheet();
+  if(!sheet) return;
+  if(!confirm("이 페이지 필기를 초기화할까요?")) return;
+  sheet.annotations = []; sheet.redoStack = [];
+  redrawAnnotations(); scheduleSave();
+});
+
+document.addEventListener("keydown", (e)=>{
+  if(isTypingTarget(document.activeElement)) return;
+  const mod = e.metaKey || e.ctrlKey;
+  if(!mod) return;
+  const key = e.key.toLowerCase();
+  if(key==="z" && !e.shiftKey){ e.preventDefault(); undoAnnotation(); }
+  else if((key==="z" && e.shiftKey) || key==="y"){ e.preventDefault(); redoAnnotation(); }
+});
+
+function renderColorSwatches(){
+  const wrap = document.getElementById("colorSwatches"); wrap.innerHTML = "";
+  COLORS.forEach(c=>{
+    const s = document.createElement("div");
+    s.className = "swatch" + (c===penColor ? " selected" : "");
+    s.style.background = c;
+    s.addEventListener("click", ()=>{
+      penColor = c; currentTool = "pen"; setTool("pen"); renderColorSwatches();
+    });
+    wrap.appendChild(s);
+  });
+}
+
+function setTool(tool){
+  currentTool = tool;
+  document.getElementById("penTool").classList.toggle("active", tool==="pen");
+  document.getElementById("eraserTool").classList.toggle("active", tool==="eraser");
+}
+document.getElementById("penTool").addEventListener("click", ()=>setTool("pen"));
+document.getElementById("eraserTool").addEventListener("click", ()=>setTool("eraser"));
+
+function applyZoom(){
+  document.getElementById("sheetStage").style.maxWidth = (1200*scale)+"px";
+  document.getElementById("zoomLabel").textContent = Math.round(scale*100)+"%";
+}
+document.getElementById("zoomIn").addEventListener("click", ()=>{ scale = Math.min(2.5, scale+0.1); applyZoom(); });
+document.getElementById("zoomOut").addEventListener("click", ()=>{ scale = Math.max(0.5, scale-0.1); applyZoom(); });
+
+(function setupTouchGestures(){
+  const viewport = document.getElementById("sheetViewport");
+  const activePointers = new Map();
+  let pinchStartDist = null, pinchStartScale = 1;
+  let swipeStartX = null, swipeStartY = null, swiping = false;
+
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+  viewport.addEventListener("pointerdown", (e)=>{
+    if(e.pointerType !== "touch") return;
+    activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+
+    if(activePointers.size === 2){
+      const pts = Array.from(activePointers.values());
+      pinchStartDist = dist(pts[0], pts[1]);
+      pinchStartScale = scale;
+      swiping = false; swipeStartX = null; swipeStartY = null;
+    } else if(activePointers.size === 1 && focusMode && !e.target.closest(".focusBar")){
+      const rect = viewport.getBoundingClientRect();
+      if((e.clientY - rect.top) < rect.height * 0.2){
+        swipeStartX = e.clientX; swipeStartY = e.clientY; swiping = true;
+      }
+    }
+  });
+
+  viewport.addEventListener("pointermove", (e)=>{
+    if(e.pointerType !== "touch" || !activePointers.has(e.pointerId)) return;
+    activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+
+    if(activePointers.size === 2 && pinchStartDist){
+      e.preventDefault();
+      const pts = Array.from(activePointers.values());
+      const ratio = dist(pts[0], pts[1]) / pinchStartDist;
+      scale = Math.max(0.5, Math.min(2.5, pinchStartScale * ratio));
+      applyZoom();
+      return;
+    }
+    if(swiping && swipeStartY!=null){
+      const dy = e.clientY - swipeStartY;
+      const dx = Math.abs(e.clientX - swipeStartX);
+      if(dy > 90 && dx < 60){
+        swiping = false; swipeStartX = null; swipeStartY = null;
+        setFocusMode(false);
+      }
+    }
+  }, {passive:false});
+
+  function release(e){
+    activePointers.delete(e.pointerId);
+    if(activePointers.size < 2) pinchStartDist = null;
+    if(activePointers.size === 0){ swiping = false; swipeStartX = null; swipeStartY = null; }
+  }
+  viewport.addEventListener("pointerup", release);
+  viewport.addEventListener("pointercancel", release);
+})();
+
+function goPrevPage(){ if(state.currentIndex>0){ state.currentIndex--; renderSheet(); scheduleSave(); } }
+function goNextPage(){ if(state.currentIndex < state.sheets.length-1){ state.currentIndex++; renderSheet(); scheduleSave(); } }
+document.getElementById("prevPage").addEventListener("click", goPrevPage);
+document.getElementById("nextPage").addEventListener("click", goNextPage);
+document.getElementById("navEdgeLeft").addEventListener("click", goPrevPage);
+document.getElementById("navEdgeRight").addEventListener("click", goNextPage);
+
+let focusMode = false;
+function updateFocusBar(){
+  document.getElementById("focusPageLabel").textContent = document.getElementById("pageLabel").textContent;
+  document.getElementById("focusPlayBtn").textContent = isPlaying ? "■" : "▶";
+  document.getElementById("focusBpmLabel").textContent = state.bpm + " BPM";
+  document.getElementById("focusMiniDots").innerHTML = document.getElementById("miniDots").innerHTML;
+}
+
+function setFocusMode(on){
+  focusMode = on;
+  document.body.classList.toggle("focusMode", on);
+  document.querySelector(".app-layout").classList.toggle("focusMode", on);
+  document.getElementById("focusModeBtnLabel").textContent = on ? "종료" : "전체화면";
+  updateFocusBar();
+  updatePerformHead();
+  // Leaving fullscreen by Esc/swipe/browser must drop us back out of 연주 모드.
+  if(!on && state.uiMode === "perform") setUiMode(modeBeforePerform || "studio");
+  if(on){
+    if(document.documentElement.requestFullscreen){ document.documentElement.requestFullscreen().catch(()=>{}); }
+  } else if(document.fullscreenElement && document.exitFullscreen){
+    document.exitFullscreen().catch(()=>{});
+  }
+}
+
+/* ============ 모드 시스템: 작업 / 레슨 / 연주 ============
+ * 작업(studio) — 책상에서 준비. 기존 3패널 워크스페이스.
+ * 레슨(lesson) — 악기 앞. 악보 최대화 + 왼쪽 도구 레일 + 하단 메트로놈 도크 + 오른쪽 탭 패널.
+ * 연주(perform) — 연주 전용. 악보 + 최소 컨트롤만.
+ * 세 모드가 같은 DOM/로직을 공유하도록, 패널 내용은 복제하지 않고 노드를 옮겨 붙인다
+ * (이벤트 리스너는 노드에 붙어 있으므로 이동해도 그대로 살아 있다). */
+let modeBeforePerform = "studio";
+const dockedNodes = new Map(); // el -> {parent, next}
+
+function dockNode(el, target){
+  if(!el || !target) return;
+  if(!dockedNodes.has(el)) dockedNodes.set(el, {parent: el.parentNode, next: el.nextSibling});
+  target.appendChild(el);
+}
+function undockContainer(container){
+  Array.from(container.children).forEach(el=>{
+    const pos = dockedNodes.get(el);
+    if(!pos || !pos.parent) return;
+    if(pos.next && pos.next.parentNode === pos.parent) pos.parent.insertBefore(el, pos.next);
+    else pos.parent.appendChild(el);
+    dockedNodes.delete(el);
+  });
+}
+function undockAll(){
+  for(const [el, pos] of dockedNodes){
+    if(!pos.parent) continue;
+    if(pos.next && pos.next.parentNode === pos.parent) pos.parent.insertBefore(el, pos.next);
+    else pos.parent.appendChild(el);
+  }
+  dockedNodes.clear();
+}
+
+const RAIL_ICONS = {penTool:"✏️", eraserTool:"🧽", textTool:"가", undoBtn:"↺", redoBtn:"↻", snapToggle:"🧲"};
+const railOriginalHTML = new Map();
+function enterLessonLayout(){
+  const rail = document.getElementById("railSlot");
+  Object.keys(RAIL_ICONS).forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(!railOriginalHTML.has(id)) railOriginalHTML.set(id, el.innerHTML);
+    el.innerHTML = RAIL_ICONS[id];
+    dockNode(el, rail);
+  });
+  const flyout = document.getElementById("railFlyout");
+  ["colorSwatches","penWidth","textFontControls","snapDivisionsSel"].forEach(id=>{
+    dockNode(document.getElementById(id), flyout);
+  });
+  openLessonTab(lessonTab, {keepClosed:true});
+}
+function exitLessonLayout(){
+  railOriginalHTML.forEach((html,id)=>{ const el=document.getElementById(id); if(el) el.innerHTML = html; });
+  railOriginalHTML.clear();
+  document.getElementById("railFlyout").hidden = true;
+  document.getElementById("lessonPanel").hidden = true;
+  undockAll();
+}
+
+function setUiMode(mode){
+  if(mode !== "perform" && state.uiMode === "perform") modeBeforePerform = mode;
+  if(mode === "perform" && state.uiMode !== "perform") modeBeforePerform = state.uiMode || "studio";
+  state.uiMode = mode;
+  const layout = document.querySelector(".app-layout");
+  layout.classList.toggle("mode-lesson", mode === "lesson");
+  layout.classList.toggle("mode-studio", mode === "studio");
+
+  if(mode === "lesson") enterLessonLayout(); else exitLessonLayout();
+  if(mode === "perform"){ if(!focusMode) setFocusMode(true); }
+  else if(focusMode){ focusMode = false;
+    document.body.classList.remove("focusMode");
+    layout.classList.remove("focusMode");
+    document.getElementById("focusModeBtnLabel").textContent = "전체화면";
+    if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+  }
+
+  document.querySelectorAll("#modeSwitch button").forEach(b=>b.classList.toggle("active", b.dataset.mode===mode));
+  updateDock(); updatePerformHead(); renderSheet(); scheduleSave();
+}
+document.querySelectorAll("#modeSwitch button").forEach(b=>{
+  b.addEventListener("click", ()=> setUiMode(b.dataset.mode));
+});
+
+/* ---------- 레슨 모드 탭 패널 ---------- */
+let lessonTab = "form";
+const LESSON_TAB_LABEL = {form:"송폼", page:"페이지", audio:"오디오", note:"레슨 노트"};
+function openLessonTab(tab, opts){
+  const panel = document.getElementById("lessonPanel");
+  const body = document.getElementById("lessonPanelBody");
+  const sameTabOpen = (lessonTab === tab) && !panel.hidden;
+  lessonTab = tab;
+  undockContainer(body); // 이전 탭 내용은 원래 자리로 돌려놓는다
+  document.querySelectorAll("#lessonTabsFloat button").forEach(b=>b.classList.toggle("active", b.dataset.ltab===tab));
+  document.getElementById("lessonPanelTitle").textContent = LESSON_TAB_LABEL[tab] || "";
+
+  if(tab === "form") dockNode(document.getElementById("formTypeBar").parentElement, body);
+  else if(tab === "page") dockNode(document.getElementById("pageStrip"), body);
+  else if(tab === "audio"){
+    dockNode(document.getElementById("modeClick").closest("section"), body);
+    dockNode(document.getElementById("loadAudioBtn").closest("section"), body);
+  } else if(tab === "note") dockNode(document.getElementById("notesArea").closest("section"), body);
+
+  document.getElementById("practiceCard").hidden = !(tab === "note" || tab === "form");
+  updatePracticeCard();
+  if(opts && opts.keepClosed) return;
+  panel.hidden = sameTabOpen ? true : false;
+  document.querySelectorAll("#lessonTabsFloat button").forEach(b=>{
+    if(panel.hidden) b.classList.remove("active");
+  });
+}
+document.querySelectorAll("#lessonTabsFloat button").forEach(b=>{
+  b.addEventListener("click", ()=> openLessonTab(b.dataset.ltab));
+});
+document.getElementById("lessonPanelClose").addEventListener("click", ()=>{
+  document.getElementById("lessonPanel").hidden = true;
+  document.querySelectorAll("#lessonTabsFloat button").forEach(b=>b.classList.remove("active"));
+});
+document.getElementById("dockPanelBtn").addEventListener("click", ()=> openLessonTab(lessonTab));
+document.getElementById("railMoreBtn").addEventListener("click", ()=>{
+  const f = document.getElementById("railFlyout");
+  f.hidden = !f.hidden;
+});
+
+/* ---------- 하단 메트로놈 도크 ---------- */
+function updateDock(){
+  document.getElementById("dockBpmNum").textContent = state.bpm;
+  document.getElementById("dockPlayIcon").textContent = isPlaying ? "■" : "▶";
+  const timbreSel = document.getElementById("timbreSel");
+  const kitSel = document.getElementById("drumKitSel");
+  const voice = state.soundMode === "drum"
+    ? (kitSel.options[kitSel.selectedIndex] || {}).text
+    : (timbreSel.options[timbreSel.selectedIndex] || {}).text;
+  document.getElementById("dockMeta").textContent =
+    `${state.beatsPerBar}/${state.beatUnit} · ${(voice||"").split(" (")[0]}`;
+  document.getElementById("dockDots").innerHTML = document.getElementById("miniDots").innerHTML;
+
+  const loopChip = document.getElementById("dockLoop");
+  if(loopStart!=null && loopEnd!=null){
+    const rate = Math.round((audioEl ? audioEl.playbackRate : 1) * 100);
+    loopChip.hidden = false;
+    loopChip.textContent = `A-B ${fmtTime(loopStart)} → ${fmtTime(loopEnd)} · ${rate}%`;
+  } else loopChip.hidden = true;
+}
+function pulseDockRing(isAccent){
+  const ring = document.getElementById("dockRing");
+  if(!ring || state.uiMode !== "lesson") return;
+  ring.classList.remove("pulse","accent");
+  void ring.offsetWidth; // restart the animation
+  ring.classList.add("pulse");
+  if(isAccent) ring.classList.add("accent");
+}
+document.getElementById("dockPlayBtn").addEventListener("click", toggleMetronome);
+document.getElementById("dockBpmUp").addEventListener("click", ()=>{ state.bpm = Math.min(300, state.bpm+5); syncBpmUI(); scheduleSave(); });
+document.getElementById("dockBpmDown").addEventListener("click", ()=>{ state.bpm = Math.max(20, state.bpm-5); syncBpmUI(); scheduleSave(); });
+document.getElementById("dockTapBtn").addEventListener("click", ()=> document.getElementById("tapTempoBtn").click());
+document.getElementById("dockLoop").addEventListener("click", ()=>{ setUiMode("lesson"); openLessonTab("audio"); });
+
+/* ---------- 연주 모드 상단 표시 ---------- */
+function updatePerformHead(){
+  const head = document.getElementById("performHead");
+  if(!head) return;
+  document.getElementById("performTitle").textContent =
+    (currentProjectName || "연주 모드") + " · " + document.getElementById("pageLabel").textContent;
+  const m = findPracticingMarker();
+  const sec = document.getElementById("performSection");
+  if(m){ sec.hidden = false; sec.textContent = m.label + (m.bar ? ` · ${m.bar}마디` : ""); }
+  else sec.hidden = true;
+}
+
+/* ---------- "지금 연습 중" ---------- */
+function findPracticingMarker(){
+  const sheet = currentSheet();
+  if(!sheet || !state.practicingId) return null;
+  return (sheet.markers||[]).find(m=>m.id===state.practicingId) || null;
+}
+function setPracticing(id){
+  state.practicingId = (state.practicingId===id) ? null : id;
+  renderMarkers(); updatePracticeCard(); updatePerformHead(); scheduleSave();
+}
+/* ---------- 마커 모양 토글: 구간 브래킷 ↔ 지점 핀 ---------- */
+function updateMarkerShapeBtn(){
+  const btn = document.getElementById("markerShapeBtn");
+  const isBracket = state.markerShape === "bracket";
+  btn.textContent = isBracket ? "▐ 구간" : "📍 지점";
+  btn.title = isBracket
+    ? "마디 구간 브래킷으로 배치 (클릭하면 지점 핀으로 전환)"
+    : "지점 핀으로 배치 (클릭하면 마디 구간 브래킷으로 전환)";
+}
+document.getElementById("markerShapeBtn").addEventListener("click", ()=>{
+  state.markerShape = state.markerShape === "bracket" ? "pin" : "bracket";
+  updateMarkerShapeBtn(); scheduleSave();
+});
+
+function updatePracticeCard(){
+  const card = document.getElementById("practiceCard");
+  if(!card) return;
+  const m = findPracticingMarker();
+  document.getElementById("practiceCardMain").textContent =
+    m ? (m.label + (m.bar ? ` ${m.bar}마디` : "")) : "구간을 선택하세요";
+  const bits = [];
+  if(audioEl) bits.push(`${Math.round(audioEl.playbackRate*100)}% 속도`);
+  if(loopStart!=null && loopEnd!=null) bits.push(`A–B ${fmtTime(loopStart)}–${fmtTime(loopEnd)}`);
+  bits.push(`${state.bpm} BPM`);
+  document.getElementById("practiceCardSub").textContent = bits.join(" · ");
+}
+
+document.getElementById("focusModeBtn").addEventListener("click", ()=> setUiMode(focusMode ? (modeBeforePerform||"studio") : "perform"));
+document.getElementById("focusExitBtn").addEventListener("click", ()=> setUiMode(modeBeforePerform || "studio"));
+document.getElementById("focusPrevBtn").addEventListener("click", goPrevPage);
+document.getElementById("focusNextBtn").addEventListener("click", goNextPage);
+document.getElementById("focusPlayBtn").addEventListener("click", toggleMetronome);
+
+document.addEventListener("keydown", (e)=>{
+  if(e.key==="Escape" && focusMode) setFocusMode(false);
+});
+document.addEventListener("fullscreenchange", ()=>{
+  if(!document.fullscreenElement && focusMode) setFocusMode(false);
+});
+
+function isTypingTarget(el){
+  if(!el) return false;
+  const tag = el.tagName;
+  return tag==="INPUT" || tag==="TEXTAREA" || tag==="SELECT" || el.isContentEditable;
+}
+
+document.addEventListener("keydown", (e)=>{
+  if(isTypingTarget(document.activeElement)) return;
+  if(e.key==="ArrowLeft"){ e.preventDefault(); goPrevPage(); }
+  else if(e.key==="ArrowRight"){ e.preventDefault(); goNextPage(); }
+});
+
+function setPlacingType(key){
+  placingType = key;
+  if(key){
+    placingText = false;
+    document.getElementById("textTool").classList.remove("active");
+  }
+  document.querySelectorAll(".formTypeBtn").forEach(b=>{
+    const on = b.dataset.key===key;
+    b.classList.toggle("armed", on);
+    const ft = findFormType(b.dataset.key);
+    b.style.background = on && ft ? ft.color : "";
+  });
+  document.getElementById("sheetStage").classList.toggle("placing", !!placingType || placingText);
+  if(placingType){
+    const ft = findFormType(placingType);
+    document.getElementById("placingHint").textContent = `"${ft.label}" 배치 위치를 클릭하세요. (Esc 취소)`;
+    document.getElementById("placingHint").style.display = "block";
+  } else if(!placingText){
+    document.getElementById("placingHint").style.display = "none";
+  }
+}
+
+async function addCustomFormType(){
+  const label = prompt("새 송폼 이름 입력:");
+  if(!label || !label.trim()) return;
+  customFormTypes.push({key:"custom-"+uid(), label:label.trim(), color: CUSTOM_TYPE_COLORS[customFormTypes.length % CUSTOM_TYPE_COLORS.length]});
+  await idbPut("customFormTypes", customFormTypes);
+  renderFormTypeBar();
+}
+
+async function removeCustomFormType(key){
+  const ft = findFormType(key);
+  if(!ft || !confirm(`"${ft.label}" 항목을 삭제할까요?`)) return;
+  customFormTypes = customFormTypes.filter(c=>c.key!==key);
+  await idbPut("customFormTypes", customFormTypes);
+  renderFormTypeBar();
+}
+
+function renderFormTypeBar(){
+  const wrap = document.getElementById("formTypeBar");
+  wrap.innerHTML = "";
+  allFormTypes().forEach(ft=>{
+    const b = document.createElement("button");
+    b.className = "formTypeBtn icon";
+    b.dataset.key = ft.key;
+    b.draggable = true;
+    b.innerHTML = `<span class="dot" style="background:${ft.color}"></span>${ft.label}`;
+    b.addEventListener("click", ()=> setPlacingType(placingType===ft.key ? null : ft.key));
+    b.addEventListener("dragstart", (ev)=>{
+      ev.dataTransfer.setData("text/plain", ft.key);
+      ev.dataTransfer.effectAllowed = "copy";
+    });
+    if(ft.key.startsWith("custom-")){
+      b.addEventListener("contextmenu", (ev)=>{ ev.preventDefault(); removeCustomFormType(ft.key); });
+    }
+    wrap.appendChild(b);
+  });
+  const addBtn = document.createElement("button");
+  addBtn.className = "icon";
+  addBtn.textContent = "＋ 추가";
+  addBtn.addEventListener("click", addCustomFormType);
+  wrap.appendChild(addBtn);
+}
+
+document.addEventListener("keydown", (e)=>{
+  if(e.key==="Escape"){
+    if(placingType) setPlacingType(null);
+    if(placingText) setPlacingText(false);
+  }
+});
+
+function snapPct(pct){
+  if(!state.snapEnabled) return pct;
+  const step = 100/state.snapDivisions;
+  return Math.round(pct/step)*step;
+}
+
+function renderSnapGrid(){
+  const stage = document.getElementById("sheetStage");
+  stage.classList.toggle("snapOn", state.snapEnabled);
+  let grid = document.getElementById("snapGridOverlay");
+  if(!grid){
+    grid = document.createElement("div");
+    grid.id = "snapGridOverlay";
+    grid.className = "snapGrid";
+    stage.appendChild(grid);
+  } else if(grid.parentNode !== stage){ stage.appendChild(grid); }
+  grid.innerHTML = "";
+  const n = state.snapDivisions;
+  for(let i=1;i<n;i++){
+    const pct = (i/n)*100;
+    const v = document.createElement("div");
+    v.style.cssText = `position:absolute; top:0; bottom:0; left:${pct}%; width:1px; background:rgba(198,113,57,0.3);`;
+    grid.appendChild(v);
+    const h = document.createElement("div");
+    h.style.cssText = `position:absolute; left:0; right:0; top:${pct}%; height:1px; background:rgba(198,113,57,0.3);`;
+    grid.appendChild(h);
+  }
+}
+
+document.getElementById("snapToggle").addEventListener("click", ()=>{
+  state.snapEnabled = !state.snapEnabled;
+  document.getElementById("snapToggle").classList.toggle("active", state.snapEnabled);
+  renderSnapGrid(); scheduleSave();
+});
+document.getElementById("snapDivisionsSel").addEventListener("change", (e)=>{
+  state.snapDivisions = parseInt(e.target.value,10);
+  renderSnapGrid(); scheduleSave();
+});
+
+function placeMarkerAt(key, xPct, yPct){
+  const sheet = currentSheet(); if(!sheet) return;
+  const ft = findFormType(key); if(!ft) return;
+  const marker = {id:uid(), type:ft.key, label:ft.label, color:ft.color, xPct:snapPct(xPct), yPct:snapPct(yPct), bar:null};
+  if(state.markerShape === "bracket"){
+    // A song-form section spans bars, not a point — brackets are the musically
+    // correct default. Starts one system tall; drag the bottom handle to fit.
+    marker.shape = "bracket";
+    marker.xPct = Math.max(1, Math.min(94, xPct));
+    marker.yEndPct = Math.min(99, marker.yPct + 11);
+  }
+  sheet.markers.push(marker);
+  renderMarkers(); scheduleSave();
+}
+
+function onStageClickForMarker(e){
+  if(!placingType) return;
+  if(e.target.closest(".markerPill") || e.target.closest(".textBoxWrap")) return;
+  const stage = document.getElementById("sheetStage");
+  const rect = stage.getBoundingClientRect();
+  const xPct = ((e.clientX - rect.left)/rect.width) * 100;
+  const yPct = ((e.clientY - rect.top)/rect.height) * 100;
+  placeMarkerAt(placingType, xPct, yPct);
+  setPlacingType(null);
+}
+
+(function setupMarkerDragDrop(){
+  const stage = document.getElementById("sheetStage");
+  stage.addEventListener("dragover", (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect="copy"; });
+  stage.addEventListener("drop", (e)=>{
+    e.preventDefault();
+    const key = e.dataTransfer.getData("text/plain");
+    if(!key || !findFormType(key)) return;
+    const rect = stage.getBoundingClientRect();
+    const xPct = ((e.clientX-rect.left)/rect.width)*100;
+    const yPct = ((e.clientY-rect.top)/rect.height)*100;
+    placeMarkerAt(key, xPct, yPct);
+  });
+})();
+
+function renderMarkers(){
+  document.querySelectorAll(".markerPill, .markerBracket").forEach(el=>el.remove());
+  const sheet = currentSheet(); if(!sheet) return;
+  const stage = document.getElementById("sheetStage");
+  sheet.markers.forEach(m=>{
+    if(m.shape === "bracket"){ renderBracketMarker(m, sheet, stage); return; }
+    const pill = document.createElement("div");
+    pill.className = "markerPill";
+    pill.style.left = m.xPct+"%"; pill.style.top = m.yPct+"%";
+    pill.style.background = m.color;
+    const barText = m.bar ? `${m.bar}m` : "#";
+    pill.innerHTML = `${m.label}<span class="bar">${barText}</span><span class="del">✕</span>`;
+    pill.querySelector(".bar").addEventListener("click", (ev)=>{
+      ev.stopPropagation();
+      const input = prompt("마디 번호:", m.bar || "");
+      if(input===null) return;
+      m.bar = input.trim() || null;
+      renderMarkers(); scheduleSave();
+    });
+    pill.querySelector(".del").addEventListener("click", (ev)=>{
+      ev.stopPropagation();
+      sheet.markers = sheet.markers.filter(x=>x.id!==m.id);
+      renderMarkers(); scheduleSave();
+    });
+    pill.addEventListener("pointerdown", (ev)=>{
+      if(ev.target.closest(".bar") || ev.target.closest(".del")) return;
+      ev.stopPropagation();
+      dragMarker = {marker:m, stageRect: stage.getBoundingClientRect()};
+    });
+    stage.appendChild(pill);
+  });
+}
+
+/** 마디 구간 브래킷: 세로선 + 위아래 캡 + 라벨(구간 마디 번호).
+ *  악보 왼쪽 여백에 세워두고 아래 핸들로 구간 높이를 맞춘다. */
+function renderBracketMarker(m, sheet, stage){
+  const top = Math.min(m.yPct, m.yEndPct);
+  const bottom = Math.max(m.yPct, m.yEndPct);
+  const el = document.createElement("div");
+  el.className = "markerBracket" + (state.practicingId===m.id ? " practicing" : "");
+  el.style.color = m.color;
+  el.style.left = m.xPct + "%";
+  el.style.top = top + "%";
+  el.style.height = Math.max(2, bottom - top) + "%";
+
+  const line = document.createElement("div");
+  line.className = "bkLine";
+  line.style.height = "100%";
+  const capTop = document.createElement("div"); capTop.className = "bkCap top";
+  const capBottom = document.createElement("div"); capBottom.className = "bkCap bottom";
+
+  const label = document.createElement("div");
+  label.className = "bkLabel";
+  label.style.background = m.color;
+  label.innerHTML = `<span>${escapeHtml(m.label)}</span>` +
+    `<span class="bkBars">${m.bar ? escapeHtml(m.bar)+"마디" : "마디"}</span>` +
+    `<span class="del">✕</span>`;
+
+  label.querySelector(".bkBars").addEventListener("click", (ev)=>{
+    ev.stopPropagation();
+    const input = prompt("마디 구간 (예: 5-8):", m.bar || "");
+    if(input===null) return;
+    m.bar = input.trim() || null;
+    renderMarkers(); updatePracticeCard(); updatePerformHead(); scheduleSave();
+  });
+  label.querySelector(".del").addEventListener("click", (ev)=>{
+    ev.stopPropagation();
+    sheet.markers = sheet.markers.filter(x=>x.id!==m.id);
+    if(state.practicingId===m.id) state.practicingId = null;
+    renderMarkers(); updatePracticeCard(); updatePerformHead(); scheduleSave();
+  });
+  // 라벨 본문 탭 = "지금 연습 중" 구간 지정 (레슨/연주 모드에 그대로 표시된다)
+  label.querySelector("span").addEventListener("click", (ev)=>{
+    ev.stopPropagation();
+    setPracticing(m.id);
+  });
+
+  const resize = document.createElement("div");
+  resize.className = "bkResize";
+  resize.addEventListener("pointerdown", (ev)=>{
+    ev.stopPropagation(); ev.preventDefault();
+    dragBracket = {marker:m, mode:"resize", stageRect: stage.getBoundingClientRect()};
+  });
+
+  el.addEventListener("pointerdown", (ev)=>{
+    if(ev.target.closest(".bkLabel") || ev.target.closest(".bkResize")) return;
+    ev.stopPropagation();
+    const r = stage.getBoundingClientRect();
+    dragBracket = {
+      marker:m, mode:"move", stageRect:r,
+      grabDy: ((ev.clientY - r.top)/r.height)*100 - top,
+      span: bottom - top,
+    };
+  });
+
+  el.append(line, capTop, capBottom, label, resize);
+  stage.appendChild(el);
+}
+
+let dragBracket = null;
+window.addEventListener("pointermove", (e)=>{
+  if(!dragBracket) return;
+  const r = dragBracket.stageRect;
+  const m = dragBracket.marker;
+  const yPct = Math.max(0, Math.min(100, ((e.clientY - r.top)/r.height)*100));
+  if(dragBracket.mode === "resize"){
+    m.yEndPct = Math.max(m.yPct + 2, snapPct(yPct));
+  } else {
+    const xPct = Math.max(0, Math.min(94, ((e.clientX - r.left)/r.width)*100));
+    const newTop = Math.max(0, Math.min(100 - dragBracket.span, snapPct(yPct - dragBracket.grabDy)));
+    m.xPct = snapPct(xPct);
+    m.yPct = newTop;
+    m.yEndPct = newTop + dragBracket.span;
+  }
+  renderMarkers();
+});
+window.addEventListener("pointerup", ()=>{ if(dragBracket){ dragBracket=null; scheduleSave(); } });
+
+window.addEventListener("pointermove", (e)=>{
+  if(!dragMarker) return;
+  const rect = dragMarker.stageRect;
+  let xPct = ((e.clientX-rect.left)/rect.width)*100;
+  let yPct = ((e.clientY-rect.top)/rect.height)*100;
+  xPct = Math.max(0,Math.min(100,xPct)); yPct = Math.max(0,Math.min(100,yPct));
+  dragMarker.marker.xPct = snapPct(xPct); dragMarker.marker.yPct = snapPct(yPct);
+  renderMarkers();
+});
+window.addEventListener("pointerup", ()=>{ if(dragMarker){ dragMarker=null; scheduleSave(); } });
+
+let placingText = false;
+let selectedTextBoxId = null;
+let dragTextBox = null;
+
+function setPlacingText(on){
+  placingText = on;
+  if(on){
+    placingType = null;
+    document.querySelectorAll(".formTypeBtn").forEach(b=>{ b.classList.remove("armed"); b.style.background=""; });
+  }
+  document.getElementById("textTool").classList.toggle("active", on);
+  document.getElementById("sheetStage").classList.toggle("placing", on || !!placingType);
+  if(on){
+    document.getElementById("placingHint").textContent = "텍스트 위치를 클릭하세요. (Esc 취소)";
+    document.getElementById("placingHint").style.display = "block";
+  } else if(!placingType){
+    document.getElementById("placingHint").style.display = "none";
+  }
+}
+document.getElementById("textTool").addEventListener("click", ()=> setPlacingText(!placingText));
+
+function findTextBox(id){ const sheet = currentSheet(); return sheet ? sheet.textBoxes.find(t=>t.id===id) : null; }
+
+function selectTextBox(id){
+  selectedTextBoxId = id;
+  const tb = findTextBox(id);
+  document.querySelectorAll(".textBoxWrap").forEach(el=> el.classList.toggle("selected", el.dataset.id===id));
+  const controls = document.getElementById("textFontControls");
+  if(tb){
+    controls.style.display = "flex";
+    document.getElementById("fontFamilySel").value = tb.fontFamily;
+    document.getElementById("fontSizeLabel").textContent = tb.fontSize;
+  } else { controls.style.display = "none"; }
+}
+
+function deselectTextBox(){
+  selectedTextBoxId = null;
+  document.querySelectorAll(".textBoxWrap").forEach(el=> el.classList.remove("selected"));
+  document.getElementById("textFontControls").style.display = "none";
+}
+
+function createTextBoxAt(xPct, yPct){
+  const sheet = currentSheet(); if(!sheet) return;
+  const tb = {id:uid(), xPct, yPct, text:"", fontSize:16, fontFamily:"inherit"};
+  sheet.textBoxes.push(tb);
+  renderTextBoxes(); scheduleSave();
+  const wrap = document.querySelector(`.textBoxWrap[data-id="${tb.id}"]`);
+  if(wrap){ selectTextBox(tb.id); wrap.querySelector(".textBoxEl").focus(); }
+}
+
+function deleteTextBox(id){
+  const sheet = currentSheet(); if(!sheet) return;
+  sheet.textBoxes = sheet.textBoxes.filter(t=>t.id!==id);
+  if(selectedTextBoxId===id) deselectTextBox();
+  renderTextBoxes(); scheduleSave();
+}
+
+function renderTextBoxes(){
+  document.querySelectorAll(".textBoxWrap").forEach(el=>el.remove());
+  const sheet = currentSheet(); if(!sheet) return;
+  const stage = document.getElementById("sheetStage");
+  sheet.textBoxes.forEach(tb=>{
+    const wrap = document.createElement("div");
+    wrap.className = "textBoxWrap" + (tb.id===selectedTextBoxId ? " selected" : "");
+    wrap.dataset.id = tb.id;
+    wrap.style.left = tb.xPct+"%"; wrap.style.top = tb.yPct+"%";
+
+    const el = document.createElement("div");
+    el.className = "textBoxEl";
+    el.contentEditable = "true";
+    el.spellcheck = false;
+    el.style.fontSize = tb.fontSize+"px";
+    el.style.fontFamily = tb.fontFamily;
+    el.textContent = tb.text;
+
+    const handle = document.createElement("div");
+    handle.className = "tbHandle";
+    const del = document.createElement("div");
+    del.className = "tbDel"; del.textContent = "✕";
+
+    wrap.appendChild(handle); wrap.appendChild(del); wrap.appendChild(el);
+
+    el.addEventListener("focus", ()=> selectTextBox(tb.id));
+    el.addEventListener("input", ()=>{ tb.text = el.textContent; scheduleSave(); });
+    del.addEventListener("pointerdown", (ev)=>{ ev.stopPropagation(); ev.preventDefault(); deleteTextBox(tb.id); });
+    handle.addEventListener("pointerdown", (ev)=>{
+      ev.stopPropagation(); ev.preventDefault(); selectTextBox(tb.id);
+      dragTextBox = {tb, stageRect: stage.getBoundingClientRect()};
+    });
+    stage.appendChild(wrap);
+  });
+}
+
+window.addEventListener("pointermove", (e)=>{
+  if(!dragTextBox) return;
+  const rect = dragTextBox.stageRect;
+  let xPct = ((e.clientX-rect.left)/rect.width)*100;
+  let yPct = ((e.clientY-rect.top)/rect.height)*100;
+  xPct = Math.max(0,Math.min(100,xPct)); yPct = Math.max(0,Math.min(100,yPct));
+  dragTextBox.tb.xPct = xPct; dragTextBox.tb.yPct = yPct;
+  renderTextBoxes();
+});
+window.addEventListener("pointerup", ()=>{ if(dragTextBox){ dragTextBox=null; scheduleSave(); } });
+
+document.getElementById("fontFamilySel").addEventListener("change", (e)=>{
+  const tb = findTextBox(selectedTextBoxId); if(!tb) return;
+  tb.fontFamily = e.target.value; renderTextBoxes(); selectTextBox(tb.id); scheduleSave();
+});
+document.getElementById("fontSizeUp").addEventListener("click", ()=>{
+  const tb = findTextBox(selectedTextBoxId); if(!tb) return;
+  tb.fontSize = Math.min(96, tb.fontSize+2); renderTextBoxes(); selectTextBox(tb.id); scheduleSave();
+});
+document.getElementById("fontSizeDown").addEventListener("click", ()=>{
+  const tb = findTextBox(selectedTextBoxId); if(!tb) return;
+  tb.fontSize = Math.max(8, tb.fontSize-2); renderTextBoxes(); selectTextBox(tb.id); scheduleSave();
+});
+
+(function setupTextPlacementAndDeselect(){
+  const stage = document.getElementById("sheetStage");
+  stage.addEventListener("click", (e)=>{
+    if(placingText){
+      if(e.target.closest(".markerPill") || e.target.closest(".textBoxWrap")) return;
+      const rect = stage.getBoundingClientRect();
+      const xPct = ((e.clientX-rect.left)/rect.width)*100;
+      const yPct = ((e.clientY-rect.top)/rect.height)*100;
+      createTextBoxAt(xPct, yPct); setPlacingText(false); return;
+    }
+    if(!e.target.closest(".textBoxWrap")) deselectTextBox();
+  });
+})();
+
+/* ============ NOTES ============ */
+const notesArea = document.getElementById("notesArea");
+notesArea.addEventListener("input", ()=>{ state.notes = notesArea.value; scheduleSave(); });
+document.getElementById("timestampBtn").addEventListener("click", ()=>{
+  const t = new Date().toLocaleTimeString("ko-KR",{hour12:false});
+  const insert = `\n[${t}] `;
+  const pos = notesArea.selectionStart;
+  notesArea.value = notesArea.value.slice(0,pos) + insert + notesArea.value.slice(pos);
+  state.notes = notesArea.value; notesArea.focus(); scheduleSave();
+});
+
+/* ============ Wire Controls ============ */
+const TEMPO_MARKINGS = [
+  {max:60, name:"Largo", ko:"아주 느리게"}, {max:76, name:"Adagio", ko:"느리게"},
+  {max:108, name:"Andante", ko:"걷는 속도"}, {max:120, name:"Moderato", ko:"보통 빠르기"},
+  {max:156, name:"Allegro", ko:"빠르게"}, {max:176, name:"Vivace", ko:"활기차게"},
+  {max:Infinity, name:"Presto", ko:"아주 빠르게"},
+];
+function tempoMarkingFor(bpm){ return TEMPO_MARKINGS.find(t=>bpm<=t.max); }
+function syncBpmUI(){
+  document.getElementById("bpmInput").value = state.bpm;
+  document.getElementById("bpmSlider").value = state.bpm;
+  document.getElementById("bpmLabel").textContent = state.bpm + " BPM";
+  const marking = tempoMarkingFor(state.bpm);
+  document.getElementById("tempoMarking").textContent = marking.name + " · " + marking.ko;
+  if(focusMode) updateFocusBar();
+  updateDock(); updatePracticeCard();
+}
+
+const bpmInputEl = document.getElementById("bpmInput");
+bpmInputEl.addEventListener("input", (e)=>{
+  const raw = e.target.value; if(raw === "") return;
+  const v = parseInt(raw,10);
+  if(!isNaN(v)){
+    state.bpm = v;
+    document.getElementById("bpmSlider").value = Math.max(20, Math.min(300, v));
+    document.getElementById("bpmLabel").textContent = v + " BPM";
+    scheduleSave();
+  }
+});
+
+function commitBpm(){
+  let v = parseInt(bpmInputEl.value, 10);
+  if(isNaN(v)) v = state.bpm || 100;
+  v = Math.max(20, Math.min(300, v));
+  state.bpm = v; syncBpmUI(); scheduleSave();
+}
+bpmInputEl.addEventListener("blur", commitBpm);
+bpmInputEl.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ commitBpm(); bpmInputEl.blur(); } });
+document.getElementById("bpmSlider").addEventListener("input", (e)=>{ state.bpm = parseInt(e.target.value,10); syncBpmUI(); scheduleSave(); });
+document.getElementById("bpmUp").addEventListener("click", ()=>{ state.bpm = Math.min(300, state.bpm+5); syncBpmUI(); scheduleSave(); });
+document.getElementById("bpmDown").addEventListener("click", ()=>{ state.bpm = Math.max(20, state.bpm-5); syncBpmUI(); scheduleSave(); });
+
+let tapTimes = [];
+document.getElementById("tapTempoBtn").addEventListener("click", ()=>{
+  const now = performance.now();
+  tapTimes.push(now);
+  tapTimes = tapTimes.filter(t=> now-t < 3000).slice(-6);
+  if(tapTimes.length > 1){
+    const intervals = [];
+    for(let i=1;i<tapTimes.length;i++) intervals.push(tapTimes[i]-tapTimes[i-1]);
+    const avg = intervals.reduce((a,b)=>a+b,0)/intervals.length;
+    const bpm = Math.round(60000/avg);
+    state.bpm = Math.max(20, Math.min(300, bpm));
+    syncBpmUI(); scheduleSave();
+  }
+});
+
+document.getElementById("volumeSlider").addEventListener("input", (e)=>{ state.volume = parseFloat(e.target.value); scheduleSave(); });
+document.getElementById("numeratorSel").addEventListener("change", applyTimeSignature);
+document.getElementById("denominatorSel").addEventListener("change", applyTimeSignature);
+document.getElementById("playBtn").addEventListener("click", toggleMetronome);
+document.getElementById("bigPlayBtn").addEventListener("click", toggleMetronome);
+
+function applySoundModeUI(){
+  updateDock();
+  document.getElementById("modeClick").classList.toggle("active", state.soundMode==="click");
+  document.getElementById("modeDrum").classList.toggle("active", state.soundMode==="drum");
+  document.getElementById("clickOptions").style.display = state.soundMode==="click" ? "block" : "none";
+  document.getElementById("drumOptions").style.display = state.soundMode==="drum" ? "block" : "none";
+}
+document.getElementById("modeClick").addEventListener("click", ()=>{ state.soundMode = "click"; applySoundModeUI(); scheduleSave(); });
+document.getElementById("modeDrum").addEventListener("click", ()=>{ state.soundMode = "drum"; applySoundModeUI(); scheduleSave(); });
+document.getElementById("timbreSel").addEventListener("change", (e)=>{ state.timbre = e.target.value; updateDock(); scheduleSave(); });
+document.getElementById("drumKitSel").addEventListener("change", (e)=>{ state.drumKit = e.target.value; updateDock(); scheduleSave(); });
+document.getElementById("pitchSlider").addEventListener("input", (e)=>{
+  state.pitch = parseInt(e.target.value,10);
+  document.getElementById("pitchLabel").textContent = (state.pitch>0?"+":"")+state.pitch;
+  scheduleSave();
+});
+
+function applyFeelUI(){
+  document.querySelectorAll(".feelBtn").forEach(b=> b.classList.toggle("active", b.dataset.feel===state.feel));
+  document.getElementById("swingSlider").disabled = state.feel!=="swing";
+}
+document.querySelectorAll(".feelBtn").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    state.feel = b.dataset.feel;
+    if(state.feel==="straight") state.swingAmount = 50;
+    else if(state.swingAmount===50) state.swingAmount = 58;
+    document.getElementById("swingSlider").value = state.swingAmount;
+    document.getElementById("swingLabel").textContent = state.swingAmount+"%";
+    applyFeelUI(); scheduleSave();
+  });
+});
+
+document.getElementById("swingSlider").addEventListener("input", (e)=>{
+  state.swingAmount = parseInt(e.target.value,10);
+  document.getElementById("swingLabel").textContent = state.swingAmount+"%";
+  scheduleSave();
+});
+document.getElementById("subdivisionSel").addEventListener("change", (e)=>{ state.subdivision = parseInt(e.target.value,10); scheduleSave(); });
+document.getElementById("hihatLevel").addEventListener("input", (e)=>{ state.hihatLevel = parseFloat(e.target.value); scheduleSave(); });
+
+function applyPanelUI(){
+  document.getElementById("metronomePanel").classList.toggle("collapsed", !state.leftPanelOpen);
+  document.getElementById("notesPanel").classList.toggle("collapsed", !state.rightPanelOpen);
+  document.getElementById("toggleLeftPanel").classList.toggle("active", state.leftPanelOpen);
+  document.getElementById("toggleRightPanel").classList.toggle("active", state.rightPanelOpen);
+}
+document.getElementById("toggleLeftPanel").addEventListener("click", ()=>{ state.leftPanelOpen = !state.leftPanelOpen; applyPanelUI(); scheduleSave(); });
+document.getElementById("toggleRightPanel").addEventListener("click", ()=>{ state.rightPanelOpen = !state.rightPanelOpen; applyPanelUI(); scheduleSave(); });
+
+/* ============ Init ============ */
+async function init(){
+  await loadState();
+  customFormTypes = (await idbGet("customFormTypes")) || [];
+  rebuildNumeratorOptions();
+  document.getElementById("numeratorSel").value = state.beatsPerBar;
+  document.getElementById("denominatorSel").value = state.beatUnit;
+  document.getElementById("volumeSlider").value = state.volume;
+  notesArea.value = state.notes || "";
+  syncBpmUI();
+  renderBeatDots();
+  renderColorSwatches();
+  renderFormTypeBar();
+  applyZoom();
+  renderSheet();
+
+  document.getElementById("timbreSel").value = state.timbre;
+  document.getElementById("drumKitSel").value = state.drumKit;
+  document.getElementById("pitchSlider").value = state.pitch;
+  document.getElementById("pitchLabel").textContent = (state.pitch>0?"+":"")+state.pitch;
+  document.getElementById("swingSlider").value = state.swingAmount;
+  document.getElementById("swingLabel").textContent = state.swingAmount+"%";
+  document.getElementById("subdivisionSel").value = state.subdivision;
+  document.getElementById("hihatLevel").value = state.hihatLevel;
+  applySoundModeUI();
+  applyFeelUI();
+  applyPanelUI();
+  document.getElementById("snapToggle").classList.toggle("active", state.snapEnabled);
+  document.getElementById("snapDivisionsSel").value = state.snapDivisions;
+  updateMarkerShapeBtn();
+  setUiMode(state.uiMode || "studio");
+
+  document.getElementById("saveStatus").textContent = "준비 완료";
+
+  await initLocalFolder();
+  await initCloud();
+  const hashMatch = location.hash.match(/project=([^&]+)/);
+  if(hashMatch && cloudReady){
+    try{ await loadProjectData(decodeURIComponent(hashMatch[1])); }catch(err){ updateCurrentProjectLabel(); }
+  } else { updateCurrentProjectLabel(); }
+}
+init();
+
+})();
+</script>
+</body>
+</html>

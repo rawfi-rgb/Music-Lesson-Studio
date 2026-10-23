@@ -1,7 +1,7 @@
 {
   "name": "Music Lesson Studio",
   "short_name": "Lesson Studio",
-  "description": "악보 · 메트로놈 · 레슨 노트를 한 화면에서",
+  "description": "악보 · 메트로놈 · 노트를 한 화면에서",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -9,8 +9,8 @@
   "theme_color": "#171a22",
   "lang": "ko",
   "icons": [
-    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
-    {"src": "icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any"}
+    {"src": "icon-v2-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-v2-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-v2-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any"}
   ]
 }

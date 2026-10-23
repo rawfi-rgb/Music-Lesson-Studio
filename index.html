@@ -4,9 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Music Lesson Studio Pro</title>
-<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-v2-32.png">
+<link rel="apple-touch-icon" href="icon-v2-180.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-v2-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icon-v2-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-v2-152.png">
+<link rel="manifest" href="manifest-v2.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Lesson Studio">
@@ -734,6 +737,17 @@
   }
   .fileDropCard{display:flex; align-items:center; gap:14px; padding:16px 22px; border-radius:var(--radius-lg); background:var(--panel); color:var(--text); box-shadow:var(--shadow); font-size:14px; font-weight:700;}
   .fileDropIcon{width:40px; height:40px; border-radius:50%; background:var(--accent); color:var(--on-accent); display:flex; align-items:center; justify-content:center; font-size:22px;}
+
+  .appToast{
+    position:fixed; left:50%; top:76px; transform:translateX(-50%); z-index:95; padding:10px 18px; border-radius:999px;
+    background:var(--ink); color:var(--on-ink); font-size:13px; font-weight:700; box-shadow:var(--shadow); pointer-events:none; white-space:nowrap;
+  }
+  .updateBanner{
+    position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:96; display:flex; align-items:center; gap:10px;
+    padding:10px 12px 10px 18px; border-radius:999px; background:var(--panel); color:var(--text); border:1px solid var(--border);
+    box-shadow:var(--shadow); font-size:13px; font-weight:700;
+  }
+  .settingsVersion{font-size:10px; color:var(--text-muted); text-align:right;}
 </style>
 </head>
 <body>
@@ -2938,10 +2952,16 @@ async function fileToPages(file){
 }
 
 async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
-  const files = Array.from(fileList).filter(f =>
-    f.type.startsWith("image/") || f.type==="application/pdf" || /\.pdf$/i.test(f.name)
+  const all = Array.from(fileList);
+  // iPad 파일 앱 등에서는 type 이 비어 오는 경우가 있어 확장자로도 판단한다
+  const files = all.filter(f =>
+    (f.type||"").startsWith("image/") || f.type==="application/pdf" ||
+    /\.(pdf|png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name||"")
   );
-  if(!files.length) return;
+  if(!files.length){
+    if(all.length) alert("악보로 열 수 없는 파일입니다: " + all.map(f=>f.name||"(이름 없음)").join(", ") + "\n이미지(JPG·PNG 등)나 PDF를 올려주세요.");
+    return;
+  }
   const replace = forceReplace || state.sheets.length===0;
   if(replace && state.sheets.length && !confirm("현재 악보를 교체할까요?")) return;
   try{
@@ -2957,7 +2977,15 @@ async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
     }
     renderSheet();
     scheduleSave();
+    showToast(replace ? `악보 ${newPages.length}페이지를 열었습니다` : `＋ ${newPages.length}페이지 추가 · ${state.currentIndex+1} / ${state.sheets.length}`);
   }catch(err){ alert("업로드 실패: " + (err && err.message ? err.message : err)); }
+}
+
+function showToast(msg){
+  let t = document.getElementById("appToast");
+  if(!t){ t = document.createElement("div"); t.id = "appToast"; t.className = "appToast"; document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(t._timer); t._timer = setTimeout(()=>{ t.hidden = true; }, 2400);
 }
 
 document.getElementById("uploadBtn").addEventListener("click", ()=>document.getElementById("fileInput").click());
@@ -2981,7 +3009,26 @@ document.getElementById("addPageInput").addEventListener("change", async (e)=>{
   overlay.innerHTML = `<div class="fileDropCard"><div class="fileDropIcon">＋</div><div class="fileDropText"></div></div>`;
   document.body.appendChild(overlay);
   let depth = 0;
-  function hasFiles(e){ return e.dataTransfer && Array.from(e.dataTransfer.types||[]).includes("Files"); }
+  // 이 앱 안에서 시작한 끌기(송폼·악기 버튼, 페이지 순서 바꾸기)만 구분하고, 나머지는 전부 외부 파일로 본다.
+  // Safari·아이패드는 끌기 중 dataTransfer.types 에 "Files" 를 안 주는 경우가 있어 types 로 거르지 않는다.
+  let internalDrag = false;
+  document.addEventListener("dragstart", ()=>{ internalDrag = true; }, true);
+  document.addEventListener("dragend", ()=>{ internalDrag = false; }, true);
+  function typesOf(e){ return Array.from((e.dataTransfer && e.dataTransfer.types) || []); }
+  function isTextOnly(e){ const t = typesOf(e); return t.length && !t.includes("Files") && t.every(x=>/^text\//.test(x)); }
+  function hasFiles(e){
+    if(internalDrag || !e.dataTransfer) return false;
+    // 메모장에 글자를 끌어다 놓는 것은 그대로 허용
+    if(isTextOnly(e) && e.target.closest && e.target.closest("textarea, input, [contenteditable=true]")) return false;
+    return true;
+  }
+  function collectFiles(dt){
+    let files = Array.from((dt && dt.files) || []);
+    if(!files.length && dt && dt.items){
+      files = Array.from(dt.items).filter(i=>i.kind==="file").map(i=>i.getAsFile()).filter(Boolean);
+    }
+    return files;
+  }
   function show(){
     overlay.querySelector(".fileDropText").textContent = state.sheets.length
       ? "놓으면 새 페이지로 추가됩니다 · 썸네일 위에 놓으면 그 뒤에 끼워 넣기"
@@ -3000,12 +3047,18 @@ document.getElementById("addPageInput").addEventListener("change", async (e)=>{
   });
   window.addEventListener("dragleave", (e)=>{ if(!hasFiles(e)) return; depth = Math.max(0, depth-1); if(depth===0) hide(); });
   window.addEventListener("drop", (e)=>{
-    if(!hasFiles(e)) return;
-    e.preventDefault();
+    if(internalDrag){ internalDrag = false; hide(); return; }
+    if(!hasFiles(e)){ hide(); return; }
+    const files = collectFiles(e.dataTransfer);
     const thumb = e.target.closest && e.target.closest(".pageThumb:not(.addTile)");
     hide();
-    const files = e.dataTransfer.files;
-    if(!files.length) return;
+    if(!files.length){
+      if(e.target.closest && e.target.closest("textarea, input, [contenteditable=true]")) return; // 글자 끌어놓기
+      e.preventDefault();
+      showToast("파일을 읽지 못했어요 · Finder나 파일 앱에서 파일 자체를 끌어다 놓아 주세요");
+      return;
+    }
+    e.preventDefault();
     const projectFile = Array.from(files).find(f => /\.mlsproj\.json$/i.test(f.name) || /\.json$/i.test(f.name));
     if(projectFile){ loadProjectFromDroppedFile(projectFile); return; }
     let insertAt = null;
@@ -4708,7 +4761,8 @@ function applyTheme(){
 function closeSettings(){ const p = document.getElementById("settingsPop"); if(p) p.remove(); }
 function renderSettingsPop(p){
   p.innerHTML = `<h3>화면 테마</h3><div class="themeGrid"></div>
-    <label class="settingsRow"><input type="checkbox" id="darkInFocusChk"><span>전체화면(연주)에서는 <b>스테이지 다크</b>로 자동 전환<br><span style="color:var(--text-dim); font-size:11px;">악보 종이는 흰색 그대로, 주변만 어두워집니다.</span></span></label>`;
+    <label class="settingsRow"><input type="checkbox" id="darkInFocusChk"><span>전체화면(연주)에서는 <b>스테이지 다크</b>로 자동 전환<br><span style="color:var(--text-dim); font-size:11px;">악보 종이는 흰색 그대로, 주변만 어두워집니다.</span></span></label>
+    <div class="settingsVersion">버전 ${APP_BUILD}</div>`;
   const grid = p.querySelector(".themeGrid");
   THEMES.forEach(t=>{
     const b = document.createElement("button");
@@ -4737,6 +4791,41 @@ document.getElementById("settingsBtn").addEventListener("click", (e)=>{
   }, true), 0);
 });
 document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings(); });
+
+/* ============ 버전 · 자동 업데이트 ============
+ * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
+ * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
+ * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
+const APP_BUILD = "2026.10.24-3";
+const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
+async function checkForUpdate(fromStartup){
+  if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외
+  try{
+    const res = await fetch(location.pathname, {cache:"reload"}); // 네트워크에서 받아 HTTP 캐시도 갱신
+    if(!res.ok) return;
+    const m = (await res.text()).match(BUILD_RE);
+    if(!m || m[1] === APP_BUILD) return;
+    const key = "mls-reloaded-" + m[1];
+    let already = false; try{ already = !!sessionStorage.getItem(key); }catch(err){}
+    if(fromStartup && !already && performance.now() < 10000){
+      try{ sessionStorage.setItem(key, "1"); }catch(err){}
+      try{ await idbPut("state", state); }catch(err){}
+      location.reload();
+      return;
+    }
+    showUpdateBanner(m[1]);
+  }catch(err){}
+}
+function showUpdateBanner(ver){
+  if(document.getElementById("updateBanner")) return;
+  const b = document.createElement("div");
+  b.id = "updateBanner"; b.className = "updateBanner";
+  b.innerHTML = `<span>새 버전이 있어요 (${escapeHtml(ver)})</span><button class="primary" id="updateNowBtn">지금 적용</button><button class="icon" id="updateLaterBtn">나중에</button>`;
+  document.body.appendChild(b);
+  b.querySelector("#updateNowBtn").addEventListener("click", async ()=>{ try{ await idbPut("state", state); }catch(err){} location.reload(); });
+  b.querySelector("#updateLaterBtn").addEventListener("click", ()=> b.remove());
+}
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "visible") checkForUpdate(false); });
 
 /* ============ Init ============ */
 async function init(){
@@ -4788,6 +4877,7 @@ async function init(){
   if(hashMatch && cloudReady){
     try{ await loadProjectData(decodeURIComponent(hashMatch[1])); }catch(err){ updateCurrentProjectLabel(); }
   } else { updateCurrentProjectLabel(); }
+  checkForUpdate(true);
 }
 init();
 

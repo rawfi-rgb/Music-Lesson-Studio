@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Music Lesson Studio Pro</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lesson Studio">
+<meta name="application-name" content="Lesson Studio">
+<meta name="theme-color" content="#171a22">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -478,6 +486,9 @@
   }
   textarea#notesArea:focus{border-color:var(--accent); border-style:solid;}
   .notesHead{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .notesTools{display:flex; align-items:center; gap:2px;}
+  .notesTools button{padding:4px 8px; font-size:12px;}
+  #notesFontLabel{min-width:24px; text-align:center; font-size:11px; font-weight:700; color:var(--text-dim); font-variant-numeric:tabular-nums;}
   .notesHead h2{font-family:'Caprasimo', 'Gowun Batang', serif; text-transform:none; letter-spacing:0; font-size:16px; color:var(--text);}
 
   .pageNav{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--text-dim);}
@@ -715,6 +726,14 @@
   .themeHint{font-size:10px; color:var(--text-dim); line-height:1.4;}
   .settingsRow{display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text); line-height:1.45; margin:0; cursor:pointer;}
   .settingsRow input{margin-top:2px; accent-color:var(--accent);}
+
+  /* 파일 끌어놓기 안내 */
+  .fileDropOverlay{
+    position:fixed; inset:0; z-index:90; display:flex; align-items:center; justify-content:center; pointer-events:none;
+    background:color-mix(in srgb, var(--bg) 55%, transparent); outline:3px dashed var(--accent); outline-offset:-14px;
+  }
+  .fileDropCard{display:flex; align-items:center; gap:14px; padding:16px 22px; border-radius:var(--radius-lg); background:var(--panel); color:var(--text); box-shadow:var(--shadow); font-size:14px; font-weight:700;}
+  .fileDropIcon{width:40px; height:40px; border-radius:50%; background:var(--accent); color:var(--on-accent); display:flex; align-items:center; justify-content:center; font-size:22px;}
 </style>
 </head>
 <body>
@@ -979,7 +998,7 @@
             <svg class="icon-svg" style="width:28px; height:28px; opacity:0.55;" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
           </div>
           <div style="font-family:'Caprasimo','Gowun Batang',serif; font-size:20px;">첫 악보를 올려주세요</div>
-          <div style="font-size:13px; color:var(--text-dim); max-width:320px; line-height:1.6;">이미지나 PDF를 끌어다 놓으면 페이지가 만들어집니다. 그 위에 펜으로 표시하고, 송폼 마커를 찍고, 레슨 노트를 함께 남길 수 있습니다.</div>
+          <div style="font-size:13px; color:var(--text-dim); max-width:320px; line-height:1.6;">이미지나 PDF를 끌어다 놓으면 페이지가 만들어집니다. 그 위에 펜으로 표시하고, 송폼 마커를 찍고, 노트를 함께 남길 수 있습니다.</div>
           <button class="primary" id="emptyStateUploadBtn">파일 선택</button>
           <div class="hint" style="padding:0;">JPG · PNG · PDF</div>
           <button class="icon" id="emptyStateLibraryBtn" style="background:transparent; border-color:transparent; color:var(--text-dim); text-decoration:underline;">보관함에서 열기</button>
@@ -1069,10 +1088,15 @@
     <div class="asideHead"><button class="icon panelCollapseBtn" id="collapseRightBtn" title="노트 패널 접기">접기 ›</button></div>
     <section style="flex:1; display:flex; flex-direction:column;">
       <div class="notesHead">
-        <h2>레슨 노트</h2>
-        <button class="icon" id="timestampBtn" title="시각 삽입">🕒</button>
+        <h2>노트</h2>
+        <div class="notesTools">
+          <button class="icon" id="notesFontDown" title="글자 작게">A−</button>
+          <span id="notesFontLabel" title="노트 글자 크기">14</span>
+          <button class="icon" id="notesFontUp" title="글자 크게">A+</button>
+          <button class="icon" id="timestampBtn" title="시각 삽입">🕒</button>
+        </div>
       </div>
-      <textarea id="notesArea" placeholder="레슨 기록 및 카피 메모를 작성하세요…"></textarea>
+      <textarea id="notesArea" placeholder="레슨 기록, 카피 메모를 적어두세요…"></textarea>
     </section>
   </aside>
 
@@ -1278,7 +1302,7 @@ let state = {
   leftPanelOpen:true, rightPanelOpen:true,
   snapEnabled:false, snapDivisions:16,
   uiMode:"studio", markerShape:"bracket", practicingId:null,
-  theme:"warm", darkInFocus:false,
+  theme:"warm", darkInFocus:false, notesFontSize:14,
   fitMode:"page", zoomByMode:{studio:1, lesson:1, perform:1}, toolsOpen:null, stripOpen:true, instFilter:"all", focusPagesOpen:false, focusPenOpen:true,
 };
 
@@ -2913,7 +2937,7 @@ async function fileToPages(file){
   return pages;
 }
 
-async function handleIncomingFiles(fileList, {forceReplace}={}){
+async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
   const files = Array.from(fileList).filter(f =>
     f.type.startsWith("image/") || f.type==="application/pdf" || /\.pdf$/i.test(f.name)
   );
@@ -2927,8 +2951,9 @@ async function handleIncomingFiles(fileList, {forceReplace}={}){
       state.sheets = newPages;
       state.currentIndex = 0;
     } else {
-      state.sheets.push(...newPages);
-      state.currentIndex = state.sheets.length - newPages.length;
+      const at = (insertAt == null) ? state.sheets.length : Math.max(0, Math.min(state.sheets.length, insertAt));
+      state.sheets.splice(at, 0, ...newPages);
+      state.currentIndex = at;
     }
     renderSheet();
     scheduleSave();
@@ -2947,27 +2972,49 @@ document.getElementById("addPageInput").addEventListener("change", async (e)=>{
   e.target.value = "";
 });
 
+/* 파일 끌어놓기: 화면 어디에 놓아도 받는다 (악보 위, 페이지 목록, 도구 줄, 양옆 패널…).
+ * 악보가 이미 있으면 새 페이지로 추가 — 페이지 썸네일 위에 놓으면 그 페이지 바로 뒤에 끼워 넣는다.
+ * .mlsproj.json 은 프로젝트 열기. 브라우저가 파일을 새 탭으로 여는 기본 동작도 막는다. */
 (function setupFileDropUpload(){
-  const viewport = document.getElementById("sheetViewport");
+  const overlay = document.createElement("div");
+  overlay.className = "fileDropOverlay"; overlay.hidden = true;
+  overlay.innerHTML = `<div class="fileDropCard"><div class="fileDropIcon">＋</div><div class="fileDropText"></div></div>`;
+  document.body.appendChild(overlay);
+  let depth = 0;
   function hasFiles(e){ return e.dataTransfer && Array.from(e.dataTransfer.types||[]).includes("Files"); }
-  ["dragenter","dragover"].forEach(evt => viewport.addEventListener(evt, (e)=>{
+  function show(){
+    overlay.querySelector(".fileDropText").textContent = state.sheets.length
+      ? "놓으면 새 페이지로 추가됩니다 · 썸네일 위에 놓으면 그 뒤에 끼워 넣기"
+      : "놓으면 악보가 열립니다 (이미지 · PDF · 프로젝트 파일)";
+    overlay.hidden = false;
+  }
+  function hide(){ depth = 0; overlay.hidden = true; document.querySelectorAll(".pageThumb.dragOver").forEach(t=>t.classList.remove("dragOver")); }
+  window.addEventListener("dragenter", (e)=>{ if(!hasFiles(e)) return; e.preventDefault(); depth++; show(); });
+  window.addEventListener("dragover", (e)=>{
     if(!hasFiles(e)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
-    viewport.classList.add("dropHighlight");
-  }));
-  viewport.addEventListener("dragleave", (e)=>{
-    if(e.target===viewport) viewport.classList.remove("dropHighlight");
+    const thumb = e.target.closest && e.target.closest(".pageThumb:not(.addTile)");
+    document.querySelectorAll(".pageThumb.dragOver").forEach(t=>{ if(t!==thumb) t.classList.remove("dragOver"); });
+    if(thumb) thumb.classList.add("dragOver");
   });
-  viewport.addEventListener("drop", (e)=>{
+  window.addEventListener("dragleave", (e)=>{ if(!hasFiles(e)) return; depth = Math.max(0, depth-1); if(depth===0) hide(); });
+  window.addEventListener("drop", (e)=>{
     if(!hasFiles(e)) return;
     e.preventDefault();
-    viewport.classList.remove("dropHighlight");
+    const thumb = e.target.closest && e.target.closest(".pageThumb:not(.addTile)");
+    hide();
     const files = e.dataTransfer.files;
     if(!files.length) return;
-    const projectFile = Array.from(files).find(f => /\.mlsproj\.json$/i.test(f.name));
-    if(projectFile) loadProjectFromDroppedFile(projectFile);
-    else handleIncomingFiles(files, {forceReplace:false});
+    const projectFile = Array.from(files).find(f => /\.mlsproj\.json$/i.test(f.name) || /\.json$/i.test(f.name));
+    if(projectFile){ loadProjectFromDroppedFile(projectFile); return; }
+    let insertAt = null;
+    if(thumb){
+      const thumbs = Array.from(document.querySelectorAll("#pageStrip .pageThumb:not(.addTile)"));
+      const i = thumbs.indexOf(thumb);
+      if(i >= 0) insertAt = i + 1;
+    }
+    handleIncomingFiles(files, {forceReplace:false, insertAt});
   });
 })();
 
@@ -3018,7 +3065,7 @@ function renderSheet(){
           <svg class="icon-svg" style="width:28px; height:28px; opacity:0.55;" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
         </div>
         <div style="font-family:'Caprasimo','Gowun Batang',serif; font-size:20px;">첫 악보를 올려주세요</div>
-        <div style="font-size:13px; color:var(--text-dim); max-width:320px; line-height:1.6;">이미지나 PDF를 끌어다 놓으면 페이지가 만들어집니다. 그 위에 펜으로 표시하고, 송폼 마커를 찍고, 레슨 노트를 함께 남길 수 있습니다.</div>
+        <div style="font-size:13px; color:var(--text-dim); max-width:320px; line-height:1.6;">이미지나 PDF를 끌어다 놓으면 페이지가 만들어집니다. 그 위에 펜으로 표시하고, 송폼 마커를 찍고, 노트를 함께 남길 수 있습니다.</div>
         <button class="primary" id="emptyStateUploadBtn">파일 선택</button>
         <div class="hint" style="padding:0;">JPG · PNG · PDF</div>
         <button class="icon" id="emptyStateLibraryBtn" style="background:transparent; border-color:transparent; color:var(--text-dim); text-decoration:underline;">보관함에서 열기</button>
@@ -3816,7 +3863,7 @@ document.querySelectorAll("#modeSwitch button").forEach(b=>{
 
 /* ---------- 레슨 모드 탭 패널 ---------- */
 let lessonTab = "form";
-const LESSON_TAB_LABEL = {form:"송폼", page:"페이지", audio:"오디오", note:"레슨 노트"};
+const LESSON_TAB_LABEL = {form:"송폼", page:"페이지", audio:"오디오", note:"노트"};
 function openLessonTab(tab, opts){
   const panel = document.getElementById("lessonPanel");
   const body = document.getElementById("lessonPanelBody");
@@ -4488,6 +4535,17 @@ document.getElementById("fontSizeDown").addEventListener("click", ()=>{
 /* ============ NOTES ============ */
 const notesArea = document.getElementById("notesArea");
 notesArea.addEventListener("input", ()=>{ state.notes = notesArea.value; scheduleSave(); });
+
+// 노트 글자 크기 — 레슨 중 멀리서 읽거나, 많이 적을 때 작게
+const NOTES_FONT_MIN = 11, NOTES_FONT_MAX = 32;
+function applyNotesFont(){
+  const px = Math.max(NOTES_FONT_MIN, Math.min(NOTES_FONT_MAX, state.notesFontSize || 14));
+  state.notesFontSize = px;
+  notesArea.style.fontSize = px + "px";
+  document.getElementById("notesFontLabel").textContent = px;
+}
+document.getElementById("notesFontDown").addEventListener("click", ()=>{ state.notesFontSize = (state.notesFontSize||14) - 1; applyNotesFont(); scheduleSave(); });
+document.getElementById("notesFontUp").addEventListener("click", ()=>{ state.notesFontSize = (state.notesFontSize||14) + 1; applyNotesFont(); scheduleSave(); });
 document.getElementById("timestampBtn").addEventListener("click", ()=>{
   const t = new Date().toLocaleTimeString("ko-KR",{hour12:false});
   const insert = `\n[${t}] `;
@@ -4696,6 +4754,7 @@ async function init(){
   document.getElementById("denominatorSel").value = state.beatUnit;
   document.getElementById("volumeSlider").value = state.volume;
   notesArea.value = state.notes || "";
+  applyNotesFont();
   syncBpmUI();
   renderBeatDots();
   renderColorSwatches();

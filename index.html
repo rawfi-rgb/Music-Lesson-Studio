@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Gowun+Batang:wght@400;700&family=Figtree:wght@400;500;600;700;800&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Nanum+Pen+Script&family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script>try{var t=localStorage.getItem("mls-theme");if(t&&t!=="warm")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 <style>
   /* Warm Studio Humanism — cream/terracotta/sage analog-studio palette,
      sampled directly from the Claude Design "1a 목재 콘솔" mockup. */
@@ -22,6 +23,53 @@
     --beat-accent:#c67139; --beat-normal:#d9c9a8; --beat-mute:#f3ecdf;
     --sage-bg:#e1eecc; --sage-text:#56633f;
     --radius-sm:10px; --radius:16px; --radius-lg:22px;
+    /* 역할 토큰: 테마마다 다시 정의된다 */
+    --on-accent:#fffdf8;                 /* 포인트색 위 글자 */
+    --ink:#201e1d; --on-ink:#f9f4ed;     /* 검은 캡슐: 메트로놈 도크, 펜 도구, 하단 바 */
+    --sel-bg:#201e1d; --on-sel:#f9f4ed;  /* 선택된 탭·버튼 */
+    --practice-bg:#fff2eb; --sage-strong:#7a8a5e; --on-sage:#f5ead8;
+    /* 악보 종이 위 글자는 테마와 상관없이 항상 진한 잉크색 */
+    --paper:#ffffff; --paper-ink:#201e1d; --paper-ink-muted:#8a8073;
+  }
+  /* A · 클린 라이트 — 흰 패널, 진한 남색 글자, 파랑 포인트 */
+  :root[data-theme="clean"]{
+    --bg:#eef1f5; --panel:#ffffff; --panel-alt:#f4f6f9; --panel-hover:#e9edf3;
+    --border:rgba(15,23,41,0.12); --border-focus:rgba(36,87,230,0.5);
+    --text:#0f1729; --text-dim:#4a5468; --text-muted:#667085;
+    --accent:#2457e6; --accent-hover:#1a43b8; --accent-dim:rgba(36,87,230,0.14);
+    --danger:#d92d20; --danger-dim:rgba(217,45,32,0.12);
+    --shadow:0 10px 28px rgba(15,23,41,0.12); --shadow-sm:0 2px 8px rgba(15,23,41,0.06);
+    --beat-accent:#2457e6; --beat-normal:#b9c6dd; --beat-mute:#e9edf3;
+    --sage-bg:#dcfae6; --sage-text:#067647;
+    --on-accent:#ffffff; --ink:#0f1729; --on-ink:#ffffff; --sel-bg:#0f1729; --on-sel:#ffffff;
+    --practice-bg:#eef3ff; --sage-strong:#2457e6; --on-sage:#ffffff;
+  }
+  /* B · 스테이지 다크 — 어두운 화면에 악보 종이만 밝게. 무대·합주실용 */
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#0d0f12; --panel:#171a1f; --panel-alt:#1f232a; --panel-hover:#272c34;
+    --border:rgba(255,255,255,0.10); --border-focus:rgba(255,178,36,0.55);
+    --text:#f3f4f6; --text-dim:#b3bac5; --text-muted:#8b93a1;
+    --accent:#ffb224; --accent-hover:#ffc65c; --accent-dim:rgba(255,178,36,0.18);
+    --danger:#ff6b5b; --danger-dim:rgba(255,107,91,0.15);
+    --shadow:0 10px 28px rgba(0,0,0,0.5); --shadow-sm:0 2px 8px rgba(0,0,0,0.35);
+    --beat-accent:#ffb224; --beat-normal:#4a515c; --beat-mute:#262b33;
+    --sage-bg:#16301f; --sage-text:#7ee2a8;
+    --on-accent:#17130a; --ink:#262b33; --on-ink:#f3f4f6; --sel-bg:#d7dce3; --on-sel:#0d0f12;
+    --practice-bg:#2a2416; --sage-strong:#ffb224; --on-sage:#17130a;
+  }
+  /* C · 슬레이트 & 코랄 — 회청색 바탕, 남색 글자, 코랄 포인트 */
+  :root[data-theme="slate"]{
+    --bg:#e3e8ef; --panel:#f8fafc; --panel-alt:#eef2f6; --panel-hover:#e5eaf0;
+    --border:rgba(15,23,42,0.12); --border-focus:rgba(204,63,36,0.45);
+    --text:#0f172a; --text-dim:#475569; --text-muted:#64748b;
+    --accent:#cc3f24; --accent-hover:#a3311b; --accent-dim:rgba(204,63,36,0.14);
+    --danger:#b42318; --danger-dim:rgba(180,35,24,0.12);
+    --shadow:0 10px 28px rgba(15,23,42,0.12); --shadow-sm:0 2px 8px rgba(15,23,42,0.06);
+    --beat-accent:#cc3f24; --beat-normal:#c2cbd8; --beat-mute:#e5eaf0;
+    --sage-bg:#dcfae6; --sage-text:#067647;
+    --on-accent:#ffffff; --ink:#0f172a; --on-ink:#f8fafc; --sel-bg:#0f172a; --on-sel:#ffffff;
+    --practice-bg:#fdeee9; --sage-strong:#0f766e; --on-sage:#ffffff;
   }
 
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -121,11 +169,11 @@
   button:hover{background:var(--panel-hover); border-color:var(--accent);}
   button:active{transform:scale(0.98);}
   button.primary{
-    background:var(--accent); border-color:var(--accent); color:#fffdf8;
+    background:var(--accent); border-color:var(--accent); color:var(--on-accent);
     box-shadow:0 3px 10px rgba(198,113,57,0.35);
   }
   button.primary:hover{background:var(--accent-hover); border-color:var(--accent-hover);}
-  button.active{background:var(--text); border-color:var(--text); color:var(--panel);}
+  button.active{background:var(--sel-bg); border-color:var(--sel-bg); color:var(--on-sel);}
   button.icon{padding:7px 10px; font-size:13px; border-radius:999px;}
 
   .row{display:flex; align-items:center; gap:8px;}
@@ -145,7 +193,7 @@
     font-size:11px; font-weight:700; cursor:pointer; color:var(--text-muted); user-select:none;
     transition:all 0.08s ease;
   }
-  .beatDot[data-state="accent"]{background:var(--beat-accent); border-color:var(--beat-accent); color:#fffdf8; box-shadow:0 0 0 3px var(--accent-dim);}
+  .beatDot[data-state="accent"]{background:var(--beat-accent); border-color:var(--beat-accent); color:var(--on-accent); box-shadow:0 0 0 3px var(--accent-dim);}
   .beatDot[data-state="normal"]{background:var(--beat-normal); border-color:var(--beat-normal); color:var(--text);}
   .beatDot.flash{transform:scale(1.15); filter:brightness(1.08);}
 
@@ -158,7 +206,7 @@
     border-bottom:1px solid var(--border); height:52px;
   }
   #bigPlayBtn{
-    width:36px; height:36px; border-radius:50%; background:var(--text); border:none; color:var(--panel);
+    width:36px; height:36px; border-radius:50%; background:var(--ink); border:none; color:var(--on-ink);
     font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
     box-shadow:var(--shadow-sm); cursor:pointer; transition:transform 0.12s;
   }
@@ -178,13 +226,15 @@
   }
   .toolbar-group button{border:none; background:transparent; border-radius:999px; padding:6px 10px;}
   .toolbar-group button:hover{background:var(--panel-hover);}
-  .toolbar-group button.active{background:var(--text); color:var(--panel);}
+  .toolbar-group button.active{background:var(--sel-bg); color:var(--on-sel);}
+  .toolbar-group button.primary{background:var(--accent); color:var(--on-accent);}
+  .toolbar-group button.primary:hover{background:var(--accent-hover);}
   /* Pen/annotation cluster reads as its own dark "ink" capsule, matching the mockup. */
-  .toolbar-group:has(#penTool){background:var(--text);}
-  .toolbar-group:has(#penTool) button{color:var(--panel);}
-  .toolbar-group:has(#penTool) button:hover{background:rgba(249,244,237,0.15);}
-  .toolbar-group:has(#penTool) button.active{background:var(--accent); color:#fffdf8;}
-  .toolbar-group:has(#penTool) input[type=range]{background:rgba(249,244,237,0.25);}
+  .toolbar-group:has(#penTool){background:var(--ink);}
+  .toolbar-group:has(#penTool) button{color:var(--on-ink);}
+  .toolbar-group:has(#penTool) button:hover{background:color-mix(in srgb, var(--on-ink) 15%, transparent);}
+  .toolbar-group:has(#penTool) button.active{background:var(--accent); color:var(--on-accent);}
+  .toolbar-group:has(#penTool) input[type=range]{background:color-mix(in srgb, var(--on-ink) 25%, transparent);}
 
   .swatch{width:18px; height:18px; border-radius:50%; border:2px solid transparent; cursor:pointer; transition:transform 0.1s;}
   .swatch:hover{transform:scale(1.2);}
@@ -194,7 +244,7 @@
      margin:auto instead of justify-content:center so a zoomed page can scroll to its left edge. */
   html, body{overscroll-behavior-x:none;}
   .sheetViewport{flex:1; overflow:auto; display:flex; justify-content:flex-start; align-items:flex-start; padding:24px; position:relative; background:var(--bg); touch-action:pan-x pan-y; overscroll-behavior:contain;}
-  .sheetStage{position:relative; width:100%; max-width:1200px; margin:0 auto; flex-shrink:0; background:#ffffff; box-shadow:var(--shadow); height:fit-content; border-radius:4px; overflow:hidden;}
+  .sheetStage{position:relative; width:100%; max-width:1200px; margin:0 auto; flex-shrink:0; background:var(--paper); color:var(--paper-ink); box-shadow:var(--shadow); height:fit-content; border-radius:4px; overflow:hidden;}
   .sheetStage.placing{cursor:crosshair;}
   .sheetStage img{display:block; width:100%; height:auto; user-select:none; pointer-events:none;}
 
@@ -277,7 +327,7 @@
   .dupBadge{color:var(--danger); font-weight:600;}
   .modeSwitch{display:flex; gap:2px; background:var(--panel-alt); padding:3px; border-radius:999px; border:1px solid var(--border);}
   .modeSwitch button{border:none; background:transparent; padding:5px 12px; font-size:12px; border-radius:999px;}
-  .modeSwitch button.active{background:var(--text); color:var(--panel);}
+  .modeSwitch button.active{background:var(--sel-bg); color:var(--on-sel);}
 
   /* 기본(작업 모드)에서는 1b 요소 모두 숨김 */
   .toolRail, .railFlyout, .metroDock, .lessonPanel, .lessonTabsFloat, .performHead{display:none;}
@@ -300,15 +350,15 @@
   .toolRail{
     position:absolute; left:14px; top:50%; transform:translateY(-50%); z-index:22;
     flex-direction:column; align-items:center; gap:6px; padding:8px 6px;
-    background:var(--text); border-radius:999px; box-shadow:var(--shadow);
+    background:var(--ink); border-radius:999px; box-shadow:var(--shadow);
   }
   .toolRail .railSlot{display:flex; flex-direction:column; gap:6px; align-items:center;}
   .toolRail button{
     width:40px; height:40px; padding:0; border-radius:50%; border:none;
-    background:transparent; color:var(--panel); font-size:14px;
+    background:transparent; color:var(--on-ink); font-size:14px;
   }
-  .toolRail button:hover{background:rgba(249,244,237,0.16);}
-  .toolRail button.active{background:var(--accent); color:#fffdf8;}
+  .toolRail button:hover{background:color-mix(in srgb, var(--on-ink) 16%, transparent);}
+  .toolRail button.active{background:var(--accent); color:var(--on-accent);}
   .toolRail select, .toolRail input[type=range]{display:none;}
   .railFlyout{
     position:absolute; left:66px; top:50%; transform:translateY(-50%); z-index:23;
@@ -321,11 +371,11 @@
   .metroDock{
     position:absolute; left:50%; bottom:18px; transform:translateX(-50%); z-index:22;
     align-items:center; gap:16px; padding:10px 20px;
-    background:var(--text); border-radius:999px; box-shadow:var(--shadow); color:var(--panel);
+    background:var(--ink); border-radius:999px; box-shadow:var(--shadow); color:var(--on-ink);
   }
   .dockPlay{
     position:relative; width:44px; height:44px; border-radius:50%; padding:0; flex-shrink:0;
-    background:var(--accent); border:none; color:#fffdf8; font-size:15px;
+    background:var(--accent); border:none; color:var(--on-accent); font-size:15px;
   }
   .dockPlay:hover{background:var(--accent-hover);}
   .dockPlayIcon{position:relative; z-index:2;}
@@ -340,21 +390,21 @@
     100%{opacity:0; transform:scale(1.5);}
   }
   @media (prefers-reduced-motion: reduce){ .dockRing.pulse{animation:none;} }
-  .dockTempo{display:flex; align-items:baseline; gap:4px; color:var(--panel);}
+  .dockTempo{display:flex; align-items:baseline; gap:4px; color:var(--on-ink);}
   .dockBpmNum{font-family:'Caprasimo', serif; font-size:30px; line-height:1;}
   .dockBpmUnit{font-size:10px; font-weight:700; opacity:0.7; letter-spacing:0.04em;}
   .dockStack{display:flex; flex-direction:column; gap:6px;}
   .dockChip{
-    background:rgba(249,244,237,0.14); border:none; color:var(--panel);
+    background:color-mix(in srgb, var(--on-ink) 14%, transparent); border:none; color:var(--on-ink);
     padding:4px 10px; font-size:11px; border-radius:999px;
   }
-  .dockChip:hover{background:rgba(249,244,237,0.28); border-color:transparent;}
-  .dockMeta{font-size:11px; color:rgba(249,244,237,0.7); white-space:nowrap;}
+  .dockChip:hover{background:color-mix(in srgb, var(--on-ink) 28%, transparent); border-color:transparent;}
+  .dockMeta{font-size:11px; color:color-mix(in srgb, var(--on-ink) 70%, transparent); white-space:nowrap;}
   .dockLoop{
-    background:#7a8a5e; border:none; color:#f5ead8; font-size:11px; font-weight:700;
+    background:var(--sage-strong); border:none; color:var(--on-sage); font-size:11px; font-weight:700;
     padding:5px 12px; border-radius:999px; white-space:nowrap;
   }
-  .metroDock .miniDot{background:rgba(249,244,237,0.22);}
+  .metroDock .miniDot{background:color-mix(in srgb, var(--on-ink) 22%, transparent);}
   .metroDock .miniDot.on{background:var(--beat-accent);}
 
   /* 오른쪽 탭 패널 */
@@ -363,7 +413,7 @@
     background:var(--panel); border:1px solid var(--border); border-radius:999px; box-shadow:var(--shadow-sm);
   }
   .lessonTabsFloat button{border:none; background:transparent; font-size:12px; padding:6px 12px; border-radius:999px;}
-  .lessonTabsFloat button.active{background:var(--text); color:var(--panel);}
+  .lessonTabsFloat button.active{background:var(--sel-bg); color:var(--on-sel);}
   .lessonPanel{
     position:absolute; right:14px; top:60px; bottom:96px; width:330px; z-index:21;
     flex-direction:column; gap:12px; padding:14px;
@@ -376,7 +426,7 @@
   .lessonPanelBody > section{background:var(--panel-alt);}
   .app-layout.mode-lesson .lessonPanelBody .pageStrip{display:flex; background:transparent; border:none; padding:0; flex-wrap:wrap;}
   .lessonPanelBody .row{flex-wrap:wrap;}
-  .practiceCard{background:#fff2eb; border-radius:20px; padding:14px;}
+  .practiceCard{background:var(--practice-bg); border-radius:20px; padding:14px;}
   .practiceCardLabel{font-size:10px; font-weight:800; letter-spacing:0.06em; color:var(--accent-hover);}
   .practiceCardMain{font-family:'Caprasimo','Gowun Batang',serif; font-size:17px; margin-top:4px;}
   .practiceCardSub{font-size:11px; color:var(--text-dim); margin-top:2px;}
@@ -388,13 +438,13 @@
     border:1px solid var(--border); border-radius:999px; box-shadow:var(--shadow-sm);
     font-size:12px; font-weight:600; color:var(--text-dim);
   }
-  .performSection{background:#7a8a5e; color:#f5ead8; padding:3px 10px; border-radius:999px; font-weight:700;}
-  .app-layout.focusMode .focusBar{top:auto; bottom:18px; background:var(--text); border-color:transparent; color:var(--panel);}
-  .app-layout.focusMode .focusBar button{background:rgba(249,244,237,0.14); border-color:transparent; color:var(--panel);}
-  .app-layout.focusMode .focusBar button:hover{background:rgba(249,244,237,0.28);}
+  .performSection{background:var(--sage-strong); color:var(--on-sage); padding:3px 10px; border-radius:999px; font-weight:700;}
+  .app-layout.focusMode .focusBar{top:auto; bottom:18px; background:var(--ink); border-color:transparent; color:var(--on-ink);}
+  .app-layout.focusMode .focusBar button{background:color-mix(in srgb, var(--on-ink) 14%, transparent); border-color:transparent; color:var(--on-ink);}
+  .app-layout.focusMode .focusBar button:hover{background:color-mix(in srgb, var(--on-ink) 28%, transparent);}
   .app-layout.focusMode .focusBar #focusPageLabel,
-  .app-layout.focusMode .focusBar #focusBpmLabel{color:var(--panel);}
-  .app-layout.focusMode .focusBar .miniDot{background:rgba(249,244,237,0.22);}
+  .app-layout.focusMode .focusBar #focusBpmLabel{color:var(--on-ink);}
+  .app-layout.focusMode .focusBar .miniDot{background:color-mix(in srgb, var(--on-ink) 22%, transparent);}
   .app-layout.focusMode .focusBar .miniDot.on{background:var(--beat-accent);}
 
   /* ---- 마디 구간 브래킷 마커 ---- */
@@ -417,7 +467,7 @@
   .markerBracket.practicing .bkLabel{box-shadow:0 0 0 3px rgba(122,138,94,0.55), 0 3px 10px rgba(48,38,20,0.28);}
   .markerBracket .bkResize{
     position:absolute; left:-6px; bottom:-8px; width:16px; height:16px; border-radius:50%;
-    background:var(--panel); border:2px solid currentColor; cursor:ns-resize; display:none;
+    background:var(--paper); border:2px solid currentColor; cursor:ns-resize; display:none;
   }
   .markerBracket:hover .bkResize, .markerBracket.practicing .bkResize{display:block;}
 
@@ -519,7 +569,7 @@
   main.sheet-panel.toolsCollapsed .toolbar{display:none;}
   main.sheet-panel.stripCollapsed .pageStrip{display:none;}
   #fitModeBtn{font-size:11px; padding:5px 10px;}
-  #fitModeBtn.active{background:var(--text); color:var(--panel); border-color:var(--text);}
+  #fitModeBtn.active{background:var(--sel-bg); color:var(--on-sel); border-color:var(--sel-bg);}
 
   /* 양옆 패널 접기 + 다시 펼치는 가장자리 탭 */
   .asideHead{display:flex; justify-content:flex-end; margin:-6px -6px -10px 0;}
@@ -548,14 +598,14 @@
   /* 악보 위 악기 큐 태그 */
   .instTag{
     position:absolute; z-index:6; display:flex; align-items:center; gap:5px; padding:2px 8px 2px 2px;
-    border-radius:999px; background:#fffdf8; border:2px solid; font-size:11px; font-weight:700; color:var(--text);
+    border-radius:999px; background:#fffdf8; border:2px solid; font-size:11px; font-weight:700; color:var(--paper-ink);
     transform:translateY(-50%); cursor:grab; user-select:none; -webkit-user-select:none; white-space:nowrap;
     box-shadow:0 2px 6px rgba(32,30,29,0.18);
   }
   .instTag:active{cursor:grabbing;}
   .instTag .instAbbr{margin:0; height:18px; border-radius:999px; padding:0 7px; font-size:10px;}
   .instTag .memo{cursor:text; font-weight:600;}
-  .instTag .memo.empty{color:var(--text-muted); font-weight:500;}
+  .instTag .memo.empty{color:var(--paper-ink-muted); font-weight:500;}
   .instTag .del{opacity:0.45; cursor:pointer; padding:0 2px; font-weight:400;}
   .instTag .del:hover{opacity:1; color:var(--danger);}
 
@@ -568,7 +618,7 @@
     display:flex; position:fixed; right:0; top:50%; transform:translateY(-50%); z-index:25; align-items:center;
   }
   .focusPagesTab, .focusPenTab{
-    writing-mode:vertical-rl; padding:16px 8px; border:none; background:var(--text); color:var(--panel);
+    writing-mode:vertical-rl; padding:16px 8px; border:none; background:var(--ink); color:var(--on-ink);
     font-size:12px; font-weight:700; letter-spacing:0.08em; box-shadow:var(--shadow);
   }
   .focusPagesTab{border-radius:12px 0 0 12px;}
@@ -595,20 +645,20 @@
   .focusPenTab{border-radius:0 12px 12px 0; order:2;}
   .focusPenBody{
     display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 10px;
-    background:var(--text); color:var(--panel); border-radius:0 18px 18px 0; box-shadow:var(--shadow); order:1;
+    background:var(--ink); color:var(--on-ink); border-radius:0 18px 18px 0; box-shadow:var(--shadow); order:1;
     max-height:92vh; overflow-y:auto;
   }
   .focusPen.collapsed .focusPenBody{display:none;}
   .focusPenBody button{
     width:40px; height:40px; border-radius:50%; border:none; padding:0; font-size:16px;
-    background:rgba(249,244,237,0.12); color:var(--panel); display:flex; align-items:center; justify-content:center;
+    background:color-mix(in srgb, var(--on-ink) 12%, transparent); color:var(--on-ink); display:flex; align-items:center; justify-content:center;
   }
-  .focusPenBody button.active{background:var(--accent); color:#fffdf8;}
-  .focusPenBody .fpSep{width:28px; height:1px; background:rgba(249,244,237,0.2);}
+  .focusPenBody button.active{background:var(--accent); color:var(--on-accent);}
+  .focusPenBody .fpSep{width:28px; height:1px; background:color-mix(in srgb, var(--on-ink) 20%, transparent);}
   .focusPenBody .fpSwatch{width:24px; height:24px; border:2px solid transparent;}
-  .focusPenBody .fpSwatch.selected{border-color:#fffdf8;}
+  .focusPenBody .fpSwatch.selected{border-color:var(--on-ink);}
   .focusPenBody .fpSize span{display:block; border-radius:50%; background:currentColor;}
-  .focusPenBody .fpSizeLabel{font-size:11px; font-weight:800; color:rgba(249,244,237,0.75);}
+  .focusPenBody .fpSizeLabel{font-size:11px; font-weight:800; color:color-mix(in srgb, var(--on-ink) 75%, transparent);}
   .focusPenBody input[type=range]{
     writing-mode:vertical-lr; direction:rtl; width:28px; height:110px; accent-color:var(--accent);
   }
@@ -617,7 +667,7 @@
   .exportVariant{display:flex; gap:4px; padding:4px; background:var(--panel-alt); border:1px solid var(--border); border-radius:999px; margin-bottom:12px;}
   .exportVariant label{flex:1; margin:0; text-align:center; padding:7px 4px; border-radius:999px; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-dim);}
   .exportVariant input{display:none;}
-  .exportVariant label:has(input:checked){background:var(--text); color:var(--panel);}
+  .exportVariant label:has(input:checked){background:var(--sel-bg); color:var(--on-sel);}
 
   /* ============ 악보 크기 (모드마다 따로 기억) ============ */
   .zoomCtl{display:inline-flex; align-items:center; gap:2px;}
@@ -628,8 +678,8 @@
   .sheetTopBar .zoomCtl{background:var(--panel-alt); border:1px solid var(--border); border-radius:999px; padding:2px;}
   .sheetTopBar .zoomCtl button{border:none; background:transparent; padding:4px 10px; border-radius:999px;}
   .sheetTopBar .zoomCtl button:hover, .sheetTopBar .zoomCtl .zoomPct:hover{background:var(--panel-hover);}
-  .metroDock .zoomCtl .zoomPct{color:var(--panel); background:rgba(249,244,237,0.12);}
-  .focusBar .zoomCtl .zoomPct{color:var(--panel); background:rgba(249,244,237,0.14);}
+  .metroDock .zoomCtl .zoomPct{color:var(--on-ink); background:color-mix(in srgb, var(--on-ink) 12%, transparent);}
+  .focusBar .zoomCtl .zoomPct{color:var(--on-ink); background:color-mix(in srgb, var(--on-ink) 14%, transparent);}
   .zoomPop{
     position:fixed; z-index:75; width:260px; padding:14px; display:flex; flex-direction:column; gap:10px;
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
@@ -640,8 +690,31 @@
   .zoomPop input[type=range]{width:100%;}
   .zoomPop .zpPresets{display:flex; flex-wrap:wrap; gap:4px;}
   .zoomPop .zpPresets button{flex:1; min-width:44px; padding:5px 0; font-size:11px; border-radius:999px;}
-  .zoomPop .zpPresets button.active{background:var(--text); color:var(--panel); border-color:var(--text);}
+  .zoomPop .zpPresets button.active{background:var(--sel-bg); color:var(--on-sel); border-color:var(--sel-bg);}
   .zoomPop .zpHint{font-size:10px; color:var(--text-muted); line-height:1.5;}
+
+  /* 빈 악보 자리(첫 악보 올리기 안내)는 종이가 아니라 패널처럼 보이게 */
+  .sheetStage:has(> .emptySheet){background:var(--panel); color:var(--text);}
+
+  /* ============ 설정: 화면 테마 ============ */
+  .settingsBtn{padding:6px 9px;}
+  .settingsPop{
+    position:fixed; z-index:80; width:340px; max-width:94vw; padding:16px; display:flex; flex-direction:column; gap:12px;
+    background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
+  }
+  .settingsPop h3{margin:0; font-size:13px; font-weight:800;}
+  .themeGrid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .themeCard{
+    display:flex; flex-direction:column; align-items:stretch; gap:6px; padding:8px; text-align:left;
+    border-radius:12px; border:2px solid var(--border); background:var(--panel-alt); color:var(--text); cursor:pointer;
+  }
+  .themeCard.selected{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-dim);}
+  .themeSwatch{display:flex; height:34px; border-radius:8px; overflow:hidden; border:1px solid rgba(0,0,0,0.08);}
+  .themeSwatch span{flex:1;}
+  .themeName{font-size:12px; font-weight:800;}
+  .themeHint{font-size:10px; color:var(--text-dim); line-height:1.4;}
+  .settingsRow{display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text); line-height:1.45; margin:0; cursor:pointer;}
+  .settingsRow input{margin-top:2px; accent-color:var(--accent);}
 </style>
 </head>
 <body>
@@ -669,6 +742,9 @@
   <button class="panelToggle active" id="toggleRightPanel" title="노트 패널">
     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
     노트
+  </button>
+  <button class="icon settingsBtn" id="settingsBtn" title="설정 · 화면 테마" aria-label="설정">
+    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
   </button>
   <div class="modeSwitch" id="modeSwitch">
     <button data-mode="studio" class="active" title="책상에서 준비 · 3패널">작업</button>
@@ -1202,6 +1278,7 @@ let state = {
   leftPanelOpen:true, rightPanelOpen:true,
   snapEnabled:false, snapDivisions:16,
   uiMode:"studio", markerShape:"bracket", practicingId:null,
+  theme:"warm", darkInFocus:false,
   fitMode:"page", zoomByMode:{studio:1, lesson:1, perform:1}, toolsOpen:null, stripOpen:true, instFilter:"all", focusPagesOpen:false, focusPenOpen:true,
 };
 
@@ -3640,7 +3717,8 @@ function setFocusMode(on){
   document.querySelector(".app-layout").classList.toggle("focusMode", on);
   document.getElementById("focusModeBtnLabel").textContent = on ? "종료" : "전체화면";
   if(on){ renderFocusPages(); renderFocusPen(); }
-  closeSongPalette(); closeZoomPop();
+  closeSongPalette(); closeZoomPop(); closeSettings();
+  applyTheme();
   loadZoomForMode();
   updateFocusBar();
   updatePerformHead();
@@ -3729,6 +3807,7 @@ function setUiMode(mode){
 
   document.querySelectorAll("#modeSwitch button").forEach(b=>b.classList.toggle("active", b.dataset.mode===mode));
   closeZoomPop();
+  applyTheme();
   updateDock(); updatePerformHead(); renderSheet(); loadZoomForMode(); scheduleSave();
 }
 document.querySelectorAll("#modeSwitch button").forEach(b=>{
@@ -4548,11 +4627,65 @@ document.getElementById("toggleStripBtn").addEventListener("click", ()=>{ state.
 document.getElementById("toggleLeftPanel").addEventListener("click", ()=>{ state.leftPanelOpen = !state.leftPanelOpen; applyPanelUI(); scheduleSave(); });
 document.getElementById("toggleRightPanel").addEventListener("click", ()=>{ state.rightPanelOpen = !state.rightPanelOpen; applyPanelUI(); scheduleSave(); });
 
+/* ============ 화면 테마 ============
+ * warm(기존) · clean(A) · dark(B 스테이지 다크) · slate(C). 악보 종이는 모든 테마에서 흰색 그대로.
+ * "전체화면에서는 스테이지 다크": 연주할 때만 어둡게 — 무대·합주실에서 눈부심을 줄인다. */
+const THEMES = [
+  {key:"warm",  name:"웜 스튜디오",     hint:"지금까지 쓰던 베이지 · 테라코타",       sw:["#e7dcc8","#f9f4ed","#c67139","#201e1d"]},
+  {key:"clean", name:"A · 클린 라이트",  hint:"가장 또렷함 · 밝은 레슨실, 책상 작업",   sw:["#eef1f5","#ffffff","#2457e6","#0f1729"]},
+  {key:"dark",  name:"B · 스테이지 다크", hint:"악보만 밝게 · 무대, 합주실, 어두운 곳", sw:["#0d0f12","#171a1f","#ffb224","#f3f4f6"]},
+  {key:"slate", name:"C · 슬레이트 & 코랄", hint:"차분한 회청색 · 따뜻한 포인트",        sw:["#e3e8ef","#f8fafc","#cc3f24","#0f172a"]},
+];
+function effectiveTheme(){
+  if(focusMode && state.darkInFocus) return "dark";
+  return THEMES.some(t=>t.key===state.theme) ? state.theme : "warm";
+}
+function applyTheme(){
+  const t = effectiveTheme();
+  if(t === "warm") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", t);
+  // 다음에 열 때 깜빡임 없이 바로 적용되도록 (전체화면 임시 다크는 저장하지 않음)
+  try{ localStorage.setItem("mls-theme", state.theme || "warm"); }catch(err){}
+}
+function closeSettings(){ const p = document.getElementById("settingsPop"); if(p) p.remove(); }
+function renderSettingsPop(p){
+  p.innerHTML = `<h3>화면 테마</h3><div class="themeGrid"></div>
+    <label class="settingsRow"><input type="checkbox" id="darkInFocusChk"><span>전체화면(연주)에서는 <b>스테이지 다크</b>로 자동 전환<br><span style="color:var(--text-dim); font-size:11px;">악보 종이는 흰색 그대로, 주변만 어두워집니다.</span></span></label>`;
+  const grid = p.querySelector(".themeGrid");
+  THEMES.forEach(t=>{
+    const b = document.createElement("button");
+    b.className = "themeCard" + (state.theme===t.key || (!state.theme && t.key==="warm") ? " selected" : "");
+    b.innerHTML = `<div class="themeSwatch">${t.sw.map(c=>`<span style="background:${c}"></span>`).join("")}</div>
+      <div class="themeName">${t.name}</div><div class="themeHint">${t.hint}</div>`;
+    b.addEventListener("click", ()=>{ state.theme = t.key; applyTheme(); renderSettingsPop(p); scheduleSave(); });
+    grid.appendChild(b);
+  });
+  const chk = p.querySelector("#darkInFocusChk");
+  chk.checked = !!state.darkInFocus;
+  chk.addEventListener("change", ()=>{ state.darkInFocus = chk.checked; applyTheme(); scheduleSave(); });
+}
+document.getElementById("settingsBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  if(document.getElementById("settingsPop")){ closeSettings(); return; }
+  const p = document.createElement("div");
+  p.className = "settingsPop"; p.id = "settingsPop";
+  renderSettingsPop(p);
+  document.body.appendChild(p);
+  const r = e.currentTarget.getBoundingClientRect();
+  p.style.top = (r.bottom + 8) + "px";
+  p.style.left = Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.right - p.offsetWidth)) + "px";
+  setTimeout(()=> document.addEventListener("pointerdown", function off(ev){
+    if(!ev.target.closest("#settingsPop") && !ev.target.closest("#settingsBtn")){ closeSettings(); document.removeEventListener("pointerdown", off, true); }
+  }, true), 0);
+});
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings(); });
+
 /* ============ Init ============ */
 async function init(){
   await loadState();
   customFormTypes = (await idbGet("customFormTypes")) || [];
   customInstruments = (await idbGet("customInstruments")) || [];
+  applyTheme();
   // 처음 쓰는 기기에서: 가로로 긴(높이가 낮은) 화면이면 도구 줄을 접어서 시작한다
   if(state.toolsOpen === null || state.toolsOpen === undefined){
     state.toolsOpen = !(window.innerWidth > window.innerHeight && window.innerHeight <= 900);

@@ -618,6 +618,30 @@
   .exportVariant label{flex:1; margin:0; text-align:center; padding:7px 4px; border-radius:999px; cursor:pointer; font-size:12px; font-weight:600; color:var(--text-dim);}
   .exportVariant input{display:none;}
   .exportVariant label:has(input:checked){background:var(--text); color:var(--panel);}
+
+  /* ============ 악보 크기 (모드마다 따로 기억) ============ */
+  .zoomCtl{display:inline-flex; align-items:center; gap:2px;}
+  .zoomCtl .zoomPct{
+    min-width:52px; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; text-align:center;
+    padding:5px 6px; border-radius:999px; cursor:pointer; user-select:none; -webkit-user-select:none;
+  }
+  .sheetTopBar .zoomCtl{background:var(--panel-alt); border:1px solid var(--border); border-radius:999px; padding:2px;}
+  .sheetTopBar .zoomCtl button{border:none; background:transparent; padding:4px 10px; border-radius:999px;}
+  .sheetTopBar .zoomCtl button:hover, .sheetTopBar .zoomCtl .zoomPct:hover{background:var(--panel-hover);}
+  .metroDock .zoomCtl .zoomPct{color:var(--panel); background:rgba(249,244,237,0.12);}
+  .focusBar .zoomCtl .zoomPct{color:var(--panel); background:rgba(249,244,237,0.14);}
+  .zoomPop{
+    position:fixed; z-index:75; width:260px; padding:14px; display:flex; flex-direction:column; gap:10px;
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
+  }
+  .zoomPop .zpHead{display:flex; align-items:baseline; justify-content:space-between;}
+  .zoomPop .zpTitle{font-size:11px; font-weight:700; color:var(--text-dim);}
+  .zoomPop .zpValue{font-size:22px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .zoomPop input[type=range]{width:100%;}
+  .zoomPop .zpPresets{display:flex; flex-wrap:wrap; gap:4px;}
+  .zoomPop .zpPresets button{flex:1; min-width:44px; padding:5px 0; font-size:11px; border-radius:999px;}
+  .zoomPop .zpPresets button.active{background:var(--text); color:var(--panel); border-color:var(--text);}
+  .zoomPop .zpHint{font-size:10px; color:var(--text-muted); line-height:1.5;}
 </style>
 </head>
 <body>
@@ -793,7 +817,8 @@
       <button id="bigPlayBtn">▶</button>
       <div class="miniDots" id="miniDots"></div>
       <div style="font-size:13px; font-weight:700; " id="bpmLabel">100 BPM</div>
-      <button class="icon" id="fitModeBtn" style="margin-left:auto;" title="악보 한 장 전체 보기 ↔ 폭 맞춤">↕ 전체 보기</button>
+      <div class="zoomCtl" data-zoom-ctl data-btn-class="" style="margin-left:auto;" title="악보 크기"></div>
+      <button class="icon" id="fitModeBtn" title="악보 한 장 전체 보기 ↔ 폭 맞춤">↕ 전체 보기</button>
       <button class="icon topToggle" id="toggleToolsBtn" title="마킹 도구 접기/펼치기">도구 ▴</button>
       <button class="icon topToggle" id="toggleStripBtn" title="페이지 목록 접기/펼치기">페이지 ▴</button>
       <button class="icon" id="focusModeBtn" title="전체화면 (연주)">
@@ -816,11 +841,6 @@
         <button class="icon" id="nextPage">›</button>
       </div>
 
-      <div class="toolbar-group">
-        <button class="icon" id="zoomOut">－</button>
-        <span id="zoomLabel" style="font-size:11px; padding:0 4px;">100%</span>
-        <button class="icon" id="zoomIn">＋</button>
-      </div>
 
       <div class="toolbar-group">
         <button class="icon active" id="penTool" title="펜">✏️</button>
@@ -898,6 +918,7 @@
         <button class="icon" id="focusPlayBtn">▶</button>
         <div class="miniDots" id="focusMiniDots"></div>
         <span id="focusBpmLabel" style="font-size:12px; font-weight:700; ">100 BPM</span>
+        <div class="zoomCtl" data-zoom-ctl data-btn-class="icon" title="악보 크기"></div>
         <button class="icon" id="focusExitBtn">✕ 나가기</button>
       </div>
 
@@ -928,6 +949,7 @@
           </div>
           <div class="miniDots" id="dockDots"></div>
         </div>
+        <div class="zoomCtl" data-zoom-ctl data-btn-class="dockChip" title="악보 크기"></div>
         <div class="dockMeta" id="dockMeta">4/4 · 사인파</div>
         <button class="dockLoop" id="dockLoop" hidden>A-B</button>
         <button class="dockChip" id="dockPanelBtn" title="패널 열기">⋯</button>
@@ -1180,7 +1202,7 @@ let state = {
   leftPanelOpen:true, rightPanelOpen:true,
   snapEnabled:false, snapDivisions:16,
   uiMode:"studio", markerShape:"bracket", practicingId:null,
-  fitMode:"page", toolsOpen:null, stripOpen:true, instFilter:"all", focusPagesOpen:false, focusPenOpen:true,
+  fitMode:"page", zoomByMode:{studio:1, lesson:1, perform:1}, toolsOpen:null, stripOpen:true, instFilter:"all", focusPagesOpen:false, focusPenOpen:true,
 };
 
 let objectUrls = [];
@@ -3370,20 +3392,123 @@ function applyZoom(){
   const stage = document.getElementById("sheetStage");
   stage.style.maxWidth = "none";
   stage.style.width = Math.round(stageBaseWidth() * scale) + "px";
-  document.getElementById("zoomLabel").textContent = Math.round(scale*100)+"%";
+  syncZoomControls();
   const fb = document.getElementById("fitModeBtn");
   fb.textContent = state.fitMode === "page" ? "↕ 전체 보기" : "↔ 폭 맞춤";
   fb.classList.toggle("active", state.fitMode === "page");
 }
 document.getElementById("fitModeBtn").addEventListener("click", ()=>{
   state.fitMode = state.fitMode === "page" ? "width" : "page";
-  scale = 1; applyZoom(); scheduleSave();
+  setScale(1);
 });
 if(window.ResizeObserver){
   new ResizeObserver(()=> applyZoom()).observe(document.getElementById("sheetViewport"));
 }
-document.getElementById("zoomIn").addEventListener("click", ()=>{ scale = Math.min(2.5, scale+0.1); applyZoom(); });
-document.getElementById("zoomOut").addEventListener("click", ()=>{ scale = Math.max(0.5, scale-0.1); applyZoom(); });
+/* ---------- 악보 크기: 작업 · 레슨 · 전체화면 각각 기억 ----------
+ * 100% = 현재 맞춤(전체 보기/폭 맞춤). ± 한 번 5%, 꾹 누르면 1%씩, % 를 누르면 1% 단위 슬라이더.
+ * 핀치(아이패드), 트랙패드 핀치·⌘/Ctrl+휠(맥), ⌘/Ctrl + = − 0 도 악보만 확대한다. */
+const ZOOM_MIN = 0.3, ZOOM_MAX = 3.0;
+function zoomKey(){ return focusMode ? "perform" : (state.uiMode === "lesson" ? "lesson" : "studio"); }
+function loadZoomForMode(){
+  if(!state.zoomByMode) state.zoomByMode = {studio:1, lesson:1, perform:1};
+  scale = state.zoomByMode[zoomKey()] || 1;
+  applyZoom();
+}
+// anchorX/Y: 확대 중심(화면 좌표). 그 점 아래의 악보 위치가 그대로 남도록 스크롤을 맞춘다.
+function setScale(next, anchorX, anchorY){
+  next = Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, next)) * 100) / 100;
+  const vp = document.getElementById("sheetViewport");
+  const stage = document.getElementById("sheetStage");
+  const vr = vp.getBoundingClientRect();
+  if(anchorX == null){ anchorX = vr.left + vp.clientWidth/2; anchorY = vr.top + vp.clientHeight/2; }
+  const before = stage.getBoundingClientRect();
+  const px = anchorX - before.left, py = anchorY - before.top;
+  const ratio = next / scale;
+  scale = next;
+  if(!state.zoomByMode) state.zoomByMode = {studio:1, lesson:1, perform:1};
+  state.zoomByMode[zoomKey()] = scale;
+  applyZoom();
+  const after = stage.getBoundingClientRect();
+  vp.scrollLeft += (after.left + px*ratio) - anchorX;
+  vp.scrollTop  += (after.top  + py*ratio) - anchorY;
+  updateZoomPop();
+  scheduleSave();
+}
+function syncZoomControls(){
+  const pct = Math.round(scale*100) + "%";
+  document.querySelectorAll("[data-zoom-ctl] .zoomPct").forEach(el=>{ el.textContent = pct; });
+}
+function buildZoomControls(){
+  document.querySelectorAll("[data-zoom-ctl]").forEach(wrap=>{
+    const cls = wrap.dataset.btnClass || "";
+    wrap.innerHTML = "";
+    const mkBtn = (txt, dir, title)=>{
+      const b = document.createElement("button");
+      if(cls) b.className = cls;
+      b.textContent = txt; b.title = title;
+      // 탭 = 5%, 꾹 누르고 있으면 1%씩 계속
+      let holdT = null, repT = null, held = false;
+      const stop = ()=>{ clearTimeout(holdT); clearInterval(repT); holdT = repT = null; };
+      b.addEventListener("pointerdown", (e)=>{
+        e.preventDefault(); held = false; stop();
+        holdT = setTimeout(()=>{ held = true; repT = setInterval(()=> setScale(scale + dir*0.01), 45); }, 380);
+      });
+      b.addEventListener("pointerup", ()=>{ stop(); if(!held) setScale(scale + dir*0.05); });
+      b.addEventListener("pointerleave", stop);
+      b.addEventListener("pointercancel", stop);
+      b.addEventListener("keydown", (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); setScale(scale + dir*0.05); } });
+      return b;
+    };
+    const pct = document.createElement("span");
+    pct.className = "zoomPct"; pct.title = "눌러서 세밀하게 조절"; pct.textContent = Math.round(scale*100) + "%";
+    pct.addEventListener("click", (e)=>{ e.stopPropagation(); toggleZoomPop(pct); });
+    wrap.append(mkBtn("－", -1, "악보 작게 (꾹: 1%씩)"), pct, mkBtn("＋", 1, "악보 크게 (꾹: 1%씩)"));
+  });
+}
+const ZOOM_PRESETS = [75, 90, 100, 110, 125, 150, 200];
+function closeZoomPop(){ const p = document.getElementById("zoomPop"); if(p) p.remove(); }
+function updateZoomPop(){
+  const p = document.getElementById("zoomPop"); if(!p) return;
+  const v = Math.round(scale*100);
+  p.querySelector(".zpValue").textContent = v + "%";
+  p.querySelector("input").value = String(v);
+  p.querySelectorAll(".zpPresets button").forEach(b=> b.classList.toggle("active", parseInt(b.dataset.v,10) === v));
+}
+function toggleZoomPop(anchor){
+  if(document.getElementById("zoomPop")){ closeZoomPop(); return; }
+  const p = document.createElement("div");
+  p.className = "zoomPop"; p.id = "zoomPop";
+  const modeName = {studio:"작업 화면", lesson:"레슨 화면", perform:"전체화면"}[zoomKey()];
+  p.innerHTML = `<div class="zpHead"><span class="zpTitle">악보 크기 · ${modeName}</span><span class="zpValue"></span></div>
+    <input type="range" min="${ZOOM_MIN*100}" max="${ZOOM_MAX*100}" step="1">
+    <div class="zpPresets">${ZOOM_PRESETS.map(v=>`<button data-v="${v}">${v===100?"맞춤":v+"%"}</button>`).join("")}</div>
+    <div class="zpHint">100% = ${state.fitMode==="page" ? "악보 한 장 전체 보기" : "폭 맞춤"}. 모드마다 크기를 따로 기억합니다.</div>`;
+  p.querySelector("input").addEventListener("input", (e)=> setScale(parseInt(e.target.value,10)/100));
+  p.querySelectorAll(".zpPresets button").forEach(b=> b.addEventListener("click", ()=> setScale(parseInt(b.dataset.v,10)/100)));
+  document.body.appendChild(p);
+  updateZoomPop();
+  const r = anchor.getBoundingClientRect(), pw = p.offsetWidth, ph = p.offsetHeight;
+  p.style.left = Math.max(8, Math.min(window.innerWidth - pw - 8, r.left + r.width/2 - pw/2)) + "px";
+  p.style.top = (r.bottom + ph + 10 < window.innerHeight ? r.bottom + 8 : Math.max(8, r.top - ph - 8)) + "px";
+  setTimeout(()=> document.addEventListener("pointerdown", function off(ev){
+    if(!ev.target.closest("#zoomPop") && !ev.target.closest(".zoomPct")){ closeZoomPop(); document.removeEventListener("pointerdown", off, true); }
+  }, true), 0);
+}
+buildZoomControls();
+
+// 맥 트랙패드 핀치(ctrlKey 휠)와 ⌘/Ctrl+휠: 브라우저 화면 전체가 아니라 악보만 확대
+document.getElementById("sheetViewport").addEventListener("wheel", (e)=>{
+  if(!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  const d = Math.max(-25, Math.min(25, e.deltaY * (e.deltaMode === 1 ? 16 : 1)));
+  setScale(scale * Math.exp(-d * 0.01), e.clientX, e.clientY);
+}, {passive:false});
+document.addEventListener("keydown", (e)=>{
+  if(!(e.metaKey || e.ctrlKey) || e.altKey || isTypingTarget(document.activeElement)) return;
+  if(e.key === "=" || e.key === "+"){ e.preventDefault(); setScale(scale + 0.05); }
+  else if(e.key === "-" || e.key === "_"){ e.preventDefault(); setScale(scale - 0.05); }
+  else if(e.key === "0"){ e.preventDefault(); setScale(1); }
+});
 
 (function setupTouchGestures(){
   const viewport = document.getElementById("sheetViewport");
@@ -3411,8 +3536,7 @@ document.getElementById("zoomOut").addEventListener("click", ()=>{ scale = Math.
       e.preventDefault();
       const pts = Array.from(activePointers.values());
       const ratio = dist(pts[0], pts[1]) / pinchStartDist;
-      scale = Math.max(0.5, Math.min(2.5, pinchStartScale * ratio));
-      applyZoom();
+      setScale(pinchStartScale * ratio, (pts[0].x+pts[1].x)/2, (pts[0].y+pts[1].y)/2);
       return;
     }
   }, {passive:false});
@@ -3516,7 +3640,8 @@ function setFocusMode(on){
   document.querySelector(".app-layout").classList.toggle("focusMode", on);
   document.getElementById("focusModeBtnLabel").textContent = on ? "종료" : "전체화면";
   if(on){ renderFocusPages(); renderFocusPen(); }
-  closeSongPalette();
+  closeSongPalette(); closeZoomPop();
+  loadZoomForMode();
   updateFocusBar();
   updatePerformHead();
   // Leaving fullscreen by Esc/swipe/browser must drop us back out of 연주 모드.
@@ -3603,7 +3728,8 @@ function setUiMode(mode){
   }
 
   document.querySelectorAll("#modeSwitch button").forEach(b=>b.classList.toggle("active", b.dataset.mode===mode));
-  updateDock(); updatePerformHead(); renderSheet(); scheduleSave();
+  closeZoomPop();
+  updateDock(); updatePerformHead(); renderSheet(); loadZoomForMode(); scheduleSave();
 }
 document.querySelectorAll("#modeSwitch button").forEach(b=>{
   b.addEventListener("click", ()=> setUiMode(b.dataset.mode));

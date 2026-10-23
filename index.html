@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Music Lesson Studio Pro</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Gowun+Batang:wght@400;700&family=Figtree:wght@400;500;600;700;800&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Nanum+Pen+Script&family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -267,6 +268,11 @@
   #focusPageLabel{ font-size:12px; font-weight:600; color:var(--text-dim); }
 
   /* ============ 모드 전환 (작업 / 레슨 / 연주) ============ */
+  #askSaveOverlay{justify-content:center; align-items:center; z-index:60;}
+  #askSaveOverlay .askPanel{width:440px; max-width:92vw; height:auto; border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;}
+  .askActions{display:flex; gap:8px; flex-wrap:wrap;}
+  .askActions button{flex:1; min-width:110px;}
+  .dupBadge{color:var(--danger); font-weight:600;}
   .modeSwitch{display:flex; gap:2px; background:var(--panel-alt); padding:3px; border-radius:999px; border:1px solid var(--border);}
   .modeSwitch button{border:none; background:transparent; padding:5px 12px; font-size:12px; border-radius:999px;}
   .modeSwitch button.active{background:var(--text); color:var(--panel);}
@@ -497,6 +503,10 @@
   <button id="openLibraryBtn">
     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
     프로젝트
+  </button>
+  <button id="newProjectBtn" title="새 프로젝트 시작">
+    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    새 프로젝트
   </button>
   <button class="panelToggle active" id="toggleLeftPanel" title="메트로놈 패널">
     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
@@ -825,7 +835,8 @@
     <div class="libraryBody">
       <div class="libTabs">
         <button class="active" id="tabCloud" data-tab="cloud">클라우드</button>
-        <button id="tabLocal" data-tab="local">컴퓨터 폴더</button>
+        <button id="tabLocal" data-tab="local">폴더 · 파일</button>
+        <button id="tabExport" data-tab="export">내보내기</button>
       </div>
 
       <div id="cloudSection">
@@ -833,12 +844,18 @@
           <input type="text" id="projectNameInput" placeholder="프로젝트 이름 입력">
           <button class="primary" id="saveProjectBtn" disabled>확인 중…</button>
         </div>
-        <div id="cloudUnavailableNote" class="hint" style="display:none; padding:0 0 12px;">클라우드 저장소를 사용할 수 없습니다. 로컬 탭을 이용하세요.</div>
+        <div id="cloudUnavailableNote" class="hint" style="display:none; padding:0 0 12px;">이 주소에서는 클라우드 저장소를 쓸 수 없습니다. '폴더 · 파일' 탭에서 iCloud Drive 폴더로 저장하면 맥과 아이패드가 같은 파일을 씁니다.</div>
+        <div id="syncNote" class="hint" style="display:none; padding:0 0 12px;">☁️ 같은 Claude 계정이면 맥에서 저장한 프로젝트가 아이패드에서도 바로 열립니다. 저장한 뒤 다른 기기에서 이 보관함을 열어보세요.</div>
         <input type="text" id="librarySearch" placeholder="🔍 프로젝트 검색" style="margin-bottom:12px;">
         <div id="projectList"></div>
       </div>
 
       <div id="localSection" style="display:none;">
+        <div class="hint" style="padding:0 0 12px; line-height:1.7;">
+          <b>맥 ↔ 아이패드 공유 (iCloud Drive)</b><br>
+          맥: 📂 폴더 선택 → <b>iCloud Drive</b> 안의 폴더 (예: iCloud Drive/Music Lesson).<br>
+          아이패드: 파일 저장 → <b>"파일에 저장"</b> → 같은 폴더. 불러오기도 같은 폴더에서 고르면 됩니다.
+        </div>
         <div id="fsAccessUI">
           <div class="row" style="margin-bottom:12px;">
             <button id="chooseFolderBtn">📂 폴더 선택</button>
@@ -850,7 +867,7 @@
           </div>
           <div id="localFileList"></div>
         </div>
-        <div id="fallbackFileUI" style="display:none;">
+        <div id="fallbackFileUI" style="display:none; margin-top:14px;">
           <div class="saveRow">
             <input type="text" id="fallbackProjectNameInput" placeholder="프로젝트 이름">
             <button class="primary" id="fallbackSaveBtn">파일 저장</button>
@@ -858,6 +875,30 @@
           <button id="fallbackLoadBtn" style="width:100%; margin-top:8px;">📂 파일에서 불러오기</button>
           <input type="file" id="fallbackLoadInput" accept=".json,application/json" style="display:none;">
         </div>
+      </div>
+
+      <div id="exportSection" style="display:none;">
+        <div class="hint" style="padding:0 0 12px;">펜 필기 · 송폼 브래킷 · 텍스트가 악보와 합쳐져 나갑니다. 학생에게 보내거나 인쇄할 때 쓰세요.</div>
+        <button class="primary" id="exportPngBtn" style="width:100%; margin-bottom:8px;">🖼 현재 페이지 이미지 (PNG)</button>
+        <button class="primary" id="exportAllPngBtn" style="width:100%; margin-bottom:8px;">🖼 전체 페이지 이미지 (PNG 여러 장)</button>
+        <button class="primary" id="exportPdfBtn" style="width:100%;">📄 전체 페이지 PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="libraryOverlay" id="askSaveOverlay" hidden>
+  <div class="libraryPanel askPanel">
+    <div class="libraryHead"><h2 id="askSaveTitle">작업 중인 내용을 저장할까요?</h2></div>
+    <div class="libraryBody">
+      <div class="hint" id="askSaveBody" style="padding:0 0 14px; line-height:1.6;"></div>
+      <div class="saveRow" id="askSaveNameRow" style="display:none;">
+        <input type="text" id="askSaveName" placeholder="프로젝트 이름">
+      </div>
+      <div class="askActions">
+        <button class="primary" id="askSaveYes">저장하고 계속</button>
+        <button id="askSaveNo">저장 안 함</button>
+        <button id="askSaveCancel">취소</button>
       </div>
     </div>
   </div>
@@ -1014,6 +1055,7 @@ async function initCloud(){
   }catch(err){ cloudDb = null; }
   cloudReady = !!cloudDb;
   document.getElementById("cloudUnavailableNote").style.display = cloudReady ? "none" : "block";
+  document.getElementById("syncNote").style.display = cloudReady ? "block" : "none";
   document.getElementById("saveProjectBtn").disabled = !cloudReady;
   document.getElementById("saveProjectBtn").textContent = "저장";
   document.getElementById("librarySearch").disabled = !cloudReady;
@@ -1034,6 +1076,11 @@ function subscribeProjectList(){
       cachedProjectList = snap.docs.map(d=>Object.assign({id:d.id}, d.data()));
       renderProjectList();
     }, (err)=>{ console.error("project list subscription error", err); });
+}
+
+function dupOf(p){
+  const n = p.name||"";
+  return cachedProjectList.filter(x=>(x.name||"")===n).length;
 }
 
 function renderProjectList(){
@@ -1057,7 +1104,7 @@ function renderProjectList(){
     const meta = document.createElement("div");
     meta.className = "projectMeta";
     const dateStr = p.updatedAt ? new Date(p.updatedAt).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
-    meta.innerHTML = `<div class="pname">${escapeHtml(p.name||"(제목 없음)")}${p.id===currentProjectId ? " · 현재" : ""}</div><div class="pinfo">${dateStr} · 페이지 ${p.pageCount||0}</div>`;
+    meta.innerHTML = `<div class="pname">${escapeHtml(p.name||"(제목 없음)")}${p.id===currentProjectId ? " · 현재" : ""}</div><div class="pinfo">${dateStr} · 페이지 ${p.pageCount||0}${dupOf(p)>1 ? ` · <span class="dupBadge">같은 이름 ${dupOf(p)}개</span>` : ""}</div>`;
     const actions = document.createElement("div");
     actions.className = "projectActions";
     const openBtn = document.createElement("button");
@@ -1082,7 +1129,7 @@ function updateCurrentProjectLabel(){
   const el = document.getElementById("currentProjectLabel");
   if(currentProjectId) el.textContent = "☁️ " + currentProjectName;
   else if(currentProjectName) el.textContent = "💻 " + currentProjectName;
-  else el.textContent = "새 프로젝트";
+  else el.textContent = "제목 없음";
 }
 
 function loadImageFromBlob(blob){
@@ -1192,20 +1239,43 @@ async function persistProjectPages(projectId, pagesData){
   await pruneExtraPageDocs(projectId, pagesData.length);
 }
 
-async function saveCurrentProject(name){
-  if(!cloudReady){ alert("클라우드 저장소를 사용할 수 없습니다."); return; }
-  if(!name){ alert("프로젝트 이름을 입력해주세요."); return; }
+// One save at a time across every target. A double tap on iPad, Enter + click,
+// or a second click while images are still compressing all used to start a
+// second save that created its own document.
+let saveInFlight = false;
+
+async function findProjectIdByName(name){
+  try{
+    const snap = await cloudDb.collection("projects").where("name","==",name).limit(5).get();
+    if(snap.docs && snap.docs.length) return snap.docs[0].id;
+  }catch(err){
+    const hit = cachedProjectList.find(p=>(p.name||"")===name);
+    if(hit) return hit.id;
+  }
+  return null;
+}
+
+async function saveCurrentProject(name, opts){
+  opts = opts || {};
+  if(!cloudReady){ if(!opts.silent) alert("클라우드 저장소를 사용할 수 없습니다."); return false; }
+  if(!name){ if(!opts.silent) alert("프로젝트 이름을 입력해주세요."); return false; }
+  if(saveInFlight) return false;
+  saveInFlight = true;
   const btn = document.getElementById("saveProjectBtn");
   btn.disabled = true; btn.textContent = "저장 중...";
   try{
     let projectId = currentProjectId;
-    let isNew = true;
     if(projectId){
       const snap = await cloudDb.doc("projects/"+projectId).get();
-      isNew = !snap.exists;
-    } else {
-      projectId = cloudDb.collection("projects").doc().id;
+      if(!snap.exists) projectId = null;
     }
+    // Same name = same project. Never mint a second document for a name that exists.
+    if(!projectId) projectId = await findProjectIdByName(name);
+    const isNew = !projectId;
+    if(isNew) projectId = cloudDb.collection("projects").doc().id;
+    currentProjectId = projectId;
+    currentProjectName = name;
+
     const pagesData = await buildPagesData();
     const fields = buildProjectFields(name);
     fields.pageCount = pagesData.length;
@@ -1213,18 +1283,19 @@ async function saveCurrentProject(name){
     const projectRef = cloudDb.doc("projects/"+projectId);
     if(isNew){ fields.createdAt = Date.now(); await projectRef.set(fields); }
     else await projectRef.update(fields);
-
-    currentProjectId = projectId;
-    currentProjectName = name;
     updateCurrentProjectLabel();
 
     await persistProjectPages(projectId, pagesData);
     safeSetHash("project="+projectId);
-    alert("저장되었습니다: " + name);
+    if(!opts.silent) alert("저장되었습니다: " + name);
+    return true;
   }catch(err){
     console.error("save project failed", err);
+    if(opts.silent) throw err;
     alert("저장에 실패했습니다: " + (err && err.message ? err.message : err));
+    return false;
   }finally{
+    saveInFlight = false;
     btn.disabled = false; btn.textContent = "저장";
   }
 }
@@ -1305,12 +1376,89 @@ async function loadProjectData(id){
   updateCurrentProjectLabel();
 }
 
-async function confirmSwitchAway(){
-  if(state.sheets.length && !currentProjectId && !currentProjectName){
-    return confirm("현재 작업 중인 내용이 저장되지 않았습니다. 계속할까요?");
+function hasUnsavedWork(){
+  return !!(state.sheets.length || (state.notes||"").trim());
+}
+
+let askSaveResolve = null;
+function openAskSave(opts){
+  return new Promise((resolve)=>{
+    if(askSaveResolve) askSaveResolve({action:"cancel"});
+    askSaveResolve = resolve;
+    document.getElementById("askSaveTitle").textContent = opts.title;
+    document.getElementById("askSaveBody").textContent = opts.body;
+    const nameInput = document.getElementById("askSaveName");
+    document.getElementById("askSaveNameRow").style.display = opts.needName ? "flex" : "none";
+    nameInput.value = opts.suggested || "";
+    document.getElementById("askSaveOverlay").hidden = false;
+    setTimeout(()=> (opts.needName ? nameInput : document.getElementById("askSaveYes")).focus(), 30);
+  });
+}
+function closeAskSave(result){
+  document.getElementById("askSaveOverlay").hidden = true;
+  const r = askSaveResolve; askSaveResolve = null;
+  if(r) r(result);
+}
+document.getElementById("askSaveYes").addEventListener("click", ()=> closeAskSave({action:"save", name:document.getElementById("askSaveName").value.trim()}));
+document.getElementById("askSaveNo").addEventListener("click", ()=> closeAskSave({action:"discard"}));
+document.getElementById("askSaveCancel").addEventListener("click", ()=> closeAskSave({action:"cancel"}));
+document.getElementById("askSaveName").addEventListener("keydown", (e)=>{
+  if(e.key==="Enter" && !e.isComposing){ e.preventDefault(); document.getElementById("askSaveYes").click(); }
+  else if(e.key==="Escape") closeAskSave({action:"cancel"});
+});
+
+// Save where this project already lives: cloud doc → chosen folder → cloud → file.
+function saveToCurrentTarget(name){
+  if(cloudReady && currentProjectId) return saveCurrentProject(name, {silent:true});
+  if(folderHandle) return saveToFolder(name, {silent:true});
+  if(cloudReady) return saveCurrentProject(name, {silent:true});
+  return saveProjectAsFile(name, {silent:true});
+}
+
+async function confirmSwitchAway(opts){
+  opts = opts || {};
+  if(!hasUnsavedWork()) return true;
+  const known = currentProjectName || "";
+  const synced = cloudReady && currentProjectId;
+  const body = synced
+    ? `"${known}"은(는) 클라우드에 자동 동기화 중입니다. 지금 한 번 더 저장하고 넘어갈 수 있습니다.`
+    : known
+      ? `"${known}"의 마지막 변경 사항이 아직 저장되지 않았을 수 있습니다.`
+      : "아직 저장한 적 없는 작업입니다. 이름을 정하면 저장하고 넘어갑니다.";
+  const res = await openAskSave({title: opts.title || "작업 중인 내용을 저장할까요?", body, needName: !known, suggested: known});
+  if(!res || res.action==="cancel") return false;
+  if(res.action==="discard") return true;
+  const name = (res.name || known).trim();
+  if(!name){ alert("프로젝트 이름을 입력해주세요."); return false; }
+  try{
+    const ok = await saveToCurrentTarget(name);
+    if(ok === false){ alert("저장하지 못해 이동을 멈췄습니다."); return false; }
+  }catch(err){
+    alert("저장에 실패해 이동을 멈췄습니다: " + (err && err.message ? err.message : err));
+    return false;
   }
   return true;
 }
+
+async function newProject(){
+  if(!(await confirmSwitchAway({title:"새 프로젝트를 시작할까요?"}))) return;
+  revokeUrls();
+  for(const u of pageThumbUrls.values()) URL.revokeObjectURL(u);
+  pageThumbUrls.clear();
+  state.sheets = [];
+  state.currentIndex = 0;
+  state.notes = "";
+  state.practicingId = null;
+  currentProjectId = null;
+  currentProjectName = "";
+  safeClearHash();
+  ["projectNameInput","localProjectNameInput","fallbackProjectNameInput"].forEach(id=>{ document.getElementById(id).value = ""; });
+  refreshUiFromState();
+  updateCurrentProjectLabel();
+  closeLibrary();
+  scheduleSave();
+}
+document.getElementById("newProjectBtn").addEventListener("click", newProject);
 
 async function flushCurrentProject(){
   if(cloudReady && currentProjectId){
@@ -1386,13 +1534,19 @@ document.getElementById("librarySearch").addEventListener("input", renderProject
 document.getElementById("saveProjectBtn").addEventListener("click", ()=>{
   saveCurrentProject(document.getElementById("projectNameInput").value.trim());
 });
+[["projectNameInput","saveProjectBtn"],["localProjectNameInput","saveToFolderBtn"],["fallbackProjectNameInput","fallbackSaveBtn"]].forEach(([inputId, btnId])=>{
+  document.getElementById(inputId).addEventListener("keydown", (e)=>{
+    if(e.key==="Enter" && !e.isComposing){ e.preventDefault(); document.getElementById(btnId).click(); }
+  });
+});
 
 document.querySelectorAll(".libTabs button").forEach(btn=>{
   btn.addEventListener("click", ()=>{
     document.querySelectorAll(".libTabs button").forEach(b=>b.classList.toggle("active", b===btn));
-    const isCloud = btn.dataset.tab==="cloud";
-    document.getElementById("cloudSection").style.display = isCloud ? "block" : "none";
-    document.getElementById("localSection").style.display = isCloud ? "none" : "block";
+    const tab = btn.dataset.tab;
+    document.getElementById("cloudSection").style.display = tab==="cloud" ? "block" : "none";
+    document.getElementById("localSection").style.display = tab==="local" ? "block" : "none";
+    document.getElementById("exportSection").style.display = tab==="export" ? "block" : "none";
   });
 });
 
@@ -1401,14 +1555,14 @@ let folderHandle = null;
 const FS_ACCESS_SUPPORTED = "showDirectoryPicker" in window;
 
 async function initLocalFolder(){
+  // File save/load is always available — it is the path an iPad uses to reach iCloud Drive.
+  document.getElementById("fallbackFileUI").style.display = "block";
+  initDownloadsCapability();
   if(!FS_ACCESS_SUPPORTED){
     document.getElementById("fsAccessUI").style.display = "none";
-    document.getElementById("fallbackFileUI").style.display = "block";
-    await initDownloadsCapability();
     return;
   }
   document.getElementById("fsAccessUI").style.display = "block";
-  document.getElementById("fallbackFileUI").style.display = "none";
   try{
     const handle = await idbGet("folderHandle");
     if(!handle) return;
@@ -1467,14 +1621,17 @@ async function buildProjectFileData(name){
   };
 }
 
-async function saveToFolder(name){
-  if(!folderHandle){ alert("폴더를 먼저 선택하세요."); return; }
-  if(!name){ alert("이름을 입력하세요."); return; }
+async function saveToFolder(name, opts){
+  opts = opts || {};
+  if(!folderHandle){ if(!opts.silent) alert("폴더를 먼저 선택하세요."); return false; }
+  if(!name){ if(!opts.silent) alert("이름을 입력하세요."); return false; }
+  if(saveInFlight) return false;
+  saveInFlight = true;
   const btn = document.getElementById("saveToFolderBtn");
   btn.disabled = true; btn.textContent = "저장 중...";
   try{
     const perm = await folderHandle.requestPermission({mode:"readwrite"});
-    if(perm !== "granted"){ alert("권한이 필요합니다."); return; }
+    if(perm !== "granted"){ if(!opts.silent) alert("권한이 필요합니다."); return false; }
     const projectData = await buildProjectFileData(name);
     const filename = sanitizeFilename(name) + ".mlsproj.json";
     const fileHandle = await folderHandle.getFileHandle(filename, {create:true});
@@ -1484,9 +1641,14 @@ async function saveToFolder(name){
     refreshLocalFileList();
     currentProjectName = name;
     updateCurrentProjectLabel();
-    alert("저장 완료: " + filename);
-  }catch(err){ alert("저장 실패: " + (err && err.message ? err.message : err)); }
-  finally{ btn.disabled = false; btn.textContent = "폴더 저장"; }
+    if(!opts.silent) alert("저장 완료: " + filename);
+    return true;
+  }catch(err){
+    if(opts.silent) throw err;
+    alert("저장 실패: " + (err && err.message ? err.message : err));
+    return false;
+  }
+  finally{ saveInFlight = false; btn.disabled = false; btn.textContent = "폴더 저장"; }
 }
 
 let downloadsApi = null;
@@ -1498,28 +1660,48 @@ async function initDownloadsCapability(){
   }catch(err){}
 }
 
-async function saveProjectAsFile(name){
-  if(!name){ alert("이름을 입력하세요."); return; }
+// Hand a generated file to the viewer: the Claude downloads capability when the
+// page runs as an artifact, otherwise a plain browser download.
+async function deliverFile(filename, data, mime){
+  const blob = data instanceof Blob ? data : new Blob([data], {type: mime || "application/octet-stream"});
+  if(downloadsApi){
+    try{ await downloadsApi.save({filename, data: blob}); return true; }
+    catch(err){
+      if(err && (err.code==="declined" || err.code==="rate_limited")) return false;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  return true;
+}
+
+async function saveProjectAsFile(name, opts){
+  opts = opts || {};
+  if(!name){ if(!opts.silent) alert("이름을 입력하세요."); return false; }
+  if(saveInFlight) return false;
+  saveInFlight = true;
   const btn = document.getElementById("fallbackSaveBtn");
   btn.disabled = true; btn.textContent = "준비 중...";
   try{
     const projectData = await buildProjectFileData(name);
-    const jsonText = JSON.stringify(projectData);
-    const filename = sanitizeFilename(name) + ".json";
-    if(downloadsApi){
-      await downloadsApi.save({filename, data: jsonText});
-    } else {
-      const blob = new Blob([jsonText], {type:"application/json"});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url), 1000);
-    }
+    // Same extension as the folder save, so one project is one file wherever it is saved.
+    const filename = sanitizeFilename(name) + ".mlsproj.json";
+    const ok = await deliverFile(filename, JSON.stringify(projectData), "application/json");
+    if(!ok) return false;
     currentProjectName = name;
     updateCurrentProjectLabel();
-  }catch(err){ alert("저장 실패: " + (err && err.message ? err.message : err)); }
-  finally{ btn.disabled = false; btn.textContent = "파일 저장"; }
+    btn.textContent = "✓ 저장됨";
+    await new Promise(r=>setTimeout(r, 1200));
+    return true;
+  }catch(err){
+    if(opts.silent) throw err;
+    alert("저장 실패: " + (err && err.message ? err.message : err));
+    return false;
+  }
+  finally{ saveInFlight = false; btn.disabled = false; btn.textContent = "파일 저장"; }
 }
 
 document.getElementById("fallbackSaveBtn").addEventListener("click", ()=>{
@@ -1618,6 +1800,164 @@ document.getElementById("chooseFolderBtn").addEventListener("click", pickFolder)
 document.getElementById("saveToFolderBtn").addEventListener("click", ()=>{
   saveToFolder(document.getElementById("localProjectNameInput").value.trim());
 });
+
+/* ============ EXPORT (PNG / PDF) ============ */
+// Text boxes and markers are sized in screen px on the stage; annotations are
+// stored in image px. Scale the former by imageWidth / stageWidth so the export
+// matches what the teacher sees on screen.
+function exportScaleRef(){
+  const stage = document.getElementById("sheetStage");
+  const w = stage ? stage.getBoundingClientRect().width : 0;
+  return w > 50 ? w : 900;
+}
+
+function roundRectPath(g, x, y, w, h, r){
+  r = Math.min(r, h/2, w/2);
+  g.beginPath();
+  g.moveTo(x+r, y);
+  g.arcTo(x+w, y, x+w, y+h, r); g.arcTo(x+w, y+h, x, y+h, r);
+  g.arcTo(x, y+h, x, y, r); g.arcTo(x, y, x+w, y, r);
+  g.closePath();
+}
+
+function drawMarkerOnCanvas(g, m, W, H, s){
+  const color = m.color || "#c67139";
+  const x = W * (m.xPct||0) / 100;
+  const y = H * (m.yPct||0) / 100;
+  const fs = Math.max(10, 12*s);
+  const padX = 8*s, padY = 4*s;
+  const text = (m.label||"") + (m.bar ? "  " + m.bar + "마디" : "");
+  g.save();
+  g.font = `600 ${fs}px 'Figtree','Noto Sans KR',sans-serif`;
+  g.textBaseline = "top";
+  const tw = g.measureText(text).width;
+  const pillH = fs + padY*2;
+  if(m.shape === "bracket"){
+    const y2 = H * (m.yEndPct != null ? m.yEndPct : (m.yPct||0) + 11) / 100;
+    const cap = 10*s;
+    g.strokeStyle = color; g.lineWidth = Math.max(2, 3*s); g.lineCap = "round";
+    g.beginPath();
+    g.moveTo(x+cap, y); g.lineTo(x, y); g.lineTo(x, y2); g.lineTo(x+cap, y2);
+    g.stroke();
+    const px = x + cap + 4*s, py = y - pillH/2;
+    roundRectPath(g, px, py, tw + padX*2, pillH, pillH/2);
+    g.fillStyle = color; g.fill();
+    g.fillStyle = "#fffdf8"; g.fillText(text, px + padX, py + padY);
+  } else {
+    roundRectPath(g, x, y, tw + padX*2, pillH, pillH/2);
+    g.fillStyle = color; g.fill();
+    g.fillStyle = "#fffdf8"; g.fillText(text, x + padX, y + padY);
+  }
+  g.restore();
+}
+
+async function composePageCanvas(sheet, refWidth){
+  if(sheet.kind==="pdf" && !(sheet.blob instanceof Blob)) await ensurePageBlob(sheet);
+  if(!(sheet.blob instanceof Blob)) return null;
+  const img = await loadImageFromBlob(sheet.blob);
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
+  g.drawImage(img, 0, 0, W, H);
+
+  // Strokes go on their own layer so the eraser cuts ink, not the score.
+  const ink = document.createElement("canvas");
+  ink.width = W; ink.height = H;
+  const ig = ink.getContext("2d");
+  (sheet.annotations||[]).forEach(stroke=>{
+    ig.globalCompositeOperation = stroke.mode==="erase" ? "destination-out" : "source-over";
+    ig.strokeStyle = stroke.color; ig.lineWidth = stroke.width;
+    ig.lineCap = "round"; ig.lineJoin = "round";
+    ig.beginPath();
+    (stroke.points||[]).forEach((p,i)=> i===0 ? ig.moveTo(p.x,p.y) : ig.lineTo(p.x,p.y));
+    ig.stroke();
+  });
+  g.drawImage(ink, 0, 0);
+
+  const s = W / refWidth;
+  (sheet.markers||[]).forEach(m=> drawMarkerOnCanvas(g, m, W, H, s));
+  (sheet.textBoxes||[]).forEach(tb=>{
+    if(!tb.text) return;
+    const fs = Math.max(8, (tb.fontSize||16) * s);
+    const fam = tb.fontFamily && tb.fontFamily !== "inherit" ? tb.fontFamily : "'Figtree','Noto Sans KR',sans-serif";
+    g.font = `${fs}px ${fam}`;
+    g.fillStyle = "#201e1d";
+    g.textBaseline = "top";
+    String(tb.text).split("\n").forEach((ln, i)=> g.fillText(ln, W*tb.xPct/100 + 6*s, H*tb.yPct/100 + 4*s + i*fs*1.35));
+  });
+  return c;
+}
+
+function exportBaseName(){
+  return sanitizeFilename(currentProjectName || "music-lesson");
+}
+
+async function withBusy(btnId, label, fn){
+  const btn = document.getElementById(btnId);
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = label;
+  try{ await fn((t)=>{ btn.textContent = t; }); }
+  catch(err){ alert("내보내기 실패: " + (err && err.message ? err.message : err)); }
+  finally{ btn.disabled = false; btn.textContent = orig; }
+}
+
+function exportCurrentPagePng(){
+  const sheet = currentSheet();
+  if(!sheet){ alert("내보낼 악보가 없습니다."); return; }
+  return withBusy("exportPngBtn", "만드는 중...", async ()=>{
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const c = await composePageCanvas(sheet, exportScaleRef());
+    if(!c){ alert("이 페이지 이미지를 불러오지 못했습니다."); return; }
+    const blob = await new Promise(r=> c.toBlob(r, "image/png"));
+    await deliverFile(`${exportBaseName()}-p${state.currentIndex+1}.png`, blob, "image/png");
+  });
+}
+
+function exportAllPagesPng(){
+  if(!state.sheets.length){ alert("내보낼 악보가 없습니다."); return; }
+  return withBusy("exportAllPngBtn", "만드는 중...", async (setLabel)=>{
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const ref = exportScaleRef();
+    for(let i=0;i<state.sheets.length;i++){
+      setLabel(`이미지 ${i+1} / ${state.sheets.length}`);
+      const c = await composePageCanvas(state.sheets[i], ref);
+      if(!c) continue;
+      const blob = await new Promise(r=> c.toBlob(r, "image/png"));
+      const ok = await deliverFile(`${exportBaseName()}-p${i+1}.png`, blob, "image/png");
+      if(!ok) break;
+      await new Promise(r=>setTimeout(r, 350));
+    }
+  });
+}
+
+function exportAllPagesPdf(){
+  if(!state.sheets.length){ alert("내보낼 악보가 없습니다."); return; }
+  const JsPDF = window.jspdf && window.jspdf.jsPDF;
+  if(!JsPDF){ alert("PDF 모듈을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요."); return; }
+  return withBusy("exportPdfBtn", "만드는 중...", async (setLabel)=>{
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const ref = exportScaleRef();
+    let pdf = null;
+    for(let i=0;i<state.sheets.length;i++){
+      setLabel(`PDF ${i+1} / ${state.sheets.length}`);
+      const c = await composePageCanvas(state.sheets[i], ref);
+      if(!c) continue;
+      const orient = c.width > c.height ? "landscape" : "portrait";
+      const fmt = [c.width, c.height];
+      if(!pdf) pdf = new JsPDF({orientation: orient, unit: "px", format: fmt, hotfixes: ["px_scaling"], compress: true});
+      else pdf.addPage(fmt, orient);
+      pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, c.width, c.height);
+    }
+    if(!pdf){ alert("내보낼 수 있는 페이지가 없습니다."); return; }
+    await deliverFile(exportBaseName() + ".pdf", pdf.output("blob"), "application/pdf");
+  });
+}
+
+document.getElementById("exportPngBtn").addEventListener("click", exportCurrentPagePng);
+document.getElementById("exportAllPngBtn").addEventListener("click", exportAllPagesPng);
+document.getElementById("exportPdfBtn").addEventListener("click", exportAllPagesPdf);
 
 /* ============ METRONOME / SOUND ENGINE ============ */
 let audioCtx=null, isPlaying=false, nextNoteTime=0, currentBeat=0, noteQueue=[];

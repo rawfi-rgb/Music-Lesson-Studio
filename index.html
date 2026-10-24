@@ -748,6 +748,15 @@
     box-shadow:var(--shadow); font-size:13px; font-weight:700;
   }
   .settingsVersion{font-size:10px; color:var(--text-muted); text-align:right;}
+
+  /* iCloud */
+  .syncChip{font-size:11px; padding:4px 10px; color:var(--text-dim); white-space:nowrap;}
+  .syncChip.warn{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
+  .emptyRecent{display:flex; flex-direction:column; gap:6px; align-items:stretch; width:min(320px, 90%); margin-top:6px;}
+  .emptyRecent:empty{display:none;}
+  .emptyRecentTitle{font-size:11px; font-weight:800; color:var(--text-dim); text-align:left;}
+  .emptyRecentItem{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 14px; text-align:left;}
+  .emptyRecentItem small{color:var(--text-muted); font-size:11px; white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -759,6 +768,7 @@
     <span class="logo-badge">PRO</span>
   </h1>
   <div id="saveStatus">저장 준비 중…</div>
+  <button class="icon syncChip" id="syncStatus" hidden></button>
   <div id="currentProjectLabel"></div>
   <button id="openLibraryBtn">
     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
@@ -1016,6 +1026,7 @@
           <button class="primary" id="emptyStateUploadBtn">파일 선택</button>
           <div class="hint" style="padding:0;">JPG · PNG · PDF</div>
           <button class="icon" id="emptyStateLibraryBtn" style="background:transparent; border-color:transparent; color:var(--text-dim); text-decoration:underline;">보관함에서 열기</button>
+          <div class="emptyRecent" id="emptyRecent"></div>
         </div>
       </div>
       <button class="navEdge navRight" id="navEdgeRight" title="다음 페이지">›</button>
@@ -1125,7 +1136,7 @@
     <div class="libraryBody">
       <div class="libTabs">
         <button class="active" id="tabCloud" data-tab="cloud">클라우드</button>
-        <button id="tabLocal" data-tab="local">폴더 · 파일</button>
+        <button id="tabLocal" data-tab="local">iCloud</button>
         <button id="tabExport" data-tab="export">내보내기</button>
       </div>
 
@@ -1141,29 +1152,25 @@
       </div>
 
       <div id="localSection" style="display:none;">
-        <div class="hint" style="padding:0 0 12px; line-height:1.7;">
-          <b>맥 ↔ 아이패드 공유 (iCloud Drive)</b><br>
-          맥: 📂 폴더 선택 → <b>iCloud Drive</b> 안의 폴더 (예: iCloud Drive/Music Lesson).<br>
-          아이패드: 파일 저장 → <b>"파일에 저장"</b> → 같은 폴더 → 같은 이름이 있으면 <b>"대치"</b>(덮어쓰기). 불러오기도 같은 폴더에서.
-        </div>
+        <div class="hint" id="icloudHint" style="padding:0 0 12px; line-height:1.7;"></div>
         <div id="fsAccessUI">
           <div class="row" style="margin-bottom:12px;">
-            <button id="chooseFolderBtn">📂 폴더 선택</button>
-            <span id="folderNameLabel">선택 폴더 없음</span>
+            <button id="chooseFolderBtn">📂 iCloud Drive 폴더 연결</button>
+            <span id="folderNameLabel">연결된 폴더 없음</span>
           </div>
           <div class="saveRow">
             <input type="text" id="localProjectNameInput" placeholder="프로젝트 이름">
-            <button class="primary" id="saveToFolderBtn">폴더 저장</button>
+            <button class="primary" id="saveToFolderBtn">iCloud에 저장</button>
           </div>
           <div id="localFileList"></div>
         </div>
         <div id="fallbackFileUI" style="display:none; margin-top:14px;">
           <div class="saveRow">
             <input type="text" id="fallbackProjectNameInput" placeholder="프로젝트 이름">
-            <button class="primary" id="fallbackSaveBtn">파일 저장</button>
+            <button class="primary" id="fallbackSaveBtn">iCloud에 저장</button>
           </div>
-          <button id="fallbackLoadBtn" style="width:100%; margin-top:8px;">📂 파일에서 불러오기</button>
-          <input type="file" id="fallbackLoadInput" style="display:none;">
+          <button id="fallbackLoadBtn" style="width:100%; margin-top:8px;">☁️ iCloud에서 열기</button>
+          <input type="file" id="fallbackLoadInput" accept=".json,application/json,text/plain" style="display:none;">
         </div>
       </div>
 
@@ -1344,6 +1351,7 @@ async function doSave(){
     }
   }
   document.getElementById("saveStatus").textContent = statusText;
+  scheduleFolderAutosave();
 }
 async function loadState(){
   const saved = await idbGet("state");
@@ -1443,7 +1451,7 @@ function renderProjectList(){
 function updateCurrentProjectLabel(){
   const el = document.getElementById("currentProjectLabel");
   if(currentProjectId) el.textContent = "☁️ " + currentProjectName;
-  else if(currentProjectName) el.textContent = "💻 " + currentProjectName;
+  else if(currentProjectName) el.textContent = (state.folderLink ? "☁️ " : "💻 ") + currentProjectName;
   else el.textContent = "제목 없음";
 }
 
@@ -1750,6 +1758,7 @@ async function confirmSwitchAway(opts){
   opts = opts || {};
   // 바뀐 게 없으면 묻지 않는다 — 불러오기만 하고 아무것도 안 고쳤는데 저장하라고 하지 않게
   if(!hasUnsavedWork() || !isProjectDirty()) return true;
+  if(folderHandle && state.folderLink && currentProjectName){ await flushFolderAutosave(); if(!isProjectDirty()) return true; }
   const known = currentProjectName || "";
   const synced = cloudReady && currentProjectId;
   const body = synced
@@ -1783,6 +1792,7 @@ async function newProject(){
   state.practicingId = null;
   currentProjectId = null;
   currentProjectName = "";
+  state.folderLink = null;
   safeClearHash();
   ["projectNameInput","localProjectNameInput","fallbackProjectNameInput"].forEach(id=>{ document.getElementById(id).value = ""; });
   refreshUiFromState();
@@ -1796,6 +1806,7 @@ async function flushCurrentProject(){
   if(cloudReady && currentProjectId){
     try{ await syncCurrentProjectQuiet(); }catch(err){}
   }
+  try{ await flushFolderAutosave(); }catch(err){}
   try{ await idbPut("state", state); }catch(err){}
 }
 
@@ -1860,6 +1871,9 @@ function setProjectNameInputs(){
 function openLibrary(){
   document.getElementById("libraryOverlay").hidden = false;
   setProjectNameInputs();
+  renderICloudHint();
+  if(!cloudReady) document.getElementById("tabLocal").click();
+  if(folderHandle) refreshLocalFileList();
   if(cloudReady) renderProjectList();
 }
 function closeLibrary(){ document.getElementById("libraryOverlay").hidden = true; }
@@ -1890,6 +1904,7 @@ document.querySelectorAll(".libTabs button").forEach(btn=>{
 
 /* ---------- Local computer folder ---------- */
 let folderHandle = null;
+let savedFolderHandle = null; // 저장돼 있지만 이번 실행에서 아직 권한을 못 받은 폴더
 const FS_ACCESS_SUPPORTED = "showDirectoryPicker" in window;
 
 async function initLocalFolder(){
@@ -1909,17 +1924,25 @@ async function initLocalFolder(){
       folderHandle = handle;
       document.getElementById("folderNameLabel").textContent = "📁 " + handle.name;
       refreshLocalFileList();
+      checkLinkedFileNewer();
+    } else {
+      // 브라우저를 다시 열면 권한을 한 번 더 확인받아야 한다 — 버튼 한 번으로 다시 연결
+      savedFolderHandle = handle;
+      document.getElementById("folderNameLabel").textContent = "📁 " + handle.name + " (다시 연결 필요)";
     }
   }catch(err){}
+  renderSyncStatus();
 }
 
 async function pickFolder(){
   if(!FS_ACCESS_SUPPORTED) return;
   try{
-    folderHandle = await window.showDirectoryPicker({mode:"readwrite"});
+    folderHandle = await window.showDirectoryPicker({mode:"readwrite", id:"mls-icloud", startIn:"documents"});
     await idbPut("folderHandle", folderHandle);
+    savedFolderHandle = null;
     document.getElementById("folderNameLabel").textContent = "📁 " + folderHandle.name;
     refreshLocalFileList();
+    renderSyncStatus(); renderEmptyRecent();
   }catch(err){}
 }
 
@@ -1927,7 +1950,16 @@ function sanitizeFilename(name){
   return name.replace(/[\\/:*?"<>|]/g,"_").trim() || "untitled";
 }
 
+// 같은 페이지 이미지를 자동 저장 때마다 다시 압축하지 않도록 캐시. srcW = 원본 폭(필기 좌표 기준).
+const localSaveCache = new WeakMap();
+function localSaveSrcW(blob){ const h = localSaveCache.get(blob); return h ? h.srcW : null; }
 async function compressBlobForLocalSave(blob){
+  const hit = localSaveCache.get(blob);
+  if(hit) return hit.dataUrl;
+  const dataUrl = await compressBlobForLocalSaveRaw(blob);
+  return dataUrl;
+}
+async function compressBlobForLocalSaveRaw(blob){
   const img = await loadImageFromBlob(blob);
   const maxDim = 2000;
   const ratio = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
@@ -1938,7 +1970,21 @@ async function compressBlobForLocalSave(blob){
   const cx = c.getContext("2d");
   cx.fillStyle = "#fff"; cx.fillRect(0,0,w,h);
   cx.drawImage(img, 0, 0, w, h);
-  return canvasToCompactDataUrl(c, 0.85);
+  const dataUrl = canvasToCompactDataUrl(c, 0.85);
+  localSaveCache.set(blob, {dataUrl, srcW: img.naturalWidth});
+  return dataUrl;
+}
+
+// 2000px 넘는 사진은 줄여서 저장하므로, 불러올 때 필기 좌표도 같은 비율로 맞춘다
+// (예전에는 큰 사진에 쓴 필기가 다시 열면 어긋났다)
+async function fitAnnotationsToImage(sheet, srcW){
+  if(!srcW || !(sheet.blob instanceof Blob)) return;
+  try{
+    const img = await loadImageFromBlob(sheet.blob);
+    const r = img.naturalWidth / srcW;
+    if(!isFinite(r) || Math.abs(r - 1) < 0.002) return;
+    (sheet.annotations||[]).forEach(st=>{ st.width = st.width * r; (st.points||[]).forEach(p=>{ p.x *= r; p.y *= r; }); });
+  }catch(err){}
 }
 
 async function buildProjectFileData(name){
@@ -1946,7 +1992,7 @@ async function buildProjectFileData(name){
   for(const sheet of state.sheets){
     if(sheet.kind==="pdf" && !(sheet.blob instanceof Blob)) await ensurePageBlob(sheet);
     const image = sheet.blob instanceof Blob ? await compressBlobForLocalSave(sheet.blob) : null;
-    pages.push({image, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null});
+    pages.push({image, srcW: sheet.blob instanceof Blob ? localSaveSrcW(sheet.blob) : null, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null});
   }
   return {
     __type:"music-lesson-studio-project", version:1,
@@ -1976,10 +2022,12 @@ async function saveToFolder(name, opts){
     const writable = await fileHandle.createWritable();
     await writable.write(JSON.stringify(projectData));
     await writable.close();
+    try{ state.folderLink = {name:filename, mtime:(await fileHandle.getFile()).lastModified}; }catch(err){ state.folderLink = {name:filename, mtime:Date.now()}; }
     refreshLocalFileList();
     currentProjectName = name;
     updateCurrentProjectLabel();
     setProjectNameInputs(); markProjectSaved();
+    renderSyncStatus("☁️ iCloud 저장됨 · " + new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}));
     if(!opts.silent) alert("저장 완료: " + filename);
     return true;
   }catch(err){
@@ -1987,7 +2035,7 @@ async function saveToFolder(name, opts){
     alert("저장 실패: " + (err && err.message ? err.message : err));
     return false;
   }
-  finally{ saveInFlight = false; btn.disabled = false; btn.textContent = "폴더 저장"; }
+  finally{ saveInFlight = false; btn.disabled = false; btn.textContent = "iCloud에 저장"; }
 }
 
 let downloadsApi = null;
@@ -2076,7 +2124,7 @@ async function saveProjectAsFile(name, opts){
     alert("저장 실패: " + (err && err.message ? err.message : err));
     return false;
   }
-  finally{ saveInFlight = false; btn.disabled = false; btn.textContent = "파일 저장"; }
+  finally{ saveInFlight = false; btn.disabled = false; btn.textContent = "iCloud에 저장"; }
 }
 
 document.getElementById("fallbackSaveBtn").addEventListener("click", ()=>{
@@ -2099,11 +2147,8 @@ async function refreshLocalFileList(){
   const wrap = document.getElementById("localFileList"); wrap.innerHTML = "";
   if(!folderHandle) return;
   try{
-    const files = [];
-    for await (const [name, handle] of folderHandle.entries()){
-      if(handle.kind==="file" && name.endsWith(".mlsproj.json")) files.push(name);
-    }
-    files.sort();
+    const metas = await listFolderProjects();
+    const files = metas.map(m=>m.name);
     if(!files.length){
       wrap.innerHTML = `<div class="libraryEmpty">프로젝트가 없습니다.</div>`; return;
     }
@@ -2112,7 +2157,10 @@ async function refreshLocalFileList(){
       item.className = "projectItem";
       const meta = document.createElement("div");
       meta.className = "projectMeta";
-      meta.innerHTML = `<div class="pname">${escapeHtml(fname.replace(/\.mlsproj\.json$/,""))}</div>`;
+      const m = metas.find(x=>x.name===fname);
+      const when = m && m.mtime ? new Date(m.mtime).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
+      const linked = state.folderLink && state.folderLink.name === fname ? " · 지금 열림" : "";
+      meta.innerHTML = `<div class="pname">${escapeHtml(fname.replace(/\.mlsproj\.json$/,""))}${linked}</div><div class="pinfo">${when}</div>`;
       const actions = document.createElement("div");
       actions.className = "projectActions";
       const openBtn = document.createElement("button");
@@ -2135,7 +2183,9 @@ async function applyProjectFileData(data){
   const sheets = [];
   for(const p of (data.pages||[])){
     const blob = p.image ? await dataUrlToBlob(p.image) : null;
-    sheets.push({id:uid(), blob, dirtyImage:true, annotations:p.annotations||[], markers:p.markers||[], textBoxes:p.textBoxes||[], songColor:p.songColor||null});
+    const sh = {id:uid(), blob, dirtyImage:true, annotations:p.annotations||[], markers:p.markers||[], textBoxes:p.textBoxes||[], songColor:p.songColor||null};
+    await fitAnnotationsToImage(sh, p.srcW);
+    sheets.push(sh);
   }
   applyLoadedProjectFields(data);
   state.sheets = sheets;
@@ -2155,7 +2205,7 @@ async function loadFromFolder(fname){
     file = await fileHandle.getFile();
     data = await readProjectFile(file);
   }catch(err){ alert("불러오기 실패: " + (err && err.message ? err.message : err)); return; }
-  await openProjectData(data, fname);
+  await openProjectData(data, fname, {folderLink:{name:fname, mtime:file.lastModified}});
 }
 
 async function loadProjectFromDroppedFile(file){
@@ -2184,7 +2234,8 @@ async function readProjectFile(file){
   return data;
 }
 
-async function openProjectData(data, fileName){
+async function openProjectData(data, fileName, opts){
+  opts = opts || {};
   if(!(await confirmSwitchAway())) return false;
   try{
     await flushCurrentProject();
@@ -2193,9 +2244,12 @@ async function openProjectData(data, fileName){
       currentProjectName = fileName.replace(/\.mlsproj\.json$/i, "").replace(/\.json$/i, "").replace(/\s\d+$/, "");
     }
     setProjectNameInputs();
+    // iCloud 폴더 안 파일이면 그 파일과 연결 → 이후 자동 저장·최신본 확인
+    state.folderLink = opts.folderLink || null;
     updateCurrentProjectLabel();
     markProjectSaved();
     closeLibrary();
+    renderSyncStatus();
     const when = data.savedAt ? new Date(data.savedAt).toLocaleString("ko-KR", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"}) : "";
     showToast(`'${currentProjectName || "프로젝트"}' 불러옴 · ${state.sheets.length}페이지${when ? " · " + when + " 저장본" : ""}`);
     return true;
@@ -2209,6 +2263,148 @@ document.getElementById("chooseFolderBtn").addEventListener("click", pickFolder)
 document.getElementById("saveToFolderBtn").addEventListener("click", ()=>{
   saveToFolder(document.getElementById("localProjectNameInput").value.trim());
 });
+
+/* ============ iCloud Drive ============
+ * 맥(Chrome 앱): iCloud Drive 폴더를 연결하면 열어 둔 프로젝트를 그 폴더 파일에 자동 저장하고,
+ *   아이패드에서 같은 파일을 고쳐 저장하면 앱으로 돌아올 때 최신본을 자동으로 불러온다.
+ * 아이패드·맥 Safari: 웹페이지가 폴더를 직접 못 읽으므로 'iCloud에서 열기'(파일 앱)와
+ *   'iCloud에 저장'(공유 → 파일에 저장 → 대치)로 같은 파일을 주고받는다. */
+async function listFolderProjects(){
+  const out = [];
+  if(!folderHandle) return out;
+  for await (const [name, handle] of folderHandle.entries()){
+    if(handle.kind === "file" && /\.mlsproj\.json$/i.test(name)){
+      let mtime = 0; try{ mtime = (await handle.getFile()).lastModified; }catch(err){}
+      out.push({name, mtime});
+    }
+  }
+  return out.sort((a,b)=> b.mtime - a.mtime);
+}
+
+function renderSyncStatus(text){
+  const chip = document.getElementById("syncStatus");
+  if(savedFolderHandle && !folderHandle){
+    chip.hidden = false; chip.classList.add("warn");
+    chip.textContent = "📂 iCloud 폴더 다시 연결";
+    chip.onclick = reconnectFolder;
+    return;
+  }
+  chip.classList.remove("warn");
+  if(text){ chip.hidden = false; chip.textContent = text; chip.onclick = openLibraryToICloud; return; }
+  if(folderHandle && state.folderLink){ chip.hidden = false; chip.textContent = "☁️ iCloud 연결됨"; chip.onclick = openLibraryToICloud; return; }
+  chip.hidden = true;
+}
+async function reconnectFolder(){
+  const h = savedFolderHandle; if(!h) return;
+  try{
+    const perm = await h.requestPermission({mode:"readwrite"});
+    if(perm !== "granted") return;
+    folderHandle = h; savedFolderHandle = null;
+    document.getElementById("folderNameLabel").textContent = "📁 " + h.name;
+    refreshLocalFileList(); renderSyncStatus(); renderEmptyRecent();
+    checkLinkedFileNewer();
+  }catch(err){}
+}
+function openLibraryToICloud(){
+  openLibrary();
+  document.getElementById("tabLocal").click();
+}
+
+let folderWriteTimer = null, folderWriting = false;
+function scheduleFolderAutosave(){
+  if(!folderHandle || !state.folderLink || !currentProjectName) return;
+  if(!isProjectDirty()) return;
+  clearTimeout(folderWriteTimer);
+  folderWriteTimer = setTimeout(writeLinkedFolderFile, 2500);
+}
+async function writeLinkedFolderFile(){
+  if(!folderHandle || !state.folderLink) return;
+  if(folderWriting){ scheduleFolderAutosave(); return; }
+  folderWriting = true;
+  try{
+    if((await folderHandle.queryPermission({mode:"readwrite"})) !== "granted"){
+      savedFolderHandle = folderHandle; folderHandle = null; renderSyncStatus(); return;
+    }
+    renderSyncStatus("☁️ iCloud 저장 중…");
+    const data = await buildProjectFileData(currentProjectName);
+    const fh = await folderHandle.getFileHandle(state.folderLink.name, {create:true});
+    const w = await fh.createWritable();
+    await w.write(JSON.stringify(data));
+    await w.close();
+    state.folderLink.mtime = (await fh.getFile()).lastModified;
+    markProjectSaved();
+    renderSyncStatus("☁️ iCloud 저장됨 · " + new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}));
+  }catch(err){
+    console.warn("iCloud autosave", err);
+    renderSyncStatus("☁️ iCloud 저장 실패 · 눌러서 확인");
+  }finally{ folderWriting = false; }
+}
+async function flushFolderAutosave(){
+  if(folderWriteTimer){ clearTimeout(folderWriteTimer); folderWriteTimer = null; }
+  if(folderHandle && state.folderLink && currentProjectName && isProjectDirty()) await writeLinkedFolderFile();
+}
+
+// 아이패드에서 같은 파일을 고쳐 저장했으면, 앱으로 돌아올 때 최신본을 불러온다
+let checkingNewer = false;
+async function checkLinkedFileNewer(){
+  if(checkingNewer || folderWriting || !folderHandle || !state.folderLink) return;
+  checkingNewer = true;
+  try{
+    if((await folderHandle.queryPermission({mode:"readwrite"})) !== "granted") return;
+    const fh = await folderHandle.getFileHandle(state.folderLink.name);
+    const f = await fh.getFile();
+    if(f.lastModified <= (state.folderLink.mtime || 0) + 1500) return;
+    if(isProjectDirty() && !confirm("다른 기기(아이패드 등)에서 이 프로젝트가 수정되었어요.\n최신본을 불러올까요?\n\n'취소'를 누르면 지금 화면 내용으로 iCloud 파일을 덮어씁니다.")){
+      state.folderLink.mtime = f.lastModified; scheduleFolderAutosave(); return;
+    }
+    const data = await readProjectFile(f);
+    state.savedSig = projectSignature(); // 방금 확인했으니 저장 여부를 다시 묻지 않음
+    if(await openProjectData(data, fh.name, {folderLink:{name:fh.name, mtime:f.lastModified}})){
+      showToast("다른 기기에서 수정된 최신본을 불러왔어요");
+    }
+  }catch(err){}
+  finally{ checkingNewer = false; }
+}
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState === "visible") checkLinkedFileNewer();
+  else flushFolderAutosave();
+});
+window.addEventListener("focus", ()=> checkLinkedFileNewer());
+window.addEventListener("pagehide", ()=>{ flushFolderAutosave(); });
+
+// 빈 화면: iCloud 최근 프로젝트를 바로 열 수 있게
+async function renderEmptyRecent(){
+  const box = document.getElementById("emptyRecent");
+  if(!box) return;
+  box.innerHTML = "";
+  const btn = (label, cls, onClick)=>{ const b = document.createElement("button"); b.className = cls || ""; b.textContent = label; b.addEventListener("click", onClick); box.appendChild(b); return b; };
+  if(folderHandle){
+    let metas = [];
+    try{ metas = (await listFolderProjects()).slice(0, 6); }catch(err){}
+    if(!metas.length){ box.innerHTML = `<div class="hint" style="padding:0;">iCloud 폴더에 저장된 프로젝트가 아직 없어요.</div>`; return; }
+    const title = document.createElement("div"); title.className = "emptyRecentTitle"; title.textContent = "☁️ iCloud · 최근 프로젝트"; box.appendChild(title);
+    metas.forEach(m=>{
+      const when = m.mtime ? new Date(m.mtime).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "";
+      const b = btn("", "emptyRecentItem", ()=> loadFromFolder(m.name));
+      b.innerHTML = `<span>${escapeHtml(m.name.replace(/\.mlsproj\.json$/i,""))}</span><small>${when}</small>`;
+    });
+  } else if(savedFolderHandle){
+    btn("📂 iCloud 폴더 다시 연결", "primary", reconnectFolder);
+  } else if(FS_ACCESS_SUPPORTED){
+    btn("📂 iCloud Drive 폴더 연결", "primary", pickFolder);
+    const h = document.createElement("div"); h.className = "hint"; h.style.padding = "0";
+    h.textContent = "연결하면 자동으로 iCloud에 저장되고, 여기서 바로 열 수 있어요."; box.appendChild(h);
+  } else {
+    btn("☁️ iCloud에서 프로젝트 열기", "primary", ()=> document.getElementById("fallbackLoadInput").click());
+  }
+}
+
+function renderICloudHint(){
+  const el = document.getElementById("icloudHint"); if(!el) return;
+  el.innerHTML = FS_ACCESS_SUPPORTED
+    ? `<b>이 기기: 자동 저장</b> — iCloud Drive 안의 폴더(예: iCloud Drive/Music Lesson)를 연결하면, 열어 둔 프로젝트가 그 폴더에 자동으로 저장되고 아이패드에서 고친 최신본도 자동으로 불러옵니다.`
+    : `<b>이 기기: iCloud에서 열기 / 저장</b> — 열기는 파일 앱에서 iCloud Drive의 프로젝트를 고르면 되고, 저장은 공유 → <b>파일에 저장</b> → 같은 폴더 → 같은 이름이 있으면 <b>대치</b>. 맥의 Chrome 앱에서는 이 과정이 자동입니다.`;
+}
 
 /* ============ EXPORT (PNG / PDF) ============ */
 // Text boxes and markers are sized in screen px on the stage; annotations are
@@ -3354,12 +3550,14 @@ function renderSheet(){
         <button class="primary" id="emptyStateUploadBtn">파일 선택</button>
         <div class="hint" style="padding:0;">JPG · PNG · PDF</div>
         <button class="icon" id="emptyStateLibraryBtn" style="background:transparent; border-color:transparent; color:var(--text-dim); text-decoration:underline;">보관함에서 열기</button>
+          <div class="emptyRecent" id="emptyRecent"></div>
       `;
     }
     stage.appendChild(empty);
     canvasEl = null; ctx = null;
     renderPageStrip();
     wireEmptyStateButtons();
+    renderEmptyRecent();
     return;
   }
 
@@ -5044,7 +5242,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.24-7";
+const APP_BUILD = "2026.10.24-8";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

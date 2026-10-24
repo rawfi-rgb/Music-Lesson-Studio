@@ -3910,9 +3910,13 @@ document.addEventListener("keydown", (e)=>{
   }, {passive:true});
   viewport.addEventListener("touchcancel", ()=>{ sw = null; }, {passive:true});
 
-  // 맥 매직마우스 · 트랙패드: 옆으로 쓸면 가로 휠 이벤트. 한 번 쓸면 한 장만 넘긴다
-  // (관성 스크롤 이벤트가 멈출 때까지 잠금). 확대해서 옆으로 더 갈 곳이 있으면 그냥 스크롤.
-  let wheelAccum = 0, wheelLocked = false, wheelIdle = null;
+  // 맥 매직마우스 · 트랙패드: 옆으로 쓸면 가로 휠 이벤트가 오고, 손을 뗀 뒤에도 관성(momentum)
+  // 이벤트가 1초 가까이 이어진다. 한 번 넘기면 잠그고, 아래 중 하나면 "새로 쓸었다"로 보고 다시 연다:
+  //   · 관성으로 잦아들던 움직임이 다시 확 커짐(연속으로 또 쓸기)   · 반대 방향   · 잠깐 멈춤
+  // 예전에는 관성이 완전히 끝나야만 풀려서, 연달아 쓸면 두 번째가 무시되고 한 번 터치해야 했다.
+  // 확대해서 옆으로 더 갈 곳이 있으면 그냥 스크롤.
+  let wheelAccum = 0, wheelLocked = false;
+  let lockAt = 0, lockDir = 0, lastAt = 0, peak = 0, trough = 0, decayed = false;
   viewport.addEventListener("wheel", (e)=>{
     if(e.ctrlKey) return; // 트랙패드 핀치 줌
     const ax = Math.abs(e.deltaX), ay = Math.abs(e.deltaY);
@@ -3922,12 +3926,24 @@ document.addEventListener("keydown", (e)=>{
     const canLeft = viewport.scrollLeft > 0;
     if((dir > 0 && canRight) || (dir < 0 && canLeft)) return;
     e.preventDefault(); // 브라우저 '뒤로 가기' 스와이프도 막는다
-    clearTimeout(wheelIdle);
-    wheelIdle = setTimeout(()=>{ wheelAccum = 0; wheelLocked = false; }, 240);
-    if(wheelLocked) return;
-    wheelAccum += e.deltaX * (e.deltaMode === 1 ? 16 : 1);
+    const now = performance.now();
+    const mag = ax * (e.deltaMode === 1 ? 16 : 1);
+    const gap = now - lastAt;
+    lastAt = now;
+    if(gap > 140){ wheelLocked = false; wheelAccum = 0; }          // 손을 멈췄다가 다시 쓸기
+    if(wheelLocked){
+      if(mag >= peak && !decayed){ peak = mag; trough = mag; }      // 아직 같은 손동작이 세지는 중
+      else { trough = Math.min(trough, mag); if(trough <= peak * 0.45) decayed = true; }
+      const surge = decayed && mag >= Math.max(6, trough * 2.2);    // 잦아들다 다시 확 커짐
+      const flipped = dir !== lockDir && mag > 4;
+      if((surge || flipped) && now - lockAt > 180){ wheelLocked = false; wheelAccum = 0; }
+      else return;
+    }
+    if(wheelAccum && Math.sign(wheelAccum) !== dir) wheelAccum = 0;
+    wheelAccum += dir * mag;
     if(Math.abs(wheelAccum) > 70){
       wheelLocked = true; wheelAccum = 0;
+      lockAt = now; lockDir = dir; peak = mag; trough = mag; decayed = false;
       if(dir > 0) goNextPage(); else goPrevPage();
     }
   }, {passive:false});
@@ -4933,7 +4949,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.24-5";
+const APP_BUILD = "2026.10.24-6";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

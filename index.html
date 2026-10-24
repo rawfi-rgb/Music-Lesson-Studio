@@ -1144,7 +1144,7 @@
         <div class="hint" style="padding:0 0 12px; line-height:1.7;">
           <b>맥 ↔ 아이패드 공유 (iCloud Drive)</b><br>
           맥: 📂 폴더 선택 → <b>iCloud Drive</b> 안의 폴더 (예: iCloud Drive/Music Lesson).<br>
-          아이패드: 파일 저장 → <b>"파일에 저장"</b> → 같은 폴더. 불러오기도 같은 폴더에서 고르면 됩니다.
+          아이패드: 파일 저장 → <b>"파일에 저장"</b> → 같은 폴더 → 같은 이름이 있으면 <b>"대치"</b>(덮어쓰기). 불러오기도 같은 폴더에서.
         </div>
         <div id="fsAccessUI">
           <div class="row" style="margin-bottom:12px;">
@@ -1163,7 +1163,7 @@
             <button class="primary" id="fallbackSaveBtn">파일 저장</button>
           </div>
           <button id="fallbackLoadBtn" style="width:100%; margin-top:8px;">📂 파일에서 불러오기</button>
-          <input type="file" id="fallbackLoadInput" accept=".json,application/json" style="display:none;">
+          <input type="file" id="fallbackLoadInput" style="display:none;">
         </div>
       </div>
 
@@ -1336,6 +1336,7 @@ async function doSave(){
   if(cloudReady && currentProjectId){
     try{
       await syncCurrentProjectQuiet();
+      state.savedSig = projectSignature();
       statusText += " · ☁️ 동기화됨";
     }catch(err){
       console.error("cloud sync failed", err);
@@ -1601,6 +1602,7 @@ async function saveCurrentProject(name, opts){
 
     await persistProjectPages(projectId, pagesData);
     safeSetHash("project="+projectId);
+    setProjectNameInputs(); markProjectSaved();
     if(!opts.silent) alert("저장되었습니다: " + name);
     return true;
   }catch(err){
@@ -1686,13 +1688,28 @@ async function loadProjectData(id){
   safeSetHash("project="+id);
 
   refreshUiFromState();
-  document.getElementById("projectNameInput").value = currentProjectName;
+  setProjectNameInputs();
   updateCurrentProjectLabel();
+  markProjectSaved();
 }
 
 function hasUnsavedWork(){
   return !!(state.sheets.length || (state.notes||"").trim());
 }
+// 마지막으로 저장·불러온 뒤 실제로 바뀐 게 있는지 (악보 페이지, 필기, 마커, 텍스트, 노트, 템포·박자)
+function hashStr(str){
+  let h = 2166136261 >>> 0;
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36) + ":" + str.length;
+}
+function projectSignature(){
+  return hashStr(JSON.stringify({
+    p: state.sheets.map(s=>[s.id, s.annotations||[], s.markers||[], s.textBoxes||[], s.songColor||null]),
+    n: state.notes || "", b: [state.bpm, state.beatsPerBar, state.beatUnit, state.beatPattern],
+  }));
+}
+function markProjectSaved(){ state.savedSig = projectSignature(); scheduleSave(); }
+function isProjectDirty(){ return !state.savedSig || state.savedSig !== projectSignature(); }
 
 let askSaveResolve = null;
 function openAskSave(opts){
@@ -1731,7 +1748,8 @@ function saveToCurrentTarget(name){
 
 async function confirmSwitchAway(opts){
   opts = opts || {};
-  if(!hasUnsavedWork()) return true;
+  // 바뀐 게 없으면 묻지 않는다 — 불러오기만 하고 아무것도 안 고쳤는데 저장하라고 하지 않게
+  if(!hasUnsavedWork() || !isProjectDirty()) return true;
   const known = currentProjectName || "";
   const synced = cloudReady && currentProjectId;
   const body = synced
@@ -1770,7 +1788,7 @@ async function newProject(){
   refreshUiFromState();
   updateCurrentProjectLabel();
   closeLibrary();
-  scheduleSave();
+  markProjectSaved();
 }
 document.getElementById("newProjectBtn").addEventListener("click", newProject);
 
@@ -1832,10 +1850,16 @@ function copyProjectLink(id){
   }
 }
 
+// 이름 칸 세 곳(클라우드 · 폴더 · 파일)을 지금 프로젝트 이름으로 채운다.
+// 예전에는 아이패드가 쓰는 '파일 저장' 칸이 비어 있어서, 불러온 프로젝트도 매번 이름을 새로 쳐야 했다.
+function setProjectNameInputs(){
+  document.getElementById("projectNameInput").value = currentProjectId ? currentProjectName : (currentProjectName || "");
+  document.getElementById("localProjectNameInput").value = currentProjectName || "";
+  document.getElementById("fallbackProjectNameInput").value = currentProjectName || "";
+}
 function openLibrary(){
   document.getElementById("libraryOverlay").hidden = false;
-  document.getElementById("projectNameInput").value = currentProjectId ? currentProjectName : "";
-  document.getElementById("localProjectNameInput").value = currentProjectName || "";
+  setProjectNameInputs();
   if(cloudReady) renderProjectList();
 }
 function closeLibrary(){ document.getElementById("libraryOverlay").hidden = true; }
@@ -1955,6 +1979,7 @@ async function saveToFolder(name, opts){
     refreshLocalFileList();
     currentProjectName = name;
     updateCurrentProjectLabel();
+    setProjectNameInputs(); markProjectSaved();
     if(!opts.silent) alert("저장 완료: " + filename);
     return true;
   }catch(err){
@@ -1992,8 +2017,43 @@ async function deliverFile(filename, data, mime){
   return true;
 }
 
+/* 아이패드: 공유 시트 → "파일에 저장" → 같은 iCloud 폴더를 고르면 '대치(Replace)'로 덮어써서
+ * 한 프로젝트가 한 파일로 유지된다. (일반 다운로드는 '이름 2', '이름 3'… 으로 계속 새 파일이 생긴다)
+ * 파일을 만드는 동안 탭 제스처가 만료되면 Safari가 공유를 막으므로, 그때는 버튼을 한 번 더 누르게 한다. */
+const IS_TOUCH_APPLE = navigator.maxTouchPoints > 1 && /iPad|iPhone|Macintosh/.test(navigator.userAgent);
+function askToShare(file){
+  return new Promise((resolve)=>{
+    const wrap = document.createElement("div");
+    wrap.className = "libraryOverlay"; wrap.id = "shareReadyOverlay";
+    wrap.style.cssText = "justify-content:center; align-items:center; z-index:85;";
+    wrap.innerHTML = `<div class="libraryPanel askPanel" style="height:auto; width:420px; border-radius:var(--radius-lg);">
+      <div class="libraryHead"><h2>저장 준비 완료</h2></div>
+      <div class="libraryBody"><div class="hint" style="padding:0 0 14px; line-height:1.6;">'파일에 저장'을 누르고 iCloud Drive의 같은 폴더를 고르세요. 같은 이름 파일이 있으면 <b>대치</b>를 고르면 덮어씁니다.</div>
+      <div class="askActions"><button class="primary" id="shareNowBtn">파일에 저장…</button><button id="shareCancelBtn">취소</button></div></div></div>`;
+    document.body.appendChild(wrap);
+    const done = (v)=>{ wrap.remove(); resolve(v); };
+    wrap.querySelector("#shareCancelBtn").addEventListener("click", ()=> done(false));
+    wrap.querySelector("#shareNowBtn").addEventListener("click", async ()=>{
+      try{ await navigator.share({files:[file], title:file.name}); done(true); }
+      catch(err){ done(false); }
+    });
+  });
+}
+async function deliverProjectFile(filename, text){
+  const file = new File([text], filename, {type:"application/json"});
+  if(IS_TOUCH_APPLE && !downloadsApi && navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:filename}); return true; }
+    catch(err){
+      if(err && err.name === "AbortError") return false;          // 공유 시트를 닫음
+      if(err && err.name === "NotAllowedError") return askToShare(file);
+    }
+  }
+  return deliverFile(filename, text, "application/json");
+}
+
 async function saveProjectAsFile(name, opts){
   opts = opts || {};
+  name = (name || currentProjectName || "").trim();
   if(!name){ if(!opts.silent) alert("이름을 입력하세요."); return false; }
   if(saveInFlight) return false;
   saveInFlight = true;
@@ -2003,10 +2063,11 @@ async function saveProjectAsFile(name, opts){
     const projectData = await buildProjectFileData(name);
     // Same extension as the folder save, so one project is one file wherever it is saved.
     const filename = sanitizeFilename(name) + ".mlsproj.json";
-    const ok = await deliverFile(filename, JSON.stringify(projectData), "application/json");
+    const ok = await deliverProjectFile(filename, JSON.stringify(projectData));
     if(!ok) return false;
     currentProjectName = name;
     updateCurrentProjectLabel();
+    setProjectNameInputs(); markProjectSaved();
     btn.textContent = "✓ 저장됨";
     await new Promise(r=>setTimeout(r, 1200));
     return true;
@@ -2023,15 +2084,15 @@ document.getElementById("fallbackSaveBtn").addEventListener("click", ()=>{
 });
 document.getElementById("fallbackLoadBtn").addEventListener("click", ()=>document.getElementById("fallbackLoadInput").click());
 document.getElementById("fallbackLoadInput").addEventListener("change", async (e)=>{
-  const file = e.target.files[0]; e.target.value = "";
+  const file = e.target.files[0];
   if(!file) return;
-  if(!(await confirmSwitchAway())) return;
-  try{
-    const data = JSON.parse(await file.text());
-    await flushCurrentProject();
-    await applyProjectFileData(data);
-    closeLibrary();
-  }catch(err){ alert("불러오기 실패: " + (err && err.message ? err.message : err)); }
+  // 아이패드 Safari: 입력칸을 비우면(value="") 고른 파일을 더는 못 읽는 경우가 있어
+  // 반드시 먼저 다 읽고 나서 비운다. (예전에는 먼저 비워서 iCloud 파일 불러오기가 계속 실패)
+  let data;
+  try{ data = await readProjectFile(file); }
+  catch(err){ e.target.value = ""; alert("불러오기 실패: " + err.message); return; }
+  e.target.value = "";
+  await openProjectData(data, file.name);
 });
 
 async function refreshLocalFileList(){
@@ -2088,26 +2149,60 @@ async function applyProjectFileData(data){
 }
 
 async function loadFromFolder(fname){
-  if(!(await confirmSwitchAway())) return;
+  let data, file;
   try{
     const fileHandle = await folderHandle.getFileHandle(fname);
-    const file = await fileHandle.getFile();
-    const data = JSON.parse(await file.text());
-    await flushCurrentProject();
-    await applyProjectFileData(data);
-    closeLibrary();
-  }catch(err){ alert("불러오기 실패: " + (err && err.message ? err.message : err)); }
+    file = await fileHandle.getFile();
+    data = await readProjectFile(file);
+  }catch(err){ alert("불러오기 실패: " + (err && err.message ? err.message : err)); return; }
+  await openProjectData(data, fname);
 }
 
 async function loadProjectFromDroppedFile(file){
-  if(!(await confirmSwitchAway())) return;
+  let data;
+  try{ data = await readProjectFile(file); }   // 확인 창을 띄우기 전에 먼저 읽는다
+  catch(err){ alert("불러오기 실패: " + err.message); return; }
+  await openProjectData(data, file.name);
+}
+
+/* 프로젝트 파일 읽기 — 실패 이유를 구체적으로 알려준다 */
+async function readProjectFile(file){
+  let text;
+  try{ text = await file.text(); }
+  catch(err){
+    throw new Error("파일을 읽지 못했어요.\niCloud에서 아직 내려받지 않은 파일일 수 있어요. 파일 앱에서 그 파일을 한 번 눌러 내려받은 뒤 다시 불러와 주세요.");
+  }
+  text = text.replace(/^\uFEFF/, "");
+  const start = text.indexOf("{");
+  if(start > 0) text = text.slice(start);
+  let data;
+  try{ data = JSON.parse(text); }
+  catch(err){
+    throw new Error(`프로젝트 파일이 아니거나 저장 도중 잘린 파일이에요. (${file.name || "이름 없음"}, ${Math.round((file.size||0)/1024)}KB)`);
+  }
+  if(!data || !Array.isArray(data.pages)) throw new Error("Music Lesson Studio 프로젝트 파일이 아니에요.");
+  return data;
+}
+
+async function openProjectData(data, fileName){
+  if(!(await confirmSwitchAway())) return false;
   try{
-    const data = JSON.parse(await file.text());
     await flushCurrentProject();
     await applyProjectFileData(data);
-    if(!currentProjectName) currentProjectName = file.name.replace(/\.mlsproj\.json$/i, "").replace(/\.json$/i, "");
+    if(!currentProjectName && fileName){
+      currentProjectName = fileName.replace(/\.mlsproj\.json$/i, "").replace(/\.json$/i, "").replace(/\s\d+$/, "");
+    }
+    setProjectNameInputs();
     updateCurrentProjectLabel();
-  }catch(err){ alert("불러오기 실패: " + (err && err.message ? err.message : err)); }
+    markProjectSaved();
+    closeLibrary();
+    const when = data.savedAt ? new Date(data.savedAt).toLocaleString("ko-KR", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"}) : "";
+    showToast(`'${currentProjectName || "프로젝트"}' 불러옴 · ${state.sheets.length}페이지${when ? " · " + when + " 저장본" : ""}`);
+    return true;
+  }catch(err){
+    alert("불러오기 실패: " + (err && err.message ? err.message : err));
+    return false;
+  }
 }
 
 document.getElementById("chooseFolderBtn").addEventListener("click", pickFolder);
@@ -4949,7 +5044,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.24-6";
+const APP_BUILD = "2026.10.24-7";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

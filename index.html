@@ -3031,8 +3031,8 @@ document.getElementById("addPageInput").addEventListener("change", async (e)=>{
   }
   function show(){
     overlay.querySelector(".fileDropText").textContent = state.sheets.length
-      ? "놓으면 새 페이지로 추가됩니다 · 썸네일 위에 놓으면 그 뒤에 끼워 넣기"
-      : "놓으면 악보가 열립니다 (이미지 · PDF · 프로젝트 파일)";
+      ? "놓으면 새 페이지로 추가됩니다 · 웹의 악보 이미지 · PDF 링크도 OK"
+      : "놓으면 악보가 열립니다 (이미지 · PDF · 웹 이미지 · 프로젝트 파일)";
     overlay.hidden = false;
   }
   function hide(){ depth = 0; overlay.hidden = true; document.querySelectorAll(".pageThumb.dragOver").forEach(t=>t.classList.remove("dragOver")); }
@@ -3052,24 +3052,97 @@ document.getElementById("addPageInput").addEventListener("change", async (e)=>{
     const files = collectFiles(e.dataTransfer);
     const thumb = e.target.closest && e.target.closest(".pageThumb:not(.addTile)");
     hide();
-    if(!files.length){
-      if(e.target.closest && e.target.closest("textarea, input, [contenteditable=true]")) return; // 글자 끌어놓기
-      e.preventDefault();
-      showToast("파일을 읽지 못했어요 · Finder나 파일 앱에서 파일 자체를 끌어다 놓아 주세요");
-      return;
-    }
-    e.preventDefault();
-    const projectFile = Array.from(files).find(f => /\.mlsproj\.json$/i.test(f.name) || /\.json$/i.test(f.name));
-    if(projectFile){ loadProjectFromDroppedFile(projectFile); return; }
     let insertAt = null;
     if(thumb){
       const thumbs = Array.from(document.querySelectorAll("#pageStrip .pageThumb:not(.addTile)"));
       const i = thumbs.indexOf(thumb);
       if(i >= 0) insertAt = i + 1;
     }
+    if(!files.length){
+      // 웹페이지에서 끌어온 이미지 · PDF 링크: 주소만 넘어오면 직접 내려받아 추가
+      const url = urlFromDataTransfer(e.dataTransfer);
+      if(url){ e.preventDefault(); importFromWeb(url, {forceReplace:false, insertAt}); return; }
+      if(e.target.closest && e.target.closest("textarea, input, [contenteditable=true]")) return; // 글자 끌어놓기
+      e.preventDefault();
+      showToast("파일을 읽지 못했어요 · 파일 자체나 웹의 악보 이미지를 끌어다 놓아 주세요");
+      return;
+    }
+    e.preventDefault();
+    const projectFile = Array.from(files).find(f => /\.mlsproj\.json$/i.test(f.name) || /\.json$/i.test(f.name));
+    if(projectFile){ loadProjectFromDroppedFile(projectFile); return; }
     handleIncomingFiles(files, {forceReplace:false, insertAt});
   });
 })();
+
+/* ---------- 웹에서 가져오기 + 붙여넣기 ----------
+ * 끌어온 데이터에 파일이 없고 주소만 있으면(<img> 주소, PDF 링크, 구글 이미지 결과 등) 내려받아 추가한다.
+ * 다른 사이트가 가져가기를 막아 둔 경우(CORS)에는 '이미지 복사 → Cmd+V' 를 안내한다 —
+ * 붙여넣기는 브라우저가 이미지 데이터를 직접 넘겨주므로 사이트 설정과 상관없이 된다. */
+function unwrapUrl(u){
+  try{
+    const x = new URL(u);
+    const inner = x.searchParams.get("imgurl") || x.searchParams.get("mediaurl");
+    if(inner && /^https?:/i.test(inner)) return inner;
+  }catch(err){}
+  return u;
+}
+function urlFromDataTransfer(dt){
+  if(!dt || !dt.getData) return null;
+  const ok = (u)=> u && /^(https?:|data:image\/|data:application\/pdf)/i.test(u.trim());
+  const html = dt.getData("text/html") || "";
+  const img = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if(img && ok(img[1])) return unwrapUrl(img[1].replace(/&amp;/g, "&").trim());
+  const uri = (dt.getData("text/uri-list") || "").split(/\r?\n/).find(l => l && !l.startsWith("#"));
+  if(ok(uri)) return unwrapUrl(uri.trim());
+  const txt = (dt.getData("text/plain") || "").trim();
+  if(ok(txt) && !/\s/.test(txt)) return unwrapUrl(txt);
+  return null;
+}
+async function sniffType(blob, name){
+  if(/^image\//.test(blob.type) || blob.type === "application/pdf") return blob.type;
+  const h = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+  if(h[0]===0x25 && h[1]===0x50 && h[2]===0x44 && h[3]===0x46) return "application/pdf"; // %PDF
+  if(h[0]===0x89 && h[1]===0x50 && h[2]===0x4E && h[3]===0x47) return "image/png";
+  if(h[0]===0xFF && h[1]===0xD8) return "image/jpeg";
+  if(h[0]===0x47 && h[1]===0x49 && h[2]===0x46) return "image/gif";
+  if(h[0]===0x52 && h[1]===0x49 && h[2]===0x46 && h[3]===0x46 && h[8]===0x57 && h[9]===0x45) return "image/webp";
+  if(/\.pdf$/i.test(name)) return "application/pdf";
+  return "";
+}
+async function fetchAsFile(url){
+  if(/^http:/i.test(url) && location.protocol === "https:") url = url.replace(/^http:/i, "https:");
+  const res = await fetch(url, {mode:"cors", credentials:"omit"});
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  const blob = await res.blob();
+  let name = "웹 악보";
+  if(!/^data:/i.test(url)){ try{ const p = new URL(url).pathname.split("/").pop(); if(p) name = decodeURIComponent(p); }catch(err){} }
+  const type = await sniffType(blob, name);
+  if(!type) throw new Error("not-a-score");
+  if(!/\.[a-z0-9]{2,5}$/i.test(name)) name += type === "application/pdf" ? ".pdf" : "." + type.split("/")[1];
+  return new File([blob], name, {type});
+}
+async function importFromWeb(url, opts){
+  showToast("웹에서 악보를 가져오는 중…");
+  let file;
+  try{ file = await fetchAsFile(url); }
+  catch(err){
+    alert(err && err.message === "not-a-score"
+      ? "이 링크는 악보 이미지나 PDF가 아니에요.\n웹페이지 주소가 아니라 악보 이미지 자체(또는 PDF 링크)를 끌어다 놓아 주세요."
+      : "이 사이트는 다른 곳에서 직접 가져가는 것을 막아 두었어요.\n\n이미지: 우클릭(아이패드는 길게 누르기) → '이미지 복사' → 앱에서 Cmd+V(붙여넣기)하면 바로 추가됩니다.\nPDF: 내려받은 파일을 끌어다 놓아 주세요.");
+    return;
+  }
+  await handleIncomingFiles([file], opts || {forceReplace:false});
+}
+document.addEventListener("paste", (e)=>{
+  const dt = e.clipboardData; if(!dt) return;
+  let files = Array.from(dt.files || []);
+  if(!files.length) files = Array.from(dt.items || []).filter(i=>i.kind==="file").map(i=>i.getAsFile()).filter(Boolean);
+  const score = files.filter(f => /^image\//.test(f.type) || f.type === "application/pdf" || /\.pdf$/i.test(f.name||""));
+  if(score.length){ e.preventDefault(); handleIncomingFiles(score, {forceReplace:false}); return; }
+  if(isTypingTarget(document.activeElement)) return; // 노트·입력칸에 글자 붙여넣기는 그대로
+  const txt = (dt.getData("text/plain") || "").trim();
+  if(/^https?:\/\/\S+$/i.test(txt)){ e.preventDefault(); importFromWeb(unwrapUrl(txt), {forceReplace:false}); }
+});
 
 function wireEmptyStateButtons(){
   const uploadBtn2 = document.getElementById("emptyStateUploadBtn");
@@ -4796,7 +4869,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.24-3";
+const APP_BUILD = "2026.10.24-4";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

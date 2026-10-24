@@ -2951,15 +2951,78 @@ async function fileToPages(file){
   return pages;
 }
 
+/* 들어온 파일을 악보 파일(이미지·PDF) 목록으로 정리한다.
+ * - 형식 정보가 없으면 파일 앞부분으로 판별 (iPad 파일 앱, 굿노트 등)
+ * - .goodnotes / .zip 은 압축을 풀어 안에 든 PDF·이미지를 꺼낸다.
+ *   굿노트 파일에는 처음 가져온 원본 악보(PDF·이미지)가 들어 있다 — 손글씨는 굿노트 전용 형식이라 빠진다. */
+const SCORE_EXT_RE = /\.(pdf|png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i;
+function isScoreFile(f){ return (f.type||"").startsWith("image/") || f.type==="application/pdf" || SCORE_EXT_RE.test(f.name||""); }
+let jsZipPromise = null;
+function loadJSZip(){
+  if(window.JSZip) return Promise.resolve(window.JSZip);
+  if(!jsZipPromise) jsZipPromise = new Promise((resolve, reject)=>{
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+    sc.onload = ()=> resolve(window.JSZip);
+    sc.onerror = ()=>{ jsZipPromise = null; reject(new Error("압축 해제 모듈을 불러오지 못했습니다.")); };
+    document.head.appendChild(sc);
+  });
+  return jsZipPromise;
+}
+async function extractScoresFromArchive(file){
+  const JSZip = await loadJSZip();
+  const zip = await JSZip.loadAsync(file);
+  const entries = Object.values(zip.files)
+    .filter(z => !z.dir && !/(^|\/)(__MACOSX|thumbnails?|previews?)\//i.test(z.name) && !/(^|\/)\./.test(z.name))
+    .sort((a,b)=> a.name.localeCompare(b.name, undefined, {numeric:true}));
+  const pdfs = [], images = [];
+  for(const z of entries){
+    const blob = await z.async("blob");
+    if(blob.size < 2048) continue;               // 아이콘·스티커 같은 조각은 제외
+    const base = z.name.split("/").pop() || "page";
+    const type = await sniffType(blob, base);
+    if(!type) continue;
+    let name = base;
+    if(!SCORE_EXT_RE.test(name)) name += type === "application/pdf" ? ".pdf" : "." + type.split("/")[1];
+    (type === "application/pdf" ? pdfs : images).push(new File([blob], name, {type}));
+  }
+  // 굿노트처럼 PDF 위에 쓴 노트면 원본 PDF만, 이미지로 만든 노트면 이미지들을
+  return pdfs.length ? pdfs : images;
+}
+async function normalizeIncoming(all){
+  const files = [], rejected = [], archives = [];
+  for(const f of all){
+    if(isScoreFile(f)){ files.push(f); continue; }
+    const head = new Uint8Array(await f.slice(0, 4).arrayBuffer());
+    const isZip = head[0]===0x50 && head[1]===0x4B && head[2]===0x03 && head[3]===0x04;
+    if(isZip || /\.(goodnotes|zip)$/i.test(f.name||"")){
+      archives.push(f.name);
+      try{
+        const inner = await extractScoresFromArchive(f);
+        if(inner.length){ files.push(...inner); continue; }
+      }catch(err){ console.warn("archive", err); }
+      rejected.push(f); continue;
+    }
+    const type = await sniffType(f, f.name||"");
+    if(type){
+      let name = f.name || "score";
+      if(!SCORE_EXT_RE.test(name)) name += type === "application/pdf" ? ".pdf" : "." + type.split("/")[1];
+      files.push(new File([f], name, {type}));
+    } else rejected.push(f);
+  }
+  return {files, rejected, archives};
+}
+
 async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
   const all = Array.from(fileList);
-  // iPad 파일 앱 등에서는 type 이 비어 오는 경우가 있어 확장자로도 판단한다
-  const files = all.filter(f =>
-    (f.type||"").startsWith("image/") || f.type==="application/pdf" ||
-    /\.(pdf|png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i.test(f.name||"")
-  );
+  const {files, rejected, archives} = await normalizeIncoming(all);
+  const fromGoodNotes = archives.some(n => /\.goodnotes$/i.test(n||""));
   if(!files.length){
-    if(all.length) alert("악보로 열 수 없는 파일입니다: " + all.map(f=>f.name||"(이름 없음)").join(", ") + "\n이미지(JPG·PNG 등)나 PDF를 올려주세요.");
+    if(!all.length) return;
+    const gn = rejected.some(f => /\.goodnotes$/i.test(f.name||""));
+    alert(gn
+      ? "굿노트 파일 안에서 악보를 찾지 못했어요.\n\n굿노트에서: 공유(⤴︎) → 내보내기 → PDF → '주석 포함'을 켜고 저장한 뒤, 그 PDF를 끌어다 놓아 주세요. 손글씨까지 그대로 옮겨집니다."
+      : "악보로 열 수 없는 파일입니다: " + rejected.map(f=>f.name||"(이름 없음)").join(", ") + "\n이미지(JPG·PNG 등)나 PDF를 올려주세요.");
     return;
   }
   const replace = forceReplace || state.sheets.length===0;
@@ -2977,7 +3040,8 @@ async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
     }
     renderSheet();
     scheduleSave();
-    showToast(replace ? `악보 ${newPages.length}페이지를 열었습니다` : `＋ ${newPages.length}페이지 추가 · ${state.currentIndex+1} / ${state.sheets.length}`);
+    showToast((replace ? `악보 ${newPages.length}페이지를 열었습니다` : `＋ ${newPages.length}페이지 추가 · ${state.currentIndex+1} / ${state.sheets.length}`)
+      + (fromGoodNotes ? " · 굿노트 원본 악보 (손글씨 제외)" : ""));
   }catch(err){ alert("업로드 실패: " + (err && err.message ? err.message : err)); }
 }
 
@@ -4869,7 +4933,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.24-4";
+const APP_BUILD = "2026.10.24-5";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

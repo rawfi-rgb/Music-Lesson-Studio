@@ -789,6 +789,33 @@
     #currentProjectLabel{display:none;}
     header{margin-left:8px; margin-right:8px;}
   }
+
+  /* ============ 키 · 코드 ============ */
+  .sheetStage{container-type:inline-size;}
+  .keyCtl{display:inline-flex; align-items:center; gap:2px;}
+  .sheetTopBar .keyCtl{background:var(--panel-alt); border:1px solid var(--border); border-radius:999px; padding:2px;}
+  .sheetTopBar .keyCtl button{border:none; background:transparent; padding:4px 9px; border-radius:999px;}
+  .keyCtl .keyName{font-weight:800; font-size:12px; min-width:54px; white-space:nowrap;}
+  .keyCtl.shifted .keyName{color:var(--accent);}
+  .metroDock .keyCtl .keyName, .focusBar .keyCtl .keyName{color:var(--on-ink); background:color-mix(in srgb, var(--on-ink) 12%, transparent);}
+  .metroDock .keyCtl.shifted .keyName, .focusBar .keyCtl.shifted .keyName{color:var(--accent);}
+  .chordTag{
+    position:absolute; z-index:5; display:flex; align-items:center; white-space:nowrap; line-height:1;
+    font-family:'Figtree','Noto Sans KR',sans-serif; font-weight:800; color:#14204a; pointer-events:none;
+  }
+  .chordTag.shifted{background:#fff; padding:0 0.15em; margin-left:-0.15em; box-shadow:0 0 0 1px rgba(255,255,255,1);}
+  .chordTag.verify{pointer-events:auto; cursor:pointer; outline:1.5px dashed #2457e6; outline-offset:1px; border-radius:3px;}
+  .chordTag.verify:not(.shifted){color:transparent; background:rgba(36,87,230,0.10);}
+  .keyBadge{
+    position:absolute; left:1.2%; top:0.8%; z-index:6; padding:0.35em 0.7em; border-radius:999px;
+    background:#14204a; color:#fff; font-size:1.25cqw; font-weight:800; pointer-events:none;
+  }
+  .keyPop{width:300px;}
+  .keyPop .kpRow{display:flex; gap:6px; align-items:center;}
+  .keyPop .kpRow button{flex:1;}
+  .keyPop .kpStep b{flex:1.2; text-align:center; font-size:15px;}
+  .keyPop .kpLabel{display:flex; align-items:center; gap:8px; font-size:12px; margin:0; color:var(--text-dim);}
+  .keyPop .kpLabel select{flex:1;}
 </style>
 </head>
 <body>
@@ -972,7 +999,8 @@
       <button id="bigPlayBtn">▶</button>
       <div class="miniDots" id="miniDots"></div>
       <div style="font-size:13px; font-weight:700; " id="bpmLabel">100 BPM</div>
-      <div class="zoomCtl" data-zoom-ctl data-btn-class="" style="margin-left:auto;" title="악보 크기"></div>
+      <div class="keyCtl" data-key-ctl data-btn-class="" style="margin-left:auto;" title="키 · 코드 바꾸기"></div>
+      <div class="zoomCtl" data-zoom-ctl data-btn-class="" title="악보 크기"></div>
       <button class="icon" id="fitModeBtn" title="악보 한 장 전체 보기 ↔ 폭 맞춤">↕ 전체 보기</button>
       <button class="icon topToggle" id="toggleToolsBtn" title="마킹 도구 접기/펼치기">도구 ▴</button>
       <button class="icon topToggle" id="toggleStripBtn" title="페이지 목록 접기/펼치기">페이지 ▴</button>
@@ -1074,6 +1102,7 @@
         <button class="icon" id="focusPlayBtn">▶</button>
         <div class="miniDots" id="focusMiniDots"></div>
         <span id="focusBpmLabel" style="font-size:12px; font-weight:700; ">100 BPM</span>
+        <div class="keyCtl" data-key-ctl data-btn-class="icon" title="키 · 코드 바꾸기"></div>
         <div class="zoomCtl" data-zoom-ctl data-btn-class="icon" title="악보 크기"></div>
         <button class="icon" id="focusExitBtn">✕ 나가기</button>
       </div>
@@ -1105,6 +1134,7 @@
           </div>
           <div class="miniDots" id="dockDots"></div>
         </div>
+        <div class="keyCtl" data-key-ctl data-btn-class="dockChip" title="키 · 코드 바꾸기"></div>
         <div class="zoomCtl" data-zoom-ctl data-btn-class="dockChip" title="악보 크기"></div>
         <div class="dockMeta" id="dockMeta">4/4 · 사인파</div>
         <button class="dockLoop" id="dockLoop" hidden>A-B</button>
@@ -1361,6 +1391,7 @@ let state = {
   snapEnabled:false, snapDivisions:16,
   uiMode:"studio", markerShape:"bracket", practicingId:null,
   theme:"warm", darkInFocus:false, notesFontSize:14,
+  songKey:null, transpose:0, showChordBoxes:false,
   fitMode:"page", zoomByMode:{studio:1, lesson:1, perform:1}, toolsOpen:null, stripOpen:true, instFilter:"all", focusPagesOpen:false, focusPenOpen:true,
 };
 
@@ -1575,7 +1606,7 @@ async function buildPagesData(){
       sheet._cloudImageCache = imageB64;
       sheet.dirtyImage = false;
     }
-    pagesData.push({index:i, image:imageB64, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null});
+    pagesData.push({index:i, image:imageB64, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null, chords:sheet.chords||null});
   }
   return pagesData;
 }
@@ -1588,6 +1619,8 @@ function buildProjectFields(name){
     soundMode: state.soundMode, timbre: state.timbre, pitch: state.pitch, drumKit: state.drumKit,
     feel: state.feel, swingAmount: state.swingAmount, subdivision: state.subdivision, hihatLevel: state.hihatLevel,
   };
+  fields.songKey = state.songKey || null;
+  fields.transpose = state.transpose || 0;
   if(name !== undefined) fields.name = name;
   return fields;
 }
@@ -1673,6 +1706,7 @@ async function syncCurrentProjectQuiet(){
 }
 
 function refreshUiFromState(){
+  setTimeout(renderKeyControls, 0);
   rebuildNumeratorOptions();
   document.getElementById("numeratorSel").value = state.beatsPerBar;
   document.getElementById("denominatorSel").value = state.beatUnit;
@@ -1709,6 +1743,8 @@ function applyLoadedProjectFields(proj){
   state.swingAmount = proj.swingAmount ?? state.swingAmount;
   state.subdivision = proj.subdivision ?? state.subdivision;
   state.hihatLevel = proj.hihatLevel ?? state.hihatLevel;
+  state.songKey = proj.songKey || null;
+  state.transpose = proj.transpose || 0;
 }
 
 async function loadProjectData(id){
@@ -1723,6 +1759,7 @@ async function loadProjectData(id){
     sheets.push({
       id: uid(), blob, dirtyImage:false, _cloudImageCache: pd.image || null,
       annotations: pd.annotations||[], markers: pd.markers||[], textBoxes: pd.textBoxes||[], songColor: pd.songColor||null,
+      chords: pd.chords||null,
     });
   }
   applyLoadedProjectFields(proj);
@@ -1750,7 +1787,8 @@ function hashStr(str){
 }
 function projectSignature(){
   return hashStr(JSON.stringify({
-    p: state.sheets.map(s=>[s.id, s.annotations||[], s.markers||[], s.textBoxes||[], s.songColor||null]),
+    p: state.sheets.map(s=>[s.id, s.annotations||[], s.markers||[], s.textBoxes||[], s.songColor||null, s.chords||null]),
+    k: [state.songKey||null, state.transpose||0],
     n: state.notes || "", b: [state.bpm, state.beatsPerBar, state.beatUnit, state.beatPattern],
   }));
 }
@@ -1829,12 +1867,14 @@ async function newProject(){
   state.currentIndex = 0;
   state.notes = "";
   state.practicingId = null;
+  state.songKey = null; state.transpose = 0; state.showChordBoxes = false;   // 키·조옮김은 곡마다 따로
   currentProjectId = null;
   currentProjectName = "";
   clearLink();
   safeClearHash();
   ["projectNameInput","localProjectNameInput","fallbackProjectNameInput"].forEach(id=>{ document.getElementById(id).value = ""; });
   refreshUiFromState();
+  renderKeyControls();
   updateCurrentProjectLabel();
   closeLibrary();
   markProjectSaved();
@@ -2039,7 +2079,7 @@ async function buildProjectFileData(name){
   for(const sheet of state.sheets){
     if(sheet.kind==="pdf" && !(sheet.blob instanceof Blob)) await ensurePageBlob(sheet);
     const image = sheet.blob instanceof Blob ? await compressBlobForLocalSave(sheet.blob) : null;
-    pages.push({image, srcW: sheet.blob instanceof Blob ? localSaveSrcW(sheet.blob) : null, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null});
+    pages.push({image, srcW: sheet.blob instanceof Blob ? localSaveSrcW(sheet.blob) : null, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null, chords:sheet.chords||null, textItems:sheet.textItems||null});
   }
   return {
     __type:"music-lesson-studio-project", version:1,
@@ -2048,6 +2088,7 @@ async function buildProjectFileData(name){
     volume:state.volume, notes:state.notes,
     soundMode:state.soundMode, timbre:state.timbre, pitch:state.pitch, drumKit:state.drumKit,
     feel:state.feel, swingAmount:state.swingAmount, subdivision:state.subdivision, hihatLevel:state.hihatLevel,
+    songKey:state.songKey||null, transpose:state.transpose||0,
     pages,
   };
 }
@@ -2248,7 +2289,7 @@ async function applyProjectFileData(data){
   let legacyShift = 0;
   for(const p of (data.pages||[])){
     const blob = p.image ? await dataUrlToBlob(p.image) : null;
-    const sh = {id:uid(), blob, dirtyImage:true, annotations:p.annotations||[], markers:p.markers||[], textBoxes:p.textBoxes||[], songColor:p.songColor||null};
+    const sh = {id:uid(), blob, dirtyImage:true, annotations:p.annotations||[], markers:p.markers||[], textBoxes:p.textBoxes||[], songColor:p.songColor||null, chords:p.chords||null, textItems:p.textItems||null};
     if(p.srcW) await fitAnnotationsToImage(sh, p.srcW);
     else if(blob && sh.annotations.length){
       // 예전 버전 파일: 2000px 넘는 원본을 줄여 저장하면서 필기 좌표는 그대로 둬서 어긋난다.
@@ -2611,6 +2652,360 @@ function renderICloudHint(){
     : `<b>이 기기: iCloud에서 열기 / 저장</b> — 열기는 파일 앱에서 iCloud Drive의 프로젝트를 고르면 되고, 저장은 공유 → <b>파일에 저장</b> → 같은 폴더 → 같은 이름이 있으면 <b>대치</b>. 맥의 Chrome 앱에서는 이 과정이 자동입니다.`;
 }
 
+/* ============ 코드 인식 · 키 바꾸기 ============
+ * 코드 기호를 찾는 순서: ① PDF 안의 글자(정확) ② 이미지 글자 인식(Tesseract, 필요할 때만 불러옴).
+ * 키는 코드 진행으로 추정한다(어느 키의 다이아토닉 코드에 많이 맞는지 + 첫·끝 코드).
+ * 키를 바꾸면 원래 코드 위에 새 코드를 덮어 그린다. 오선 위 음표는 그대로 — 코드 기호만 바뀐다. */
+const NOTE_PC = {C:0, D:2, E:4, F:5, G:7, A:9, B:11};
+const LETTERS = ["C","D","E","F","G","A","B"];
+const MAJOR_KEY_NAMES = ["C","Db","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+const FLAT_NAMES = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
+const SHARP_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const CHORD_RE = /^([A-G])([#b]?)([^/]*)(?:\/([A-G])([#b]?))?$/;
+const QUALITY_RE = /^(?:maj|ma|min|mi|m|M|dim|aug|sus|add|alt|omit|no|°|ø|\+|-|Δ|△|\d{1,2}|#|b|\(|\)|,)*$/;
+
+function normalizeChordText(raw){
+  let t = String(raw||"").trim()
+    .replace(/♯/g,"#").replace(/♭/g,"b").replace(/[−–—]/g,"-").replace(/[Δ△]/g,"maj")
+    .replace(/[.,;:!?'"`]+$/,"");
+  if(/^\(.*\)$/.test(t) && !/^\([^)]*\)\S/.test(t)) t = t.slice(1, -1);
+  return t;
+}
+function parseChord(raw){
+  const t = normalizeChordText(raw);
+  if(!t || t.length > 16) return null;
+  const m = t.match(CHORD_RE);
+  if(!m || !QUALITY_RE.test(m[3])) return null;
+  return {root:m[1], acc:m[2], quality:m[3], bassRoot:m[4]||null, bassAcc:m[5]||"", text:t};
+}
+function pcOf(root, acc){ return (NOTE_PC[root] + (acc === "#" ? 1 : acc === "b" ? -1 : 0) + 12) % 12; }
+function chordKind(q){
+  if(/^(dim|°|ø)/.test(q) || /m7b5/.test(q)) return "d";
+  if(/^(maj|ma|M)/.test(q)) return "M";
+  if(/^(m|min|mi|-)/.test(q)) return "m";
+  if(/^(7|9|11|13)/.test(q)) return "7";
+  return "M";
+}
+// 키 안에서의 도수로 철자를 정한다 (E♭ 키 → B♭·A♭, E 키 → G#·D# …)
+const DEGREE_SPELL = [0,1,1,2,2,3,3,4,5,5,6,6];
+function spellPc(pc, majorPc){
+  const di = DEGREE_SPELL[(pc - majorPc + 12) % 12];
+  const letter = LETTERS[(LETTERS.indexOf(MAJOR_KEY_NAMES[majorPc][0]) + di) % 7];
+  let acc = ((pc - NOTE_PC[letter]) % 12 + 12) % 12; if(acc > 6) acc -= 12;
+  if(Math.abs(acc) > 1) return ([1,3,5,8,10].includes(majorPc) ? FLAT_NAMES : SHARP_NAMES)[pc];
+  return letter + (acc === 1 ? "#" : acc === -1 ? "b" : "");
+}
+function keyName(majorPc, minor){ return minor ? spellPc((majorPc + 9) % 12, majorPc) + "m" : MAJOR_KEY_NAMES[majorPc]; }
+function prettyAcc(t){ return String(t).replace(/([A-G])#/g, "$1♯").replace(/([A-G])b/g, "$1♭"); }
+
+function detectKey(chords){
+  if(!chords.length) return null;
+  let best = null;
+  for(let k = 0; k < 12; k++){
+    const diat = {[k]:"M", [(k+2)%12]:"m", [(k+4)%12]:"m", [(k+5)%12]:"M", [(k+7)%12]:"M", [(k+9)%12]:"m", [(k+11)%12]:"d"};
+    let sc = 0;
+    chords.forEach(c=>{
+      const pc = pcOf(c.root, c.acc), kind = chordKind(c.quality);
+      if(pc in diat){
+        sc += 1;
+        if(diat[pc] === kind || (diat[pc] === "M" && kind === "7" && pc === (k+7)%12)) sc += 0.6;
+      } else sc -= 0.4;
+    });
+    const f = chords[0], l = chords[chords.length-1];
+    const fpc = pcOf(f.root, f.acc), lpc = pcOf(l.root, l.acc);
+    if(fpc === k) sc += 1.5;
+    if(lpc === k) sc += 2.5;
+    if(fpc === (k+9)%12 && chordKind(f.quality) === "m") sc += 1;
+    if(lpc === (k+9)%12 && chordKind(l.quality) === "m") sc += 1.5;
+    if(!best || sc > best.sc) best = {k, sc};
+  }
+  const rel = (best.k + 9) % 12, f = chords[0], l = chords[chords.length-1];
+  const lMinorTonic = pcOf(l.root, l.acc) === rel && chordKind(l.quality) === "m";
+  const fMinorTonic = pcOf(f.root, f.acc) === rel && chordKind(f.quality) === "m";
+  const minor = lMinorTonic || (fMinorTonic && pcOf(l.root, l.acc) !== best.k);
+  return {majorPc: best.k, minor};
+}
+function transposeChordText(text, semis, targetMajorPc){
+  const c = parseChord(text);
+  if(!c) return text;
+  let out = spellPc((pcOf(c.root, c.acc) + semis + 120) % 12, targetMajorPc) + c.quality;
+  if(c.bassRoot) out += "/" + spellPc((pcOf(c.bassRoot, c.bassAcc) + semis + 120) % 12, targetMajorPc);
+  return out;
+}
+function targetMajorPc(){ return state.songKey ? (state.songKey.majorPc + (state.transpose||0) + 120) % 12 : null; }
+function chordShownText(text){
+  if(!state.transpose || !state.songKey) return text;
+  return transposeChordText(text, state.transpose, targetMajorPc());
+}
+
+/* --- 글자 토큰 → 코드만 골라내기 ---
+ * 한 줄(높이가 비슷한 글자들) 안에서 절반 이상이 코드처럼 생겼을 때만 코드 줄로 본다(가사 줄 제외).
+ * 혼자 있는 한 글자 A~G 는 리허설 마크일 가능성이 커서 뺀다. */
+function pickChords(tokens){
+  const toks = (tokens||[]).filter(t=>t && t.t && String(t.t).trim());
+  const lines = [];
+  toks.slice().sort((a,b)=>(a.y + a.h/2) - (b.y + b.h/2)).forEach(tk=>{
+    const cy = tk.y + tk.h/2;
+    let L = lines.find(l => Math.abs(l.cy - cy) < Math.max(l.h, tk.h) * 0.6);
+    if(!L){ L = {cy, h:tk.h, items:[]}; lines.push(L); }
+    L.items.push(tk);
+  });
+  const out = [];
+  lines.forEach(L=>{
+    const parsed = L.items.map(tk=>({tk, c:parseChord(tk.t)}));
+    const ch = parsed.filter(p=>p.c);
+    if(!ch.length || ch.length / parsed.length < 0.5) return;
+    if(ch.length === 1 && ch[0].c.text.length === 1) return;
+    ch.forEach(p=> out.push({x:p.tk.x, y:p.tk.y, w:p.tk.w, h:p.tk.h, text:p.c.text}));
+  });
+  return out;
+}
+
+// PDF 글자 → 단어 토큰 (페이지 대비 %)
+async function pdfPageTokens(pdf, pageNumber){
+  const page = await pdf.getPage(pageNumber);
+  const vp = page.getViewport({scale:1});
+  const tc = await page.getTextContent();
+  const out = [];
+  for(const it of tc.items){
+    const str = (it.str || "");
+    if(!str.trim()) continue;
+    const tr = it.transform;
+    const h = Math.hypot(tr[2], tr[3]) || it.height || 10;
+    const [vx, vy] = vp.convertToViewportPoint(tr[4], tr[5]);
+    const total = str.length, width = it.width || h * total * 0.5;
+    let idx = 0;
+    for(const word of str.split(/(\s+)/)){
+      if(word && !/^\s+$/.test(word)){
+        out.push({t:word, x:(vx + width*idx/total)/vp.width*100, y:(vy - h)/vp.height*100, w:(width*word.length/total)/vp.width*100, h:h*1.15/vp.height*100});
+      }
+      idx += word.length;
+    }
+    if(out.length > 2000) break;
+  }
+  return out;
+}
+
+let ocrWorkerPromise = null;
+function loadScriptOnce(src){
+  return new Promise((resolve, reject)=>{
+    if(document.querySelector(`script[src="${src}"]`)) return resolve();
+    const sc = document.createElement("script"); sc.src = src;
+    sc.onload = resolve; sc.onerror = ()=> reject(new Error("글자 인식 모듈을 불러오지 못했어요 (인터넷 연결 확인)"));
+    document.head.appendChild(sc);
+  });
+}
+async function getOcrWorker(){
+  if(!window.Tesseract) await loadScriptOnce("https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js");
+  if(!ocrWorkerPromise){
+    ocrWorkerPromise = Tesseract.createWorker("eng").then(async w=>{
+      await w.setParameters({tessedit_pageseg_mode:"11", preserve_interword_spaces:"1"});
+      return w;
+    }).catch(err=>{ ocrWorkerPromise = null; throw err; });
+  }
+  return ocrWorkerPromise;
+}
+async function ocrSheetTokens(sheet){
+  if(sheet.kind === "pdf" && !(sheet.blob instanceof Blob)) await ensurePageBlob(sheet);
+  if(!(sheet.blob instanceof Blob)) return [];
+  const img = await loadImageFromBlob(sheet.blob);
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const sc = Math.min(2, Math.max(1, 2600 / Math.max(W, H)));   // 작은 글씨는 키워서 인식률을 올린다
+  const c = document.createElement("canvas");
+  c.width = Math.round(W*sc); c.height = Math.round(H*sc);
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+  const worker = await getOcrWorker();
+  const {data} = await worker.recognize(c);
+  let words = data.words;
+  if(!words || !words.length){
+    words = [];
+    (data.blocks||[]).forEach(b=>(b.paragraphs||[]).forEach(p=>(p.lines||[]).forEach(l=>(l.words||[]).forEach(w=>words.push(w)))));
+  }
+  return words.filter(w=> w.confidence >= 45).map(w=>({
+    t:w.text, x:w.bbox.x0/c.width*100, y:w.bbox.y0/c.height*100,
+    w:(w.bbox.x1-w.bbox.x0)/c.width*100, h:(w.bbox.y1-w.bbox.y0)/c.height*100,
+  }));
+}
+
+function chordsInReadingOrder(){
+  const out = [];
+  state.sheets.forEach(s=>{
+    (s.chords||[]).slice().sort((a,b)=> (Math.round(a.y/2) - Math.round(b.y/2)) || (a.x - b.x))
+      .forEach(c=>{ const p = parseChord(c.text); if(p) out.push(p); });
+  });
+  return out;
+}
+
+let recognizing = false;
+async function recognizeChords(all){
+  if(recognizing) return;
+  if(!state.sheets.length){ showToast("먼저 악보를 올려 주세요"); return; }
+  recognizing = true;
+  const targets = state.sheets.filter(s => all || !Array.isArray(s.chords));
+  let usedOcr = false, failed = null;
+  try{
+    for(let i = 0; i < targets.length; i++){
+      const sh = targets[i];
+      showToast(`코드 인식 중… ${i+1} / ${targets.length}`);
+      let tokens = sh.textItems && sh.textItems.length ? sh.textItems : null;
+      if(!tokens || !pickChords(tokens).length){
+        try{ tokens = await ocrSheetTokens(sh); usedOcr = true; }
+        catch(err){ failed = err; break; }
+      }
+      sh.chords = pickChords(tokens).map(c=>Object.assign({id:uid()}, c));
+    }
+  } finally { recognizing = false; }
+  if(failed){ alert("코드 인식 실패: " + (failed.message || failed) + (window.claude ? "\n(Claude 화면 안에서는 이미지 인식을 쓸 수 없어요. GitHub Pages 주소에서 써 주세요.)" : "")); }
+  const seq = chordsInReadingOrder();
+  if(!state.songKey || state.songKey.auto){
+    const k = detectKey(seq);
+    state.songKey = k ? {majorPc:k.majorPc, minor:k.minor, auto:true} : null;
+  }
+  state.showChordBoxes = seq.length > 0;   // 인식 결과를 확인·고칠 수 있게 테두리 표시
+  renderSheet(); renderKeyControls(); scheduleSave();
+  if(seq.length){
+    showToast(`코드 ${seq.length}개 인식 · 원래 키 ${prettyAcc(keyName(state.songKey.majorPc, state.songKey.minor))}로 보여요${usedOcr ? " · 틀린 코드는 눌러서 고치세요" : ""}`);
+  } else if(!failed){
+    showToast("코드 기호를 찾지 못했어요");
+  }
+  updateKeyPop();
+}
+
+function stepKey(d){
+  const hasChords = state.sheets.some(s=> (s.chords||[]).length);
+  if(!hasChords){ recognizeChords(false); return; }
+  if(!state.songKey){ showToast("원래 키를 먼저 골라 주세요"); openKeyPop(document.querySelector("[data-key-ctl] .keyName")); return; }
+  let t = (state.transpose||0) + d;
+  if(t > 6) t -= 12; if(t < -6) t += 12;
+  state.transpose = t;
+  if(t !== 0) state.showChordBoxes = false;
+  renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave();
+}
+
+function renderKeyControls(){
+  const orig = state.songKey ? prettyAcc(keyName(state.songKey.majorPc, state.songKey.minor)) : null;
+  const cur = state.songKey ? prettyAcc(keyName(targetMajorPc(), state.songKey.minor)) : null;
+  const t = state.transpose || 0;
+  document.querySelectorAll("[data-key-ctl]").forEach(wrap=>{
+    if(!wrap.firstChild){
+      const cls = wrap.dataset.btnClass || "";
+      const mk = (txt, title, fn, extra)=>{ const b = document.createElement("button"); if(cls) b.className = cls; if(extra) b.classList.add(extra); b.textContent = txt; b.title = title; b.addEventListener("click", fn); wrap.appendChild(b); return b; };
+      mk("♭", "키 반음 내리기", ()=> stepKey(-1));
+      const name = mk("", "키 · 코드 인식", (e)=>{ e.stopPropagation(); openKeyPop(name); }, "keyName");
+      mk("♯", "키 반음 올리기", ()=> stepKey(1));
+    }
+    wrap.querySelector(".keyName").textContent = !orig ? "🎼 키" : (t ? `${cur} ${t > 0 ? "+" : ""}${t}` : `🎼 ${orig}`);
+    wrap.classList.toggle("shifted", !!t);
+  });
+}
+
+function renderChords(){
+  document.querySelectorAll(".chordTag, .keyBadge").forEach(el=>el.remove());
+  const sheet = currentSheet(); if(!sheet || !sheet.chords || !sheet.chords.length) return;
+  const t = state.transpose || 0;
+  if(!t && !state.showChordBoxes) return;
+  const stage = document.getElementById("sheetStage");
+  const aspect = sheet._aspect || lastSheetAspect || 0.707;
+  sheet.chords.forEach(ch=>{
+    const tag = document.createElement("div");
+    tag.className = "chordTag" + (state.showChordBoxes ? " verify" : "") + (t ? " shifted" : "");
+    tag.style.left = ch.x + "%"; tag.style.top = ch.y + "%";
+    tag.style.minWidth = ch.w + "%"; tag.style.height = ch.h + "%";
+    tag.style.fontSize = (ch.h / aspect * 0.86) + "cqw";
+    tag.textContent = prettyAcc(chordShownText(ch.text));
+    if(state.showChordBoxes){
+      tag.title = "눌러서 고치기 · 지우기";
+      tag.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        const v = prompt("코드 고치기 (원래 키 기준으로 입력 · 비우면 지움)", ch.text);
+        if(v === null) return;
+        if(!v.trim()){ sheet.chords = sheet.chords.filter(x=>x.id !== ch.id); }
+        else { const p = parseChord(v); if(!p){ alert("코드로 읽을 수 없어요: " + v); return; } ch.text = p.text; }
+        renderChords(); scheduleSave();
+      });
+    }
+    stage.appendChild(tag);
+  });
+  if(t && state.songKey){
+    const b = document.createElement("div");
+    b.className = "keyBadge";
+    b.textContent = `연주 키 ${prettyAcc(keyName(targetMajorPc(), state.songKey.minor))} · 원키 ${prettyAcc(keyName(state.songKey.majorPc, state.songKey.minor))} (${t > 0 ? "+" : ""}${t})`;
+    stage.appendChild(b);
+  }
+}
+
+function closeKeyPop(){ const p = document.getElementById("keyPop"); if(p) p.remove(); }
+function updateKeyPop(){
+  const p = document.getElementById("keyPop"); if(!p) return;
+  const n = state.sheets.reduce((a,s)=> a + (s.chords||[]).length, 0);
+  p.querySelector(".kpCount").textContent = n ? `인식된 코드 ${n}개` : "아직 인식한 코드가 없어요";
+  const sel = p.querySelector("select");
+  sel.value = state.songKey ? `${state.songKey.majorPc}:${state.songKey.minor ? 1 : 0}` : "";
+  const t = state.transpose || 0;
+  p.querySelector(".kpTarget").textContent = state.songKey ? `${prettyAcc(keyName(targetMajorPc(), state.songKey.minor))}  (${t > 0 ? "+" : ""}${t})` : "—";
+  p.querySelector("#kpBoxes").checked = !!state.showChordBoxes;
+}
+function openKeyPop(anchor){
+  if(document.getElementById("keyPop")){ closeKeyPop(); return; }
+  const p = document.createElement("div");
+  p.className = "zoomPop keyPop"; p.id = "keyPop";
+  const opts = [];
+  for(let k = 0; k < 12; k++) opts.push(`<option value="${k}:0">${prettyAcc(keyName(k, false))} 장조</option>`);
+  for(let k = 0; k < 12; k++) opts.push(`<option value="${k}:1">${prettyAcc(keyName(k, true))} 단조</option>`);
+  p.innerHTML = `<div class="zpHead"><span class="zpTitle">키 · 코드</span><span class="kpCount" style="font-size:11px; color:var(--text-dim);"></span></div>
+    <div class="kpRow"><button class="primary" id="kpRecog">🎼 코드 인식</button><button id="kpRecogAll" title="이미 인식한 페이지도 다시">전체 다시</button></div>
+    <label class="kpLabel">원래 키 <select id="kpKey"><option value="">— 고르기 —</option>${opts.join("")}</select></label>
+    <div class="kpRow kpStep"><button id="kpDown">♭ 반음 내림</button><b class="kpTarget"></b><button id="kpUp">♯ 반음 올림</button></div>
+    <button id="kpReset">원래 키로</button>
+    <label class="settingsRow"><input type="checkbox" id="kpBoxes"><span>인식된 코드 확인·고치기 (테두리 표시, 눌러서 수정)</span></label>
+    <div class="zpHint">코드 기호만 바뀌고 오선 위 음표는 그대로예요. 키는 코드 진행으로 추정한 것이라 다르면 '원래 키'에서 고르세요.</div>`;
+  p.querySelector("#kpRecog").addEventListener("click", ()=> recognizeChords(false));
+  p.querySelector("#kpRecogAll").addEventListener("click", ()=>{
+    if(state.sheets.some(s=>(s.chords||[]).length) && !confirm("모든 페이지를 다시 인식할까요? 고친 코드는 사라집니다.")) return;
+    recognizeChords(true);
+  });
+  p.querySelector("#kpKey").addEventListener("change", (e)=>{
+    const v = e.target.value;
+    if(!v){ state.songKey = null; } else { const [k, m] = v.split(":"); state.songKey = {majorPc:+k, minor:m === "1", auto:false}; }
+    renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave();
+  });
+  p.querySelector("#kpDown").addEventListener("click", ()=> stepKey(-1));
+  p.querySelector("#kpUp").addEventListener("click", ()=> stepKey(1));
+  p.querySelector("#kpReset").addEventListener("click", ()=>{ state.transpose = 0; renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave(); });
+  p.querySelector("#kpBoxes").addEventListener("change", (e)=>{ state.showChordBoxes = e.target.checked; renderChords(); scheduleSave(); });
+  document.body.appendChild(p);
+  updateKeyPop();
+  const r = anchor.getBoundingClientRect(), pw = p.offsetWidth, ph = p.offsetHeight;
+  p.style.left = Math.max(8, Math.min(window.innerWidth - pw - 8, r.left + r.width/2 - pw/2)) + "px";
+  p.style.top = (r.bottom + ph + 10 < window.innerHeight ? r.bottom + 8 : Math.max(8, r.top - ph - 8)) + "px";
+  setTimeout(()=> document.addEventListener("pointerdown", function off(ev){
+    if(!ev.target.closest("#keyPop") && !ev.target.closest(".keyName") && !ev.target.closest(".chordTag")){ closeKeyPop(); document.removeEventListener("pointerdown", off, true); }
+  }, true), 0);
+}
+
+function drawChordsOnCanvas(g, sheet, W, H){
+  const t = state.transpose || 0;
+  if(!t || !state.songKey || !sheet.chords || !sheet.chords.length) return;
+  g.save();
+  g.textBaseline = "middle";
+  sheet.chords.forEach(ch=>{
+    const x = W*ch.x/100, y = H*ch.y/100, w = W*ch.w/100, h = H*ch.h/100;
+    const fs = h * 0.86;
+    g.font = `700 ${fs}px 'Figtree','Noto Sans KR',sans-serif`;
+    const txt = prettyAcc(chordShownText(ch.text));
+    const tw = g.measureText(txt).width;
+    g.fillStyle = "#ffffff"; g.fillRect(x - fs*0.12, y - fs*0.08, Math.max(w, tw) + fs*0.24, h + fs*0.16);
+    g.fillStyle = "#14204a"; g.fillText(txt, x, y + h/2);
+  });
+  const badge = `연주 키 ${prettyAcc(keyName(targetMajorPc(), state.songKey.minor))} (원키 ${prettyAcc(keyName(state.songKey.majorPc, state.songKey.minor))} ${t > 0 ? "+" : ""}${t})`;
+  const bfs = Math.max(12, W * 0.016);
+  g.font = `700 ${bfs}px 'Figtree','Noto Sans KR',sans-serif`; g.textBaseline = "top";
+  const bw = g.measureText(badge).width;
+  g.fillStyle = "#ffffff"; g.fillRect(W*0.012, H*0.008, bw + bfs, bfs*1.6);
+  g.fillStyle = "#14204a"; g.fillText(badge, W*0.012 + bfs/2, H*0.008 + bfs*0.3);
+  g.restore();
+}
+
 /* ============ EXPORT (PNG / PDF) ============ */
 // Text boxes and markers are sized in screen px on the stage; annotations are
 // stored in image px. Scale the former by imageWidth / stageWidth so the export
@@ -2718,6 +3113,7 @@ async function composePageCanvas(sheet, refWidth, opts){
   g.drawImage(ink, 0, 0);
 
   const s = W / refWidth;
+  drawChordsOnCanvas(g, sheet, W, H);
   (sheet.markers||[]).forEach(m=>{
     if(m.kind === "inst"){ if(instTagVisible(m)) drawInstTagOnCanvas(g, m, W, H, s); }
     else drawMarkerOnCanvas(g, m, W, H, s);
@@ -3436,9 +3832,11 @@ async function fileToPages(file){
     pdfBuffers.set(sourceId, buf);
     const pdf = await getPdfDoc(sourceId);
     for(let p=1;p<=pdf.numPages;p++){
+      let textItems = null;
+      try{ textItems = await pdfPageTokens(pdf, p); }catch(err){}
       pages.push({
         id:uid(), kind:"pdf", pdfSourceId:sourceId, pageNumber:p,
-        blob:null, dirtyImage:true, annotations:[], markers:[], textBoxes:[],
+        blob:null, dirtyImage:true, annotations:[], markers:[], textBoxes:[], textItems,
       });
     }
   } else {
@@ -3800,6 +4198,7 @@ function renderSheet(){
   img.src = url;
 
   renderMarkers();
+  renderChords();
   renderTextBoxes();
   renderSnapGrid();
   attachCanvasEvents();
@@ -4318,6 +4717,7 @@ function toggleZoomPop(anchor){
   }, true), 0);
 }
 buildZoomControls();
+renderKeyControls();
 
 // 맥 트랙패드 핀치(ctrlKey 휠)와 ⌘/Ctrl+휠: 브라우저 화면 전체가 아니라 악보만 확대
 document.getElementById("sheetViewport").addEventListener("wheel", (e)=>{
@@ -5490,7 +5890,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.26-2";
+const APP_BUILD = "2026.10.26-3";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외
@@ -5545,6 +5945,7 @@ async function init(){
   renderInstBar();
   applyTopBarsUI();
   applyZoom();
+  renderKeyControls();
   renderSheet();
 
   document.getElementById("timbreSel").value = state.timbre;

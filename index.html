@@ -814,6 +814,10 @@
     background:#e5484d; color:#fff; font:800 13px/22px sans-serif; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.35); cursor:pointer; z-index:1;}
   /* ✕는 코드를 한 번 누른(고른) 때만 코드 위쪽에 — 평소엔 코드를 가리지 않는다 */
   .chordTag.verify.sel{outline:2px solid #e5484d;}
+  .chordTag.verify{touch-action:none;}
+  .chordTag.dragging, .chordTag.dragGhost{opacity:0.85; outline:2px solid #2457e6; z-index:7;}
+  .chordTag.dragGhost{outline-color:#1f9d55; background:rgba(31,157,85,0.15);}
+  .chordTag.copyReady{outline:2px solid #1f9d55;}
   .chordTag.verify.sel .chordDel{display:block;}
   .keyBadge{
     position:absolute; left:1.2%; top:0.8%; z-index:6; padding:0.35em 0.7em; border-radius:999px;
@@ -2697,6 +2701,7 @@ function normalizeChordText(raw){
     .replace(/^([ACDEFG])([acdefg])(?=$|[^a-z])/, (m, a, b)=> a.toLowerCase() === b ? a : m);
   if(/^\(.*\)$/.test(t) && !/^\([^)]*\)\S/.test(t)) t = t.slice(1, -1);
   if((t.match(/\(/g) || []).length === 1 && !t.includes(")") && /\(\d+$/.test(t)) t += ")";   // "F7(13" → "F7(13)" (닫는 괄호가 따로 떨어진 PDF)
+  t = t.replace(/\)\)+$/, ")");
   return t;
 }
 function parseChord(raw){
@@ -2863,7 +2868,8 @@ function fixOcrChord(t){
   if(parseChord(t)) return t;
   // 글자 인식이 자주 틀리는 글자들: 7→?·T, #→H, /→I·l·|·1, 베이스 B→8 (고쳐서 코드가 될 때만 쓴다)
   let u = String(t).replace(/\?/g, "7").replace(/([A-G#bm\d)])T/g, "$17").replace(/([A-G])[Hgj](?=$|[\/m\d(Msaniu])/g, "$1#");
-  u = u.replace(/^(.+?)[Il|1\\](?=[A-G8][#bHg]?$)/, "$1/").replace(/\/8$/, "/B").replace(/\/([A-G])[Hgj1]$/, "/$1#");
+  u = u.replace(/^(.+?)[Iil|1\\](?=[A-G8][#bHg]?$)/, "$1/").replace(/\/8$/, "/B").replace(/\/([A-G])[Hgj1]$/, "/$1#")
+    .replace(/\/g$/, "/E");                                          // 작은 베이스 E → g ("Cadd9/g")
   if(parseChord(u)) return u;
   const cands = [
     t.replace(/^([A-G][#b]?[^/\s]*?)[Il|1\\]([A-G][#b]?)$/, "$1/$2"),
@@ -2876,8 +2882,8 @@ function fixOcrChord(t){
   if(m){
     // sus4 → "su-"·"si"·"sum4"·"susd" / m → n·u / dim → dam·duam / ♯ → s·i
     let tail = m[2].replace(/^s[uia][-sum4ad]*$/, "sus4").replace(/^i#/, "#").replace(/^s(?!us)/, /[EB]/.test(m[1]) ? "s" : "#");
-    tail = tail.replace(/(sus)[dau]/, "$14").replace(/\/([A-G])[s4gjH1]+$/, "/$1#").replace(/d[aiu]+m$/, "dim");
-    const tries = [tail, tail.replace(/^[nu](?=7|$)/, "m"), tail.replace(/^i(?=m|7|\/|$)/, "#"), tail.replace(/^1\//, "/"), tail.replace(/^11(?=7|$)/, "m"), tail.replace(/^#?11(?=7|$)/, "#m"), tail.replace(/^1(?=m|7|d|\/|$)/, "#"), tail.replace(/^1(?=m|7|d|\/|$)/, "#").replace(/[ilI|]/g, "1"), tail.replace(/[ilI|]/g, "1"), tail.replace(/n/g, "11").replace(/[ilI|]/g, "1"), tail.replace(/(m|M|add|sus)[ilI|n]+/, "$111")];
+    tail = tail.replace(/(sus)[dau]/, "$14").replace(/\/([A-G])[s4gjH1a]+$/, "/$1#").replace(/d[aiu]+m$/, "dim").replace(/di[nr]n?$/, "dim");
+    const tries = [tail, tail.replace(/^i/, "#").replace(/^(#?)[nu](?=7|\/)/, "$1m"), tail.replace(/^[nu](?=7|$)/, "m"), tail.replace(/^i(?=m|7|\/|$)/, "#"), tail.replace(/^1\//, "/"), tail.replace(/^11(?=7|$)/, "m"), tail.replace(/^#?11(?=7|$)/, "#m"), tail.replace(/^1(?=m|7|d|\/|$)/, "#"), tail.replace(/^1(?=m|7|d|\/|$)/, "#").replace(/[ilI|]/g, "1"), tail.replace(/[ilI|]/g, "1"), tail.replace(/n/g, "11").replace(/[ilI|]/g, "1"), tail.replace(/(m|M|add|sus)[ilI|n]+/, "$111")];
     for(const tt of tries){ const c = m[1] + tt; if(c !== t && parseChord(c)) return c; }
   }
   return t;
@@ -2940,7 +2946,8 @@ function pickChords(tokens){
         const gap = tk.x - (prev.x + prev.w), hh = Math.max(prev.h, tk.h);
         const joined = normalizeChordText(prev.t) + normalizeChordText(tk.t);
         // "D" "/" "F#" 처럼 슬래시가 따로 나온 경우도 이어 붙인다
-        if(gap < hh*0.6 && gap > -hh*0.8 && ((parseChord(joined) && (!parseChord(tk.t) || /\/$/.test(prev.t))) || (tk.t === "/" && parseChord(prev.t)))){
+        // 이미지 덩어리로 온전히 읽힌 코드(cl)는 완성된 것 — 옆 조각(셋잇단 3 등)을 더 붙이지 않는다
+        if(!(prev.cl && parseChord(prev.t) && tk.band) && gap < hh*0.6 && gap > -hh*0.8 && ((parseChord(joined) && (!parseChord(tk.t) || /\/$/.test(prev.t))) || (tk.t === "/" && parseChord(prev.t)))){
           const nx = Math.min(prev.x, tk.x), ny = Math.min(prev.y, tk.y);
           prev.w = Math.max(prev.x + prev.w, tk.x + tk.w) - nx; prev.h = Math.max(prev.y + prev.h, tk.y + tk.h) - ny;
           prev.x = nx; prev.y = ny; prev.t = joined; prev.raw = (prev.raw||"") + tk.t;
@@ -2950,7 +2957,7 @@ function pickChords(tokens){
       merged.push(Object.assign({}, tk, {raw:tk.t}));
     });
     const words = merged.filter(tk=>!isNoiseToken(tk.t));
-    const ch = words.map(tk=>({tk, c:parseChord(tk.t)})).filter(p=>p.c);
+    const ch = words.map(tk=>({tk, c:parseChord(fixOcrChord(tk.t))})).filter(p=>p.c);   // 합친 뒤("F#m"+"5")에도 오독 고치기
     if(!ch.length) return;
     if(!(ch.length / words.length >= 0.45 || ch.length >= 3)) return;              // 가사·설명 줄 제외
     if(ch.length === 1 && words.length === 1 && ch[0].c.text.length === 1){
@@ -3137,8 +3144,19 @@ function inkClusters(ink, W, H, gapPx){
         const q = ny*W + nx; if(ink[q] && !lab[q]){ lab[q] = id; stack.push(q); }
       }
     }
-    comps.push({x0, y0, x1, y1, n});
+    comps.push({x0, y0, x1, y1, n, id});
   }
+  // 기울어진 가는 획 = '/' (위쪽 잉크가 오른쪽, 아래쪽 잉크가 왼쪽) — 글자 인식이 슬래시를 자주 빠뜨려서 모양으로도 알아 둔다
+  comps.forEach(c=>{
+    const w = c.x1 - c.x0 + 1, h = c.y1 - c.y0 + 1;
+    if(h < gapPx*0.5 || w > h*0.8 || w < h*0.2) return;
+    let ts = 0, tn = 0, bs = 0, bn = 0;
+    for(let y = c.y0; y <= c.y1; y++){
+      const top = y < c.y0 + h*0.35, bot = y > c.y1 - h*0.35; if(!top && !bot) continue;
+      for(let x = c.x0; x <= c.x1; x++) if(lab[y*W + x] === c.id){ if(top){ ts += x; tn++; } else { bs += x; bn++; } }
+    }
+    c.slash = tn > 0 && bn > 0 && (ts/tn - bs/bn) > w*0.35;
+  });
   const minArea = gapPx * gapPx * 0.015;
   // 띠 아래 끝(오선)에 닿은 조각은 음표 기둥·높은음자리표 윗부분·조표 — 코드가 아니다
   const cs = comps.filter(c=> c.n >= minArea && (c.y1 - c.y0) >= gapPx*0.18 && (c.x1 - c.x0) < gapPx*14 && c.y1 < H - 2);
@@ -3158,23 +3176,45 @@ function inkClusters(ink, W, H, gapPx){
       else { cur = {x0:c.x0, y0:c.y0, x1:c.x1, y1:c.y1, row:r, parts:[c]}; clusters.push(cur); }
     });
   });
+  // 맨 앞 조각이 뒤 글자보다 훨씬 크면(𝄋 세뇨·𝄌 코다 기호 바로 뒤에 붙은 코드) 그 기호는 뺀다
+  const roots = clusters.map(c=> Math.min(...c.parts.map(p=> p.x0)) >= 0 ? c.parts.slice().sort((a,b)=> a.x0 - b.x0)[0] : null).filter(Boolean)
+    .map(p=> p.y1 - p.y0).sort((a,b)=> a-b);
+  const capH = roots.length ? roots[Math.floor(roots.length/2)] : 0;
+  clusters.forEach(c=>{
+    const ps = c.parts.slice().sort((a,b)=> a.x0 - b.x0);
+    if(ps.length < 2 || !capH) return;
+    const h0 = ps[0].y1 - ps[0].y0, h1 = ps[1].y1 - ps[1].y0, w1 = ps[1].x1 - ps[1].x0;
+    if(h0 > capH * 1.35 && h1 >= capH * 0.8 && h1 <= capH * 1.2 && w1 >= h1 * 0.6 && ps[0].y1 > ps[1].y1){
+      c.parts = ps.slice(1);
+      c.x0 = Math.min(...c.parts.map(p=> p.x0)); c.y0 = Math.min(...c.parts.map(p=> p.y0)); c.y1 = Math.max(...c.parts.map(p=> p.y1));
+    }
+  });
   return clusters.filter(c=> (c.y1 - c.y0) >= gapPx * 0.45 && (c.y1 - c.y0) <= gapPx * 4.5);
 }
 /* 한 코드 덩어리를 그릴 배치: 위첨자(Am¹¹ 의 11, Dm⁷ 의 7, Gsus⁴ 의 4)는 글자 인식이 버리기 쉬우므로
  * 기준선으로 내리고 크게 키워 "Am11" 처럼 보통 글자로 읽히게 한다. */
 function layoutCluster(c){
-  const parts = (c.parts || [c]).slice().sort((a,b)=> a.x0 - b.x0);
+  // 한 글자가 여러 조각으로 끊긴 것(가는 획이 끊긴 '2'·'♯')은 먼저 하나로 — 조각만 위첨자로 키우면 검은 덩어리가 된다
+  const parts = [];
+  (c.parts || [c]).slice().sort((a,b)=> a.x0 - b.x0).forEach(q=>{
+    const last = parts[parts.length - 1];
+    const ov = last ? Math.min(last.x1, q.x1) - Math.max(last.x0, q.x0) : -1;
+    if(last && ov >= Math.min(last.x1 - last.x0, q.x1 - q.x0) * 0.5){
+      last.x0 = Math.min(last.x0, q.x0); last.x1 = Math.max(last.x1, q.x1); last.y0 = Math.min(last.y0, q.y0); last.y1 = Math.max(last.y1, q.y1);
+      last.slash = false;
+    } else parts.push({x0:q.x0, y0:q.y0, x1:q.x1, y1:q.y1, slash:!!q.slash});
+  });
   const root = parts[0], rh = root.y1 - root.y0 + 1, base = root.y1;
   const items = []; let cx = 0, prevX1 = null, minY = 0, maxY = 0;
   parts.forEach((p, i)=>{
     const pw = p.x1 - p.x0 + 1, ph = p.y1 - p.y0 + 1;
-    const sup = i > 0 && p.y1 < base - rh*0.3 && ph < rh*0.8 && pw < ph*1.8;
+    const sup = i > 0 && p.y1 < base - rh*0.3 && ph < rh*0.8 && ph >= rh*0.3 && pw < ph*1.8;
     const k = sup ? Math.min(2, rh*0.85 / ph) : 1;
     const gap = prevX1 == null ? 0 : Math.max(0, p.x0 - prevX1 - 1);
     cx += gap;
     const dw = Math.round(pw*k), dh = Math.round(ph*k);
     const dy = sup ? (base - c.y0) - dh + 1 : p.y0 - c.y0;
-    items.push({sx:p.x0, sy:p.y0, sw:pw, sh:ph, dx:cx, dy, dw, dh});
+    items.push({sx:p.x0, sy:p.y0, sw:pw, sh:ph, dx:cx, dy, dw, dh, slash:p.slash && i > 0});
     minY = Math.min(minY, dy); maxY = Math.max(maxY, dy + dh);
     cx += dw + (sup ? Math.round(rh*0.08) : 0); prevX1 = p.x1;
   });
@@ -3229,6 +3269,13 @@ async function readClusters(worker, srcCanvas, clusters){
       if(!p1 || (bare(p1.text) === bare(p2.text) && accN(p2.text) > accN(p1.text))){ c.text = t2; c.conf = r2[i].conf; }
     });
   }
+  // 조각보다 글자를 더 읽었는데 끝이 ♯ 오독 글자(g·s·j·H)면 없는 글자를 지어낸 것 ("F/G" → "FiGg" → F/G#)
+  clusters.forEach(c=>{
+    const t = (c.text || "").replace(/\s+/g, "");
+    if(!c.lay || t.length <= c.lay.items.length || !/[A-G][gsjH]$/.test(t)) return;
+    const its = c.lay.items, last = its[its.length - 1];
+    if(last.dw >= its[0].dh * 0.75) c.text = t.slice(0, -1);          // 마지막 조각이 넓은 음이름이면 ♯ 조각은 없다
+  });
   // 맨 끝 ♯을 아예 빠뜨린 경우(D/F# → D/F): 조각 수가 읽은 글자보다 많고 마지막 조각이 가늘면 그 조각만 따로 읽어 본다
   const tailCand = clusters.filter(c=>{
     if(!c.lay || !c.text || !/[A-G]$/.test(c.text) || !parseChord(fixOcrChord(c.text + "#"))) return false;
@@ -3257,6 +3304,55 @@ async function readClusters(worker, srcCanvas, clusters){
     const before = its[its.length - 2], last = its[its.length - 1];
     if(k > 0 && before && before.dh >= rh*0.95 && before.dw <= rh*0.75 && last.dx - (before.dx + before.dw) < rh*0.35){ const u = t.slice(0, k) + "/" + t.slice(k); if(parseChord(fixOcrChord(u))) c.text = u; }
   });
+  // 모양으로 '/'가 있는데 읽은 글자에 없으면(D2/F → "D2F") 마지막 음이름 앞에 넣는다
+  clusters.forEach(c=>{
+    const t = (c.text || "").replace(/\s+/g, "");
+    if(!t || t.includes("/") || !c.lay || !c.lay.items.some(it=> it.slash)) return;
+    if(/[^A-G]g$/.test(t)){ const u = t.slice(0, -1) + "/E"; if(parseChord(fixOcrChord(u))){ c.text = u; return; } }   // "Fing" → F#m/E
+    const k = t.search(/[A-G][#b]?$/);
+    // 슬래시를 i·l·1 로 읽었으면 그 글자를 바꾸고(CiD → C/D), 아예 빠졌으면 넣는다
+    if(k > 0){ const u = /[iIl|1]/.test(t[k-1]) && k > 1 ? t.slice(0, k-1) + "/" + t.slice(k) : t.slice(0, k) + "/" + t.slice(k); if(parseChord(fixOcrChord(u))) c.text = u; }
+  });
+  // '/' 모양은 있는데 뒤 베이스 음이름을 아예 못 읽은 경우("C/D" → "C"): 슬래시 뒤 조각만 따로 읽는다
+  const noBass = clusters.filter(c=>{
+    const t = (c.text || "").replace(/\s+/g, ""), its = c.lay ? c.lay.items : [];
+    const j = its.findIndex(it=> it.slash);
+    return j > 0 && j < its.length - 1 && !t.includes("/") && parseChord(fixOcrChord(t));
+  }).slice(0, 16);
+  if(noBass.length){
+    await worker.setParameters({tessedit_pageseg_mode:"8", tessedit_char_whitelist:"ABCDEFG#b"});
+    for(const c of noBass){
+      const its = c.lay.items, j = its.findIndex(it=> it.slash), rest = its.slice(j + 1);
+      const x0 = rest[0].dx, w = rest[rest.length-1].dx + rest[rest.length-1].dw - x0, h = Math.max(...rest.map(it=> it.dy + it.dh)) - Math.min(...rest.map(it=> it.dy));
+      const y0 = Math.min(...rest.map(it=> it.dy)), pad = Math.round(h*0.6), k = 1.5;
+      const pc = document.createElement("canvas"); pc.width = Math.round((w + pad*2)*k); pc.height = Math.round((h + pad*2)*k);
+      const g = pc.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, pc.width, pc.height); g.imageSmoothingQuality = "high";
+      rest.forEach(it=> g.drawImage(srcCanvas, it.sx, it.sy, it.sw, it.sh, (pad + it.dx - x0)*k, (pad + it.dy - y0)*k, it.dw*k, it.dh*k));
+      try{
+        const {data} = await worker.recognize(pc);
+        const b = String(data.text || "").replace(/\s+/g, "");
+        const u = (c.text || "").replace(/\s+/g, "") + "/" + b;
+        if(/^[A-G][#b]?$/.test(b) && parseChord(fixOcrChord(u))) c.text = u;
+      }catch(err){}
+    }
+  }
+  // 가는 ♯이 점 두 개(:)로 끊겨 "F:"·"F" 로 읽힌 경우 — 음이름 바로 뒤의 작은 세로 점 무리
+  clusters.forEach(c=>{
+    const t = (c.text || "").replace(/[\s:;.]+$/g, "");
+    if(!c.lay || !/[A-G]$/.test(t) || !parseChord(fixOcrChord(t + "#"))) return;
+    const its = c.lay.items, last = its[its.length - 1], rh = its[0].dh, prev = its[its.length - 2];
+    if(!prev || its.length < 2) return;
+    const gapX = last.dx - (prev.dx + prev.dw);
+    if(last.dw <= rh*0.6 && last.dh >= rh*0.3 && last.dh <= rh*1.3 && gapX >= 0 && gapX < rh*0.4 && prev.dh >= rh*0.6 && its.length > t.length
+      && Math.abs((last.dy + last.dh/2) - (prev.dy + prev.dh/2)) < rh*0.3) c.text = t + "#";   // 셋잇단 '3'처럼 아래에 있는 건 아님
+  });
+  // 괄호 안 작은 ♭·♯을 빠뜨린 경우(A7(♭9) → "A7(9)"): 조각이 글자보다 하나 많으면 흔한 쪽으로 채운다 (9·13·5 → ♭, 11 → ♯)
+  clusters.forEach(c=>{
+    const t = (c.text || "").replace(/\s+/g, "");
+    if(!c.lay || !/\((9|13|5|11)\)?$/.test(t) || c.lay.items.length < t.length + (t.endsWith(")") ? 1 : 2)) return;
+    const u = t.replace(/\((9|13|5|11)(\)?)$/, (m, n, cl)=> "(" + (n === "11" ? "#" : "b") + n + ")");
+    if(parseChord(fixOcrChord(u))) c.text = u;
+  });
   // 그래도 못 읽은 덩어리는 하나씩
   const left = clusters.filter(c=> !parseChord(fixOcrChord(c.text || ""))).slice(0, 16);
   if(left.length){
@@ -3269,6 +3365,7 @@ async function readClusters(worker, srcCanvas, clusters){
       try{ const {data} = await worker.recognize(pc); const t = String(data.text||"").replace(/\s+/g, ""); if(parseChord(fixOcrChord(t))){ c.text = t; c.conf = data.confidence; } }catch(err){}
     }
   }
+  if(window.__mlsDebugBands) clusters.forEach(c=> window.__mlsDebugBands.push("CL " + c.text + " n" + (c.lay ? c.lay.items.map(it=> `${it.dw}x${it.dh}@${it.dx},${it.dy}${it.slash ? "/" : ""}`).join(" ") : "")));
   return clusters.filter(c=> c.text);
 }
 function flatWords(data){
@@ -3367,7 +3464,9 @@ async function ocrSheetTokens(sheet){
       const pw = parseChord(fixOcrChord(w.text)); if(!pw) return;
       clusters.forEach(c=>{
         const pc = parseChord(fixOcrChord(c.text || ""));
-        if(pc && cover(c, w.bbox) > 0.5 && bare(pc.text) === bare(pw.text) && acc(pw.text) > acc(pc.text)) c.text = pw.text;
+        // 덩어리에 아직 못 읽은 조각이 남아 있을 때만(조각 수 > 글자 수) — 아니면 셋잇단 '3' 등을 ♯으로 붙인다
+        const spare = !c.lay || c.lay.items.length > String(c.text || "").replace(/\s+/g, "").length;
+        if(pc && spare && cover(c, w.bbox) > 0.5 && bare(pc.text) === bare(pw.text) && acc(pw.text) > acc(pc.text)) c.text = pw.text;
       });
     });
     clusters.forEach(c=> tokens.push({
@@ -3596,7 +3695,8 @@ function renderChords(){
       tag.style.fontSize = (fontH / aspect * 1.15) + "cqw";
     } else tag.textContent = shown;
     if(state.showChordBoxes){
-      tag.title = "한 번 누르면 ✕(지우기) · 한 번 더 누르면 고치기";
+      tag.title = "한 번 누르면 ✕(지우기) · 한 번 더 누르면 고치기 · 끌면 옮기기 · ⌥(Option) 누른 채 끌면 복사";
+      tag.addEventListener("pointerdown", (e)=> startChordDrag(e, sheet, ch, tag, stage));
       const del = document.createElement("button");
       del.type = "button"; del.className = "chordDel"; del.textContent = "✕"; del.title = "이 코드 지우기 (가사 등을 코드로 잘못 찾았을 때)";
       del.addEventListener("click", (e)=>{ e.stopPropagation(); deleteChordWithUndo(sheet, ch); });
@@ -3604,6 +3704,7 @@ function renderChords(){
       if(ch.id === selChordId) tag.classList.add("sel");
       tag.addEventListener("click", (e)=>{
         e.stopPropagation();
+        if(tag._dragged) return;                                   // 끌어서 옮기기·복사한 뒤 생기는 클릭은 무시
         // 첫 번째 탭: 고르기(✕ 보이기) · 같은 코드를 한 번 더 탭: 고치기
         if(selChordId !== ch.id){
           selChordId = ch.id;
@@ -3625,6 +3726,47 @@ function renderChords(){
     b.textContent = `코드 반음 ${t > 0 ? "+" : ""}${t} (${t > 0 ? "올림" : "내림"})`;
     stage.appendChild(b);
   }
+}
+
+/* --- 코드 끌기: 그냥 끌면 옮기기, ⌥(Option)을 누른 채 끌면 복사 (아이패드: 길게 누른 뒤 끌면 복사) --- */
+function startChordDrag(e, sheet, ch, tag, stage){
+  if(e.button !== 0 || e.target.closest(".chordDel")) return;
+  e.stopPropagation();                                             // 펜·형광펜이 같이 그려지지 않게
+  const r = stage.getBoundingClientRect(), sx = e.clientX, sy = e.clientY, ox = ch.x, oy = ch.y;
+  let copy = e.altKey, moved = false, ghost = null, dx = 0, dy = 0;
+  // 터치는 Option 키가 없으니, 움직이지 않고 0.45초 누르고 있으면 복사 모드
+  const hold = e.pointerType === "touch" ? setTimeout(()=>{ if(!moved){ copy = true; tag.classList.add("copyReady"); } }, 450) : null;
+  try{ tag.setPointerCapture(e.pointerId); }catch(err){}
+  const mv = (ev)=>{
+    dx = ev.clientX - sx; dy = ev.clientY - sy;
+    if(!moved && Math.hypot(dx, dy) < 5) return;
+    if(!moved){
+      moved = true; clearTimeout(hold);
+      if(copy){ ghost = tag.cloneNode(true); ghost.classList.remove("sel", "copyReady"); ghost.classList.add("dragGhost"); stage.appendChild(ghost); }
+      else tag.classList.add("dragging");
+    }
+    const el = ghost || tag;
+    el.style.left = (ox + dx / r.width * 100) + "%"; el.style.top = (oy + dy / r.height * 100) + "%";
+  };
+  const up = (ev)=>{
+    clearTimeout(hold);
+    tag.removeEventListener("pointermove", mv); tag.removeEventListener("pointerup", up); tag.removeEventListener("pointercancel", up);
+    tag.classList.remove("copyReady");
+    if(!moved || ev.type === "pointercancel"){ if(moved) renderChords(); return; }
+    tag._dragged = true; setTimeout(()=>{ tag._dragged = false; }, 0);
+    const before = sheet.chords.map(c=> Object.assign({}, c));
+    const nx = Math.max(0, Math.min(100 - ch.w, ox + dx / r.width * 100)), ny = Math.max(0, Math.min(100 - ch.h, oy + dy / r.height * 100));
+    const undo = {label:"되돌리기", fn:()=>{ sheet.chords = before; renderChords(); updateKeyPop(); scheduleSave(); showToast("되돌렸어요"); }};
+    if(copy || ev.altKey){
+      const nc = Object.assign({}, ch, {id:uid(), x:nx, y:ny, manual:true});
+      sheet.chords.push(nc); selChordId = nc.id;
+      showToast(`'${(tag.textContent || "").replace("✕", "")}' 복사`, {actions:[undo]});
+    } else {
+      ch.x = nx; ch.y = ny; selChordId = ch.id;
+    }
+    renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave();
+  };
+  tag.addEventListener("pointermove", mv); tag.addEventListener("pointerup", up); tag.addEventListener("pointercancel", up);
 }
 
 /* --- 잘못 찾은 코드(가사·제목 등) 지우기: 되돌리기, 같은 줄 한꺼번에 지우기 --- */
@@ -6664,7 +6806,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.28-4";
+const APP_BUILD = "2026.10.28-5";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

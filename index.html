@@ -836,6 +836,8 @@
   .keyPop .kpScope button:disabled{opacity:0.4;}
   #kpAdd.active{background:var(--accent); color:var(--on-accent); border-color:var(--accent);}
 
+  .chordMask{position:absolute; z-index:4; background:#fff; pointer-events:none;}
+  .chordTag.raised{z-index:6;}
   .chordTag.stacked{flex-direction:column; align-items:center; justify-content:center; line-height:1.05;}
   .chordTag.stacked span:first-child{border-bottom:0.08em solid currentColor; padding:0 0.1em;}
 </style>
@@ -2864,7 +2866,9 @@ function fixOcrChord(t){
     .replace(/^([A-G][#b]?m?)7[4b6]?9$/, "$17(b9)")                     // A79·A749 → A7(b9) (♭·괄호 빠짐)
     .replace(/^([A-G][#b]?)mb6$/, "$1m6").replace(/^([A-G][#b]?)mMm7/, "$1m7")
     .replace(/^([A-G][#b]?)(?:m-?4|mo4|sus-4?|su-4|sus)(?=$|\/)/, "$1sus4")   // Esus-4·Em4 → Esus4
-    .replace(/^([A-G][#b]?)m[o(]?5\)?(?=$|\/)/, "$1m(b5)");             // F#m5·F#mo5 → F#m(b5)
+    .replace(/^([A-G][#b]?)m[o(]?5\)?(?=$|\/)/, "$1m(b5)")             // F#m5·F#mo5 → F#m(b5)
+    .replace(/add[oOQD0g](?=$|\/)/, "add9")                               // Dbaddo/F → Dbadd9/F (작은 9 → o)
+    .replace(/^([A-G][#b]?m?)7[2-6](?=$|\/)/, "$17");                   // Bbm72 → Bbm7 (7 뒤 얼룩)
   if(parseChord(t)) return t;
   // 글자 인식이 자주 틀리는 글자들: 7→?·T, #→H, /→I·l·|·1, 베이스 B→8 (고쳐서 코드가 될 때만 쓴다)
   let u = String(t).replace(/\?/g, "7").replace(/([A-G#bm\d)])T/g, "$17").replace(/([A-G])[Hgj](?=$|[\/m\d(Msaniu])/g, "$1#");
@@ -3183,9 +3187,12 @@ function inkClusters(ink, W, H, gapPx){
   clusters.forEach(c=>{
     const ps = c.parts.slice().sort((a,b)=> a.x0 - b.x0);
     if(ps.length < 2 || !capH) return;
-    const h0 = ps[0].y1 - ps[0].y0, h1 = ps[1].y1 - ps[1].y0, w1 = ps[1].x1 - ps[1].x0;
-    if(h0 > capH * 1.35 && h1 >= capH * 0.8 && h1 <= capH * 1.2 && w1 >= h1 * 0.6 && ps[0].y1 > ps[1].y1){
-      c.parts = ps.slice(1);
+    // 세뇨는 S·사선·점 두 개로 끊겨 있으니, 앞에서 x가 겹치는 조각들을 한 기호로 묶는다
+    let k = 1, gx1 = ps[0].x1, gy0 = ps[0].y0, gy1 = ps[0].y1;
+    while(k < ps.length - 1 && ps[k].x0 < gx1 - 1){ gx1 = Math.max(gx1, ps[k].x1); gy0 = Math.min(gy0, ps[k].y0); gy1 = Math.max(gy1, ps[k].y1); k++; }
+    const nx = ps[k], h0 = gy1 - gy0, h1 = nx.y1 - nx.y0, w1 = nx.x1 - nx.x0;
+    if(h0 > capH * 1.35 && h1 >= capH * 0.8 && h1 <= capH * 1.2 && w1 >= h1 * 0.6 && gy1 > nx.y1){
+      c.parts = ps.slice(k);
       c.x0 = Math.min(...c.parts.map(p=> p.x0)); c.y0 = Math.min(...c.parts.map(p=> p.y0)); c.y1 = Math.max(...c.parts.map(p=> p.y1));
     }
   });
@@ -3353,8 +3360,55 @@ async function readClusters(worker, srcCanvas, clusters){
     const u = t.replace(/\((9|13|5|11)(\)?)$/, (m, n, cl)=> "(" + (n === "11" ? "#" : "b") + n + ")");
     if(parseChord(fixOcrChord(u))) c.text = u;
   });
-  // 그래도 못 읽은 덩어리는 하나씩
-  const left = clusters.filter(c=> !parseChord(fixOcrChord(c.text || ""))).slice(0, 16);
+  // 끝의 가는 세로 획들(Am¹¹ 의 '11')을 i·l·n·t 로 읽은 경우(Amit·Amn) — 조각 모양으로 '1' 개수를 센다
+  clusters.forEach(c=>{
+    const t = (c.text || "").replace(/\s+/g, ""), m = /^(.*?[mMj])([il1nItf|!]+)$/.exec(t);
+    if(!c.lay || !m) return;
+    const its = c.lay.items, rh = its[0].dh;
+    let n = 0;
+    for(let i = its.length - 1; i > 0 && its[i].dw <= its[i].dh * 0.45 && its[i].dh >= rh * 0.6; i--) n++;
+    if(n < 1 || n > 2 || its.length < n + 2) return;
+    const u = m[1] + "1".repeat(n);
+    if(u !== t && parseChord(fixOcrChord(u))) c.text = u;
+  });
+  // 가늘고 긴 ♭(세리프 글꼴의 D♭M⁷·B♭m⁷)을 빠뜨린 경우 — 근음 바로 뒤 조각이 ♭ 모양(위는 막대, 아래 오른쪽에 둥근 배)이면 넣는다
+  const sctx = srcCanvas.getContext("2d", {willReadFrequently:true});
+  const isFlatShape = (it)=>{
+    if(it.sw < 3 || it.sh < 8) return false;
+    const d = sctx.getImageData(it.sx, it.sy, it.sw, it.sh).data, hw = it.sw / 2, hh = it.sh / 2;
+    let tl = 0, tr = 0, bl = 0, br = 0;
+    for(let y = 0; y < it.sh; y++) for(let x = 0; x < it.sw; x++){
+      const i = (y * it.sw + x) * 4;
+      if(d[i] * 0.3 + d[i+1] * 0.59 + d[i+2] * 0.11 >= 140) continue;
+      if(y < hh){ if(x < hw) tl++; else tr++; } else { if(x < hw) bl++; else br++; }
+    }
+    const top = tl + tr, bot = bl + br;
+    return top > 0 && bot > top * 1.5 && br > bot * 0.3 && tr < top * 0.25;
+  };
+  // 글자 상자 안의 잉크 비율(굵기) — 연습 기호 [A]·[B]는 코드 글자보다 크고 굵다
+  const inkRatio = (it)=>{
+    const d = sctx.getImageData(it.sx, it.sy, it.sw, it.sh).data; let k = 0;
+    for(let i = 0; i < d.length; i += 4) if(d[i] * 0.3 + d[i+1] * 0.59 + d[i+2] * 0.11 < 140) k++;
+    return k / (it.sw * it.sh);
+  };
+  clusters.forEach(c=>{
+    const t = (c.text || "").replace(/\s+/g, ""), m = /^([A-G])(?![#b])([l|iI1!']?)(.*)$/.exec(t);
+    if(!c.lay || !m) return;
+    const its = c.lay.items, root = its[0], f = its[1];
+    if(!f || f.slash || f.sw > f.sh * 0.55 || f.sh < root.sh * 0.65 || f.sy > root.sy + root.sh * 0.25) return;
+    if(!isFlatShape(f)) return;
+    for(const u of [m[1] + "b" + m[3], m[1] + "b" + m[3].slice(0, -1)]) if(u.length > 2 && parseChord(fixOcrChord(u)) || u === m[1] + "b"){ c.text = u; c.flatFix = true; return; }
+  });
+  // m7(♭5)의 괄호 속을 엉뚱하게 읽은 경우("Cm7(+)"·"Cm7(s)"·"Cm2)")
+  clusters.forEach(c=>{
+    const t = (c.text || "").replace(/\s+/g, ""), m = /^([A-G][#b]?)m7?(?:\(([^)]*)\)?|[^()]{0,2}\))$/.exec(t);
+    if(!c.lay || !m || c.lay.items.length < 5) return;
+    if(m[2] != null && /^[#b]?(5|9|11|13)$/.test(m[2])) return;
+    c.text = m[1] + "m7(b5)";
+  });
+  // 그래도 못 읽은 덩어리는 하나씩 — 읽은 글자 수가 조각 수보다 적은 것(위첨자 ⁷·⁶을 빠뜨린 Ab/C·Gbm)도 다시 읽어 본다
+  const shortRead = (c)=> c.lay && c.lay.items.length >= (c.text || "").replace(/[\s()]/g, "").length + 1 && !/[()]/.test(c.text || "");
+  const left = clusters.filter(c=> !parseChord(fixOcrChord(c.text || "")) || shortRead(c)).slice(0, 24);
   if(left.length){
     await worker.setParameters({tessedit_pageseg_mode:"8", tessedit_char_whitelist:CHORD_CHARS});
     for(const c of left){
@@ -3362,11 +3416,34 @@ async function readClusters(worker, srcCanvas, clusters){
       const pc = document.createElement("canvas"); pc.width = L.w + pad*2; pc.height = L.h + pad*2;
       const g = pc.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, pc.width, pc.height);
       L.items.forEach(it=> g.drawImage(srcCanvas, it.sx, it.sy, it.sw, it.sh, pad + it.dx, pad + it.dy, it.dw, it.dh));
-      try{ const {data} = await worker.recognize(pc); const t = String(data.text||"").replace(/\s+/g, ""); if(parseChord(fixOcrChord(t))){ c.text = t; c.conf = data.confidence; } }catch(err){}
+      try{
+        const {data} = await worker.recognize(pc); let t = String(data.text||"").replace(/\s+/g, "");
+        if(c.flatFix && /^[A-G](?![#b])/.test(t)) t = t[0] + "b" + t.slice(1).replace(/^[l|iI1!']/, "");
+        const old = parseChord(fixOcrChord(c.text || ""));
+        // 이미 읽은 코드는 다시 읽은 게 더 길고(빠진 글자를 찾음) 앞부분이 같을 때만 바꾼다
+        if(parseChord(fixOcrChord(t)) && (!old || (t.length > c.text.length && t.length <= c.lay.items.length + 2 && t[0] === c.text[0] && t.replace(/[^/]/g, "") === c.text.replace(/[^/]/g, "")))){ c.text = t; c.conf = data.confidence; }
+      }catch(err){}
     }
   }
+  // 네모 안의 연습 기호(A·B·C 섹션 표시)는 코드가 아니다 — 조각 하나, 대문자보다 크다
+  const capHs = clusters.filter(c=> c.lay && c.lay.items.length >= 2).map(c=> c.lay.items[0].sh).sort((a,b)=> a-b);
+  const capH2 = capHs.length ? capHs[Math.floor(capHs.length/2)] : 0;
+  if(capH2) clusters.forEach(c=>{
+    if(!c.lay || c.lay.items.length !== 1 || !/^[A-G]$/.test((c.text || "").trim())) return;
+    const it = c.lay.items[0];
+    if(it.sh < capH2 * 1.03) return;
+    const rootInk = clusters.filter(o=> o.lay && o.lay.items.length >= 2).map(o=> inkRatio(o.lay.items[0])).sort((a,b)=> a-b);
+    const med = rootInk.length ? rootInk[Math.floor(rootInk.length/2)] : 1;
+    // 연습 기호는 줄 맨 앞(오선 시작보다 왼쪽)에 있고, 상자 흔적 때문에 넓거나 굵다
+    if(it.sx < srcCanvas.width * 0.11 && (it.sw >= it.sh * 0.88 || inkRatio(it) >= med * 1.3)){ c.text = ""; c.box = true; }
+  });
+  // 베이스만 적은 "/A♭"(앞 코드에서 베이스만 바뀜)은 근음이 없어 코드로 못 쓴다 — 지어낸 근음(Ab/Ab)으로 넣지 않는다
+  if(capH2) clusters.forEach(c=>{
+    const its = c.lay && c.lay.items;
+    if(its && its.length >= 3 && its[0].sh < capH2 * 0.4 && its[1].slash){ c.text = ""; c.box = true; }
+  });
   if(window.__mlsDebugBands) clusters.forEach(c=> window.__mlsDebugBands.push("CL " + c.text + " n" + (c.lay ? c.lay.items.map(it=> `${it.dw}x${it.dh}@${it.dx},${it.dy}${it.slash ? "/" : ""}`).join(" ") : "")));
-  return clusters.filter(c=> c.text);
+  return clusters.filter(c=> c.text || c.box);
 }
 function flatWords(data){
   let ws = data.words;
@@ -3420,7 +3497,7 @@ async function ocrSheetTokens(sheet){
     const clusters = await readClusters(worker, bc, inkClusters(ink, bc.width, bc.height, gap*sc));
     const cover = (c, b)=>{ const ix = Math.min(c.x1, b.x1) - Math.max(c.x0, b.x0), iy = Math.min(c.y1, b.y1) - Math.max(c.y0, b.y0);
       return ix > 0 && iy > 0 ? ix*iy / Math.min((c.x1-c.x0)*(c.y1-c.y0), (b.x1-b.x0)*(b.y1-b.y0)) : 0; };
-    const clusterBox = (w)=> clusters.some(c=> cover(c, w.bbox) > 0.5 && parseChord(fixOcrChord(c.text)));
+    const clusterBox = (w)=> clusters.some(c=> cover(c, w.bbox) > 0.5 && (c.box || parseChord(fixOcrChord(c.text))));
     await worker.setParameters({tessedit_pageseg_mode:"11", tessedit_char_whitelist:""});
     const A = flatWords((await worker.recognize(bc)).data);
     await worker.setParameters({tessedit_pageseg_mode:"6", tessedit_char_whitelist:CHORD_CHARS});
@@ -3469,7 +3546,7 @@ async function ocrSheetTokens(sheet){
         if(pc && spare && cover(c, w.bbox) > 0.5 && bare(pc.text) === bare(pw.text) && acc(pw.text) > acc(pc.text)) c.text = pw.text;
       });
     });
-    clusters.forEach(c=> tokens.push({
+    clusters.filter(c=> c.text).forEach(c=> tokens.push({
       t:c.text, conf:Math.max(c.conf || 0, 50), band:true, cl:true, bi:i, off:(st.top - (y0 + (c.y1 + 1)/sc))/gap, touch: c.y1 >= bc.height - 2,
       x:(c.x0/sc)/W*100, y:(y0 + c.y0/sc)/H*100, w:((c.x1 - c.x0 + 1)/sc)/W*100, h:((c.y1 - c.y0 + 1)/sc)/H*100,
     }));
@@ -3673,7 +3750,7 @@ document.addEventListener("pointerdown", (e)=>{
   }
 }, true);
 function renderChords(){
-  document.querySelectorAll(".chordTag, .keyBadge").forEach(el=>el.remove());
+  document.querySelectorAll(".chordTag, .chordMask, .keyBadge").forEach(el=>el.remove());
   const sheet = currentSheet(); if(!sheet || !sheet.chords || !sheet.chords.length) return;
   const t = sheet.transpose || 0;
   if(!t && !state.showChordBoxes) return;
@@ -3681,6 +3758,7 @@ function renderChords(){
   const aspect = sheet._aspect || lastSheetAspect || 0.707;
   const tmap = transposedMap(sheet);
   const fontH = chordFontHeight(sheet);   // 한 페이지의 코드는 같은 크기로 (글자 상자마다 높이가 들쭉날쭉해서)
+  const placed = [];
   sheet.chords.forEach(ch=>{
     const tag = document.createElement("div");
     tag.className = "chordTag" + (state.showChordBoxes ? " verify" : "") + (t ? " shifted" : "");
@@ -3719,13 +3797,67 @@ function renderChords(){
       });
     }
     stage.appendChild(tag);
+    placed.push({tag, ch});
   });
   if(t){
+    fitChordLabels(stage, placed);
+    // 글꼴이 늦게 불러와지면 글자 폭이 달라지니 한 번 더 맞춘다
+    if(document.fonts && document.fonts.status !== "loaded" && !renderChords._fontWait){
+      renderChords._fontWait = true; document.fonts.ready.then(()=> renderChords());
+    }
     const b = document.createElement("div");
     b.className = "keyBadge";
     b.textContent = `코드 반음 ${t > 0 ? "+" : ""}${t} (${t > 0 ? "올림" : "내림"})`;
     stage.appendChild(b);
   }
+}
+
+/* 바꾼 코드 글씨가 원래 글씨보다 길어 옆 코드에 가려지면(A♭sus4 뒤의 A♭) 겹치지 않게 다시 놓는다:
+ * ① 앞쪽 빈자리만큼 왼쪽으로 → ② 글자를 조금 줄이기 → ③ 그래도 안 되면 원래 코드 위로 올리고 원래 자리는 흰색으로 덮기 */
+function fitChordLabels(stage, items){
+  const sr = stage.getBoundingClientRect(); if(!sr.width || !sr.height) return;
+  const gap = 0.4;                                                 // 코드 사이 최소 간격(쪽 폭의 %)
+  const L = items.map(o=>{
+    const b = o.tag.getBoundingClientRect();
+    return {o, l:(b.left - sr.left) / sr.width * 100, r:(b.right - sr.left) / sr.width * 100, raised:false};
+  });
+  const rows = [];
+  L.slice().sort((a,b)=> a.o.ch.y - b.o.ch.y).forEach(it=>{
+    const row = rows.find(rw=> Math.abs(rw.y - it.o.ch.y) < Math.max(rw.h, it.o.ch.h) * 0.6);
+    if(row) row.items.push(it); else rows.push({y:it.o.ch.y, h:it.o.ch.h, items:[it]});
+  });
+  rows.forEach(rw=>{
+    const its = rw.items.sort((a,b)=> a.l - b.l);
+    let prevR = 0, upR = -1;
+    its.forEach((it, i)=>{
+      const ch = it.o.ch, tag = it.o.tag, next = its[i + 1];
+      const limit = (next ? next.l : 100) - gap, origR = ch.x + ch.w;
+      let over = it.r - limit;
+      const l0 = it.l, r0 = it.r;
+      if(over > 0){                                                // ① 왼쪽으로 — 원래 글씨는 계속 덮고 있어야 한다(뒤 코드가 덮는 부분은 빼고)
+        const d = Math.max(0, Math.min(over, it.l - (prevR + gap), it.r - Math.min(origR, limit)));
+        if(d > 0){ it.l -= d; it.r -= d; tag.style.left = (parseFloat(tag.style.left) - d) + "%"; over -= d; }
+      }
+      if(over > 0){                                                // ② 글자 줄이기(최대 18%)
+        const f = (limit - it.l) / (it.r - it.l);
+        if(f >= 0.82){
+          tag.style.fontSize = (parseFloat(tag.style.fontSize) * f) + "cqw";
+          it.r = it.l + (it.r - it.l) * f; over = 0;
+        }
+      }
+      if(over > 0){                                                // ③ 위로 올리기
+        const m = document.createElement("div");
+        m.className = "chordMask";
+        m.style.left = (ch.x - 0.2) + "%"; m.style.top = ch.y + "%"; m.style.width = (ch.w + 0.4) + "%"; m.style.height = ch.h + "%";
+        stage.insertBefore(m, tag);
+        const ul = Math.max(l0, upR + gap), sh = ul - l0;            // 위로 올린 코드끼리도 겹치지 않게
+        tag.style.left = (ch.x + sh) + "%"; tag.style.top = (ch.y - ch.h * 1.2) + "%"; tag.classList.add("raised");
+        upR = r0 + sh; it.raised = true;
+        return;                                                    // 위로 올린 코드는 이 줄의 다음 코드를 막지 않는다
+      }
+      prevR = it.r;
+    });
+  });
 }
 
 /* --- 코드 끌기: 그냥 끌면 옮기기, ⌥(Option)을 누른 채 끌면 복사 (아이패드: 길게 누른 뒤 끌면 복사) --- */
@@ -6806,7 +6938,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.28-5";
+const APP_BUILD = "2026.10.28-6";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

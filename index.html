@@ -3392,7 +3392,7 @@ async function readClusters(worker, srcCanvas, clusters){
     return k / (it.sw * it.sh);
   };
   clusters.forEach(c=>{
-    const t = (c.text || "").replace(/\s+/g, ""), m = /^([A-G])(?![#b])([l|iI1!']?)(.*)$/.exec(t);
+    const t = (c.text || "").replace(/\s+/g, ""), m = /^([A-G])(?![#b])([l|iI1!'dh]?)(.*)$/.exec(t);
     if(!c.lay || !m) return;
     const its = c.lay.items, root = its[0], f = its[1];
     if(!f || f.slash || f.sw > f.sh * 0.55 || f.sh < root.sh * 0.65 || f.sy > root.sy + root.sh * 0.25) return;
@@ -3406,6 +3406,30 @@ async function readClusters(worker, srcCanvas, clusters){
     if(m[2] != null && /^[#b]?(5|9|11|13)$/.test(m[2])) return;
     c.text = m[1] + "m7(b5)";
   });
+  // 조각 하나만 못 읽은 경우(A♭⁷/C → "Ab/C", G♭m⁶ → "Gbm"): 남은 숫자 조각만 떼어 숫자로 읽는다
+  const fills = clusters.filter(c=>{
+    const t = (c.text || "").replace(/\s+/g, "");
+    return c.lay && parseChord(fixOcrChord(t)) && !/[()]/.test(t) && c.lay.items.length === t.length + 1;
+  }).slice(0, 12);
+  if(fills.length){
+    await worker.setParameters({tessedit_pageseg_mode:"10", tessedit_char_whitelist:"2345679"});
+    for(const c of fills){
+      const t = c.text.replace(/\s+/g, ""), its = c.lay.items, si = its.findIndex(it=> it.slash), cut = t.indexOf("/");
+      let it, at;
+      if(si > 1 && cut > 0 && !/\d$/.test(t.slice(0, cut))){ it = its[si - 1]; at = cut; }
+      else if(si < 0 && !/\d$/.test(t)){ it = its[its.length - 1]; at = t.length; }
+      if(!it || it.sw > it.sh * 1.05 || it.sh < its[0].sh * 0.5) continue;
+      const k = 48 / it.sh, pad = 16, pc = document.createElement("canvas");
+      pc.width = Math.round(it.sw * k) + pad*2; pc.height = 48 + pad*2;
+      const g = pc.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, pc.width, pc.height);
+      g.drawImage(srcCanvas, it.sx, it.sy, it.sw, it.sh, pad, pad, pc.width - pad*2, 48);
+      try{
+        const {data} = await worker.recognize(pc), dg = String(data.text || "").replace(/\s+/g, "");
+        const u = t.slice(0, at) + dg + t.slice(at);
+        if(/^\d$/.test(dg) && data.confidence >= 40 && parseChord(fixOcrChord(u))) c.text = u;
+      }catch(err){}
+    }
+  }
   // 그래도 못 읽은 덩어리는 하나씩 — 읽은 글자 수가 조각 수보다 적은 것(위첨자 ⁷·⁶을 빠뜨린 Ab/C·Gbm)도 다시 읽어 본다
   const shortRead = (c)=> c.lay && c.lay.items.length >= (c.text || "").replace(/[\s()]/g, "").length + 1 && !/[()]/.test(c.text || "");
   const left = clusters.filter(c=> !parseChord(fixOcrChord(c.text || "")) || shortRead(c)).slice(0, 24);
@@ -3437,10 +3461,15 @@ async function readClusters(worker, srcCanvas, clusters){
     // 연습 기호는 줄 맨 앞(오선 시작보다 왼쪽)에 있고, 상자 흔적 때문에 넓거나 굵다
     if(it.sx < srcCanvas.width * 0.11 && (it.sw >= it.sh * 0.88 || inkRatio(it) >= med * 1.3)){ c.text = ""; c.box = true; }
   });
-  // 베이스만 적은 "/A♭"(앞 코드에서 베이스만 바뀜)은 근음이 없어 코드로 못 쓴다 — 지어낸 근음(Ab/Ab)으로 넣지 않는다
+  // 베이스만 적은 "/A♭"(앞 코드에서 베이스만 바뀜) — 지어낸 근음(Ab/Ab) 대신 같은 줄 앞 코드에 베이스를 붙인다 (B♭m7 /A♭ → B♭m7/A♭)
   if(capH2) clusters.forEach(c=>{
     const its = c.lay && c.lay.items;
-    if(its && its.length >= 3 && its[0].sh < capH2 * 0.4 && its[1].slash){ c.text = ""; c.box = true; }
+    if(!its || its.length < 3 || its[0].sh >= capH2 * 0.4 || !its[1].slash) return;
+    const bass = /\/([A-G][#b]?)$/.exec((c.text || "").replace(/\s+/g, ""));
+    const prev = clusters.filter(o=> o !== c && o.row === c.row && o.x1 <= c.x0 && parseChord(fixOcrChord(o.text || ""))).sort((a,b)=> b.x1 - a.x1)[0];
+    const pp = prev && parseChord(fixOcrChord(prev.text));
+    const u = bass && pp ? pp.root + pp.acc + pp.quality + "/" + bass[1] : "";
+    if(u && parseChord(u)) c.text = u; else { c.text = ""; c.box = true; }
   });
   if(window.__mlsDebugBands) clusters.forEach(c=> window.__mlsDebugBands.push("CL " + c.text + " n" + (c.lay ? c.lay.items.map(it=> `${it.dw}x${it.dh}@${it.dx},${it.dy}${it.slash ? "/" : ""}`).join(" ") : "")));
   return clusters.filter(c=> c.text || c.box);
@@ -6938,7 +6967,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.28-6";
+const APP_BUILD = "2026.10.28-7";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

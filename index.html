@@ -822,6 +822,9 @@
   .keyPop .kpScope button.active{background:var(--sel-bg); color:var(--on-sel);}
   .keyPop .kpScope button:disabled{opacity:0.4;}
   #kpAdd.active{background:var(--accent); color:var(--on-accent); border-color:var(--accent);}
+
+  .chordTag.stacked{flex-direction:column; align-items:center; justify-content:center; line-height:1.05;}
+  .chordTag.stacked span:first-child{border-bottom:0.08em solid currentColor; padding:0 0.1em;}
 </style>
 </head>
 <body>
@@ -1397,7 +1400,7 @@ let state = {
   snapEnabled:false, snapDivisions:16,
   uiMode:"studio", markerShape:"bracket", practicingId:null,
   theme:"warm", darkInFocus:false, notesFontSize:14,
-  songKey:null, transpose:0, showChordBoxes:false, keyScope:"page",
+  songKey:null, transpose:0, showChordBoxes:false, keyScope:"page", chordSpelling:"auto",
   fitMode:"page", zoomByMode:{studio:1, lesson:1, perform:1}, toolsOpen:null, stripOpen:true, instFilter:"all", focusPagesOpen:false, focusPenOpen:true,
 };
 
@@ -2713,7 +2716,7 @@ function spellPc(pc, majorPc){
 function keyName(majorPc, minor){ return minor ? spellPc((majorPc + 9) % 12, majorPc) + "m" : MAJOR_KEY_NAMES[majorPc]; }
 function prettyAcc(t){ return String(t).replace(/([A-G])#/g, "$1♯").replace(/([A-G])b/g, "$1♭").replace(/(^|[^\d])69(?!\d)/, "$16/9"); }
 
-function detectKey(chords){
+function detectKey(chords, local){
   if(!chords.length) return null;
   let best = null;
   for(let k = 0; k < 12; k++){
@@ -2728,6 +2731,7 @@ function detectKey(chords){
     });
     const f = chords[0], l = chords[chords.length-1];
     const fpc = pcOf(f.root, f.acc), lpc = pcOf(l.root, l.acc);
+    if(local){ if(!best || sc > best.sc) best = {k, sc}; continue; }   // 구간 추정: 첫·끝 코드 가산 없이
     if(fpc === k) sc += 1.5;
     if(lpc === k) sc += 2.5;
     if(fpc === (k+9)%12 && chordKind(f.quality) === "m") sc += 1;
@@ -2743,14 +2747,67 @@ function detectKey(chords){
 function transposeChordText(text, semis, targetMajorPc){
   const c = parseChord(text);
   if(!c) return text;
-  let out = spellPc((pcOf(c.root, c.acc) + semis + 120) % 12, targetMajorPc) + c.quality;
-  if(c.bassRoot) out += "/" + spellPc((pcOf(c.bassRoot, c.bassAcc) + semis + 120) % 12, targetMajorPc);
+  const root = spellPc((pcOf(c.root, c.acc) + semis + 120) % 12, targetMajorPc);
+  let out = root + c.quality;
+  // 슬래시 베이스는 코드 구성음이라 그 코드 근음 기준으로 (B7/D# +1 → C7/E, F♭ 아님)
+  if(c.bassRoot) out += "/" + spellFromRoot((pcOf(c.bassRoot, c.bassAcc) + semis + 120) % 12, root);
   return out;
 }
-function sheetTarget(s){ return s && s.key ? (s.key.majorPc + (s.transpose||0) + 120) % 12 : null; }
-function chordShownFor(s, text){
-  if(!s || !s.transpose || !s.key) return text;
-  return transposeChordText(text, s.transpose, sheetTarget(s));
+/* 키와 상관없이 코드마다 반음씩 옮긴다 (곡 중간에 전조가 있어도 그대로 따라감).
+ * 근음은 흔히 쓰는 이름으로(장·속7: D♭ E♭ F♯ A♭ B♭ / 단·dim: C♯ E♭ F♯ G♯ B♭), ♯·♭ 위주를 고를 수도 있다.
+ * 슬래시 베이스는 그 코드 근음 기준으로 철자를 맞춘다 (A/C♯, E♭/G, C/B♭). */
+const ROOT_MAJOR = ["C","Db","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+const ROOT_MINOR = ["C","C#","D","Eb","E","F","F#","G","G#","A","Bb","B"];
+function rootName(pc, quality){
+  const pref = state.chordSpelling || "auto";
+  if(pref === "sharp") return SHARP_NAMES[pc];
+  if(pref === "flat") return FLAT_NAMES[pc];
+  const q = quality || "";
+  return (/^(m(?!aj|a)|min|mi|-|dim|o)/.test(q) ? ROOT_MINOR : ROOT_MAJOR)[pc];
+}
+function spellFromRoot(pc, rootStr){
+  const rootPc = pcOf(rootStr[0], rootStr.slice(1));
+  const di = DEGREE_SPELL[(pc - rootPc + 12) % 12];
+  const letter = LETTERS[(LETTERS.indexOf(rootStr[0]) + di) % 7];
+  let acc = ((pc - NOTE_PC[letter]) % 12 + 12) % 12; if(acc > 6) acc -= 12;
+  if(Math.abs(acc) > 1) return (/b/.test(rootStr) ? FLAT_NAMES : SHARP_NAMES)[pc];
+  return letter + (acc === 1 ? "#" : acc === -1 ? "b" : "");
+}
+function transposeBySemis(text, semis){
+  const c = parseChord(text);
+  if(!c || !semis) return text;
+  const root = rootName((pcOf(c.root, c.acc) + semis + 120) % 12, c.quality);
+  let out = root + c.quality;
+  if(c.bassRoot) out += "/" + spellFromRoot((pcOf(c.bassRoot, c.bassAcc) + semis + 120) % 12, root);
+  return out;
+}
+// '자동' 표기: 코드 줄마다(앞뒤 줄 포함) 그 구간의 키를 추정해 그 키에 맞는 이름으로 — 전조 구간도 각자 맞게
+function chordLines(chords){
+  const lines = [];
+  chords.slice().sort((a,b)=>(a.y + a.h/2) - (b.y + b.h/2)).forEach(c=>{
+    const cy = c.y + c.h/2;
+    const L = lines.find(l=> Math.abs(l.cy - cy) < Math.max(l.h, c.h) * 0.8);
+    if(L) L.items.push(c); else lines.push({cy, h:c.h, items:[c]});
+  });
+  return lines.map(l=> l.items.sort((a,b)=>a.x - b.x));
+}
+function transposedMap(sheet){
+  const t = sheet.transpose || 0, m = new Map(), chords = sheet.chords || [];
+  if(!t){ chords.forEach(c=> m.set(c.id, c.text)); return m; }
+  if((state.chordSpelling || "auto") !== "auto"){ chords.forEach(c=> m.set(c.id, transposeBySemis(c.text, t))); return m; }
+  const lines = chordLines(chords);
+  lines.forEach((L, i)=>{
+    const own = L.map(c=>parseChord(c.text)).filter(Boolean);
+    const win = own.length >= 3 ? own : [...(lines[i-1]||[]), ...L, ...(lines[i+1]||[])].map(c=>parseChord(c.text)).filter(Boolean);
+    const k = win.length >= 3 ? detectKey(win, true) : null;
+    L.forEach(c=> m.set(c.id, k ? transposeChordText(c.text, t, (k.majorPc + t + 120) % 12) : transposeBySemis(c.text, t)));
+  });
+  return m;
+}
+function chordShownFor(s, text, map, id){
+  if(!s || !s.transpose) return text;
+  if(map && id && map.has(id)) return map.get(id);
+  return transposeBySemis(text, s.transpose);
 }
 
 /* --- 글자 토큰 → 코드만 골라내기 --- */
@@ -2780,12 +2837,55 @@ function splitGlued(tk){
   const L = parts.join("").length; let acc = 0;
   return parts.map(p=>{ const o = Object.assign({}, tk, {t:p, x:tk.x + tk.w*acc/L, w:tk.w*p.length/L}); acc += p.length; return o; });
 }
+// 글자 인식이 '/'를 I·l·|·1 로, '#'을 H 로 읽는 경우 고치기 (고쳐야 코드가 될 때만)
+function fixOcrChord(t){
+  t = String(t).replace(/\?/g, "7");    // '?'는 코드에 없는 글자 — 거의 항상 7을 잘못 읽은 것 (끝의 ?를 버리면 Dm7이 Dm이 된다)
+  if(parseChord(t)) return t;
+  // 글자 인식이 자주 틀리는 글자들: 7→?·T, #→H, /→I·l·|·1, 베이스 B→8 (고쳐서 코드가 될 때만 쓴다)
+  let u = String(t).replace(/\?/g, "7").replace(/([A-G#bm\d)])T/g, "$17").replace(/([A-G])H(?=$|[\/m\d])/g, "$1#");
+  u = u.replace(/^(.+?)[Il|1\\](?=[A-G8][#bH]?$)/, "$1/").replace(/\/8$/, "/B").replace(/\/([A-G])H$/, "/$1#");
+  if(parseChord(u)) return u;
+  const cands = [
+    t.replace(/^([A-G][#b]?[^/\s]*?)[Il|1\\]([A-G][#b]?)$/, "$1/$2"),
+    t.replace(/([A-G])H(?=$|\/|m|\d)/g, "$1#"),
+    t.replace(/^([A-G][#b]?[^/\s]*?)[Il|1\\]([A-G])H$/, "$1/$2#"),
+  ];
+  for(const c of cands) if(c !== t && parseChord(c)) return c;
+  return t;
+}
+// 분수(세로) 표기: 코드 바로 아래에 음이름이 있으면 슬래시 코드로 합친다 (예: D 위 / F# 아래 → D/F#)
+function mergeStacked(toks){
+  const used = new Set(), out = [];
+  toks.forEach((a, i)=>{
+    if(used.has(i)) return;
+    const pa = parseChord(a.t);
+    if(pa && !pa.bassRoot){
+      const j = toks.findIndex((b, k)=>{
+        if(k === i || used.has(k) || !/^[A-G][#b]?$/.test(normalizeChordText(b.t))) return false;
+        const dy = b.y - (a.y + a.h), ov = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+        return dy > -a.h*0.25 && dy < a.h*1.1 && ov > Math.min(a.w, b.w) * 0.3 && Math.abs(b.h - a.h) < a.h * 0.6;
+      });
+      if(j >= 0){
+        const b = toks[j]; used.add(j);
+        const x = Math.min(a.x, b.x), y = a.y;
+        out.push(Object.assign({}, a, {t: normalizeChordText(a.t) + "/" + normalizeChordText(b.t), x, y,
+          w: Math.max(a.x + a.w, b.x + b.w) - x, h: (b.y + b.h) - y, stacked:true,
+          conf: Math.max(a.conf == null ? 99 : a.conf, b.conf == null ? 99 : b.conf)}));
+        return;
+      }
+    }
+    out.push(a);
+  });
+  return out;
+}
 function pickChords(tokens){
   let toks = (tokens||[]).filter(t=>t && t.t && String(t.t).trim())
-    .map(t=>Object.assign({}, t, {t:String(t.t).trim()}))
-    // 인식 신뢰도가 낮은 글자는 코드 모양일 때만 쓴다
-    .filter(t=> t.conf == null || t.conf >= 45 || (t.conf >= 22 && parseChord(t.t)));
-  toks = toks.flatMap(splitGlued);
+    .map(t=>Object.assign({}, t, {t:fixOcrChord(String(t.t).trim())}))
+    // 인식 신뢰도가 낮은 글자는 코드 모양일 때만 쓴다 (오선 위 코드 띠에서 읽은 것은 더 너그럽게)
+    .filter(t=> t.conf == null || t.conf >= 45 || (parseChord(t.t) && t.conf >= (t.band ? 5 : 22)));
+  // 분수 코드는 아래 음이름이 흐릿해도 짝을 먼저 맞추고, 그다음 혼자 있는 한 글자 코드만 더 엄격하게 거른다
+  toks = mergeStacked(toks.flatMap(splitGlued))
+    .filter(t=> t.conf == null || t.conf >= 40 || t.stacked || !t.band || ((parseChord(t.t)||{}).text||"").length > 1);
   const lines = [];
   toks.slice().sort((a,b)=>(a.y + a.h/2) - (b.y + b.h/2)).forEach(tk=>{
     const cy = tk.y + tk.h/2;
@@ -2803,7 +2903,8 @@ function pickChords(tokens){
       if(prev){
         const gap = tk.x - (prev.x + prev.w), hh = Math.max(prev.h, tk.h);
         const joined = normalizeChordText(prev.t) + normalizeChordText(tk.t);
-        if(gap < hh*0.6 && gap > -hh*0.8 && parseChord(joined) && (!parseChord(tk.t) || /\/$/.test(prev.t))){
+        // "D" "/" "F#" 처럼 슬래시가 따로 나온 경우도 이어 붙인다
+        if(gap < hh*0.6 && gap > -hh*0.8 && ((parseChord(joined) && (!parseChord(tk.t) || /\/$/.test(prev.t))) || (tk.t === "/" && parseChord(prev.t)))){
           const nx = Math.min(prev.x, tk.x), ny = Math.min(prev.y, tk.y);
           prev.w = Math.max(prev.x + prev.w, tk.x + tk.w) - nx; prev.h = Math.max(prev.y + prev.h, tk.y + tk.h) - ny;
           prev.x = nx; prev.y = ny; prev.t = joined; prev.raw = (prev.raw||"") + tk.t;
@@ -2820,7 +2921,7 @@ function pickChords(tokens){
       const tk = ch[0].tk;
       if(/[\[\]|]/.test(tk.raw||"") || tk.x < 6) return;                            // 왼쪽 끝 네모 박스 = 리허설 마크
     }
-    ch.forEach(p=> out.push({x:p.tk.x, y:p.tk.y, w:p.tk.w, h:p.tk.h, text:p.c.text}));
+    ch.forEach(p=> out.push({x:p.tk.x, y:p.tk.y, w:p.tk.w, h:p.tk.h, text:p.c.text, stacked:!!p.tk.stacked}));
   });
   return out;
 }
@@ -2907,10 +3008,244 @@ function eraseStaffLines(g, W, H){
   }
   return bands;
 }
+/* --- 오선 띠 방식: 오선을 찾고, 코드가 놓이는 '오선 바로 위 띠'만 읽는다 ---
+ * 가사·음표를 읽지 않으니 잡음이 사라지고 빠르다. 띠마다 오선 간격에 맞춰 글자를 키우고,
+ * 회색 사진 배경은 흑백으로 정리, 기둥(stem)·마디선·남은 줄은 지운 뒤 두 방식으로 읽는다. */
+const CHORD_CHARS = "ABCDEFGabdgijlmnostu0123456789#+-/()";
+function grayOf(d, n){ const g = new Uint8Array(n); for(let i = 0, j = 0; i < n; i++, j += 4) g[i] = (d[j]*299 + d[j+1]*587 + d[j+2]*114) / 1000; return g; }
+function otsu(g){
+  const hist = new Array(256).fill(0); for(let i = 0; i < g.length; i++) hist[g[i]]++;
+  let sum = 0; for(let i = 0; i < 256; i++) sum += i * hist[i];
+  let sumB = 0, wB = 0, best = 0, thr = 128;
+  for(let t = 0; t < 256; t++){
+    wB += hist[t]; if(!wB) continue; const wF = g.length - wB; if(!wF) break;
+    sumB += t * hist[t]; const mB = sumB / wB, mF = (sum - sumB) / wF, v = wB * wF * (mB - mF) * (mB - mF);
+    if(v > best){ best = v; thr = t; }
+  }
+  return thr;
+}
+function findStaves(g, W, H, thr){
+  const minRun = Math.max(40, W * 0.15), rows = [];
+  for(let y = 0; y < H; y++){
+    let run = 0, best = 0; const o = y * W;
+    for(let x = 0; x < W; x++){ if(g[o+x] < thr){ if(++run > best) best = run; } else run = 0; }
+    if(best >= minRun) rows.push(y);
+  }
+  const lines = [];
+  rows.forEach(y=>{ const L = lines[lines.length-1]; if(L && y - L.y1 <= 1) L.y1 = y; else lines.push({y0:y, y1:y}); });
+  const cs = lines.map(l=>(l.y0 + l.y1) / 2);
+  const diffs = cs.slice(1).map((y,i)=> y - cs[i]).filter(d=> d > 2 && d < H * 0.04).sort((a,b)=>a-b);
+  if(diffs.length < 4) return {staves:[], gap:0};
+  const gap = diffs[Math.floor(diffs.length / 2)];
+  const staves = []; let cur = [cs[0]];
+  for(let i = 1; i < cs.length; i++){
+    if(Math.abs(cs[i] - cs[i-1] - gap) <= gap * 0.35) cur.push(cs[i]);
+    else { if(cur.length >= 4) staves.push(cur); cur = [cs[i]]; }
+  }
+  if(cur.length >= 4) staves.push(cur);
+  return {staves: staves.map(s=>({top:s[0], bottom:s[s.length-1]})), gap};
+}
+// 띠 정리: 흑백으로, 긴 가로줄(남은 오선·붙임줄)과 긴 세로줄(기둥·마디선) 지우기
+function cleanBand(ctx, W, H, gapPx){
+  const img = ctx.getImageData(0, 0, W, H), d = img.data, n = W * H;
+  const g = grayOf(d, n), thr = Math.min(200, otsu(g) + 8);
+  const ink = new Uint8Array(n); for(let i = 0; i < n; i++) ink[i] = g[i] < thr ? 1 : 0;
+  const hMax = Math.max(gapPx * 1.6, 30), vMax = Math.max(gapPx * 2.6, 24);   // 가로: 분수 코드의 가로줄까지 지운다
+  for(let y = 0; y < H; y++){
+    let s0 = -1;
+    for(let x = 0; x <= W; x++){ const on = x < W && ink[y*W+x];
+      if(on && s0 < 0) s0 = x;
+      if(!on && s0 >= 0){ if(x - s0 >= hMax) for(let k = s0; k < x; k++) ink[y*W+k] = 2; s0 = -1; } }
+  }
+  // 세로줄 지우기: 가는 부분만(가로 폭이 좁은 행) 지워서, 글자와 겹친 곳은 글자를 살린다
+  const thin = Math.max(3, gapPx * 0.35);
+  const rowWidthAt = (x, y)=>{ let a = x, b = x; while(a > 0 && ink[y*W + a - 1] === 1) a--; while(b < W-1 && ink[y*W + b + 1] === 1) b++; return b - a + 1; };
+  for(let x = 0; x < W; x++){
+    let s0 = -1;
+    for(let y = 0; y <= H; y++){ const on = y < H && ink[y*W+x] === 1;
+      if(on && s0 < 0) s0 = y;
+      if(!on && s0 >= 0){
+        const len = y - s0, fromBottom = y >= H - 2;                         // 오선에서 올라온 기둥
+        // ① 아주 긴 세로줄(마디선 등)  ② 띠 아래(오선)에서 올라온 기둥(stem) — 짧아도 지운다
+        if(len >= vMax || (fromBottom && len >= gapPx * 0.6)){
+          for(let k = y - 1; k >= s0; k--){
+            if(rowWidthAt(x, k) > thin){ if(fromBottom) break; else continue; }   // 글자 몸통에 닿으면 멈춤
+            ink[k*W+x] = 2;
+          }
+        }
+        s0 = -1;
+      } }
+  }
+  for(let i = 0, j = 0; i < n; i++, j += 4){ const v = ink[i] === 1 ? 0 : 255; d[j] = d[j+1] = d[j+2] = v; d[j+3] = 255; }
+  ctx.putImageData(img, 0, 0);
+  for(let i = 0; i < n; i++) if(ink[i] !== 1) ink[i] = 0;
+  return ink;
+}
+
+/* 띠 안의 글자 덩어리(연결된 잉크)를 찾아 코드 하나씩 묶는다.
+ * 코드들이 넓게 흩어져 있으면 글자 인식이 한 글자 코드를 자주 놓치므로, 덩어리들을 촘촘히 한 줄로
+ * 다시 붙여(packing) 보통 글 줄처럼 읽힌 뒤 원래 자리로 돌려놓는다. 분수 코드는 위·아래 두 줄로 나뉜다. */
+function inkClusters(ink, W, H, gapPx){
+  const lab = new Int32Array(W * H), comps = [];
+  const stack = [];
+  for(let i = 0; i < W*H; i++){
+    if(!ink[i] || lab[i]) continue;
+    const id = comps.length + 1; let x0 = W, y0 = H, x1 = 0, y1 = 0, n = 0;
+    stack.length = 0; stack.push(i); lab[i] = id;
+    while(stack.length){
+      const p = stack.pop(), x = p % W, y = (p - x) / W; n++;
+      if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+      for(let dy = -1; dy <= 1; dy++) for(let dx = -1; dx <= 1; dx++){
+        const nx = x + dx, ny = y + dy; if(nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const q = ny*W + nx; if(ink[q] && !lab[q]){ lab[q] = id; stack.push(q); }
+      }
+    }
+    comps.push({x0, y0, x1, y1, n});
+  }
+  const minArea = gapPx * gapPx * 0.015;
+  const cs = comps.filter(c=> c.n >= minArea && (c.y1 - c.y0) >= gapPx*0.18 && (c.x1 - c.x0) < gapPx*14);
+  // 글 줄(행): 세로로 겹치는 덩어리끼리
+  const rows = [];
+  cs.sort((a,b)=> (a.y0 + a.y1) - (b.y0 + b.y1)).forEach(c=>{
+    const r = rows.find(r=> Math.min(r.y1, c.y1) - Math.max(r.y0, c.y0) > Math.min(r.y1 - r.y0, c.y1 - c.y0) * 0.35);
+    if(r){ r.items.push(c); r.y0 = Math.min(r.y0, c.y0); r.y1 = Math.max(r.y1, c.y1); } else rows.push({y0:c.y0, y1:c.y1, items:[c]});
+  });
+  // 행 안에서 가까운 덩어리 → 한 코드
+  const clusters = [];
+  rows.forEach(r=>{
+    r.items.sort((a,b)=>a.x0 - b.x0);
+    let cur = null;
+    r.items.forEach(c=>{
+      if(cur && c.x0 - cur.x1 < gapPx * 0.9){ cur.x1 = Math.max(cur.x1, c.x1); cur.y0 = Math.min(cur.y0, c.y0); cur.y1 = Math.max(cur.y1, c.y1); }
+      else { cur = {x0:c.x0, y0:c.y0, x1:c.x1, y1:c.y1, row:r}; clusters.push(cur); }
+    });
+  });
+  return clusters.filter(c=> (c.y1 - c.y0) >= gapPx * 0.45 && (c.y1 - c.y0) <= gapPx * 4.5);
+}
+async function readClusters(worker, srcCanvas, clusters){
+  // 행마다 덩어리를 촘촘히 이어 붙인 이미지 → 한 줄 모드로 읽기
+  const byRow = new Map(); clusters.forEach(c=>{ if(!byRow.has(c.row)) byRow.set(c.row, []); byRow.get(c.row).push(c); });
+  await worker.setParameters({tessedit_pageseg_mode:"7", tessedit_char_whitelist:CHORD_CHARS});
+  for(const list of byRow.values()){
+    const h = Math.max(...list.map(c=>c.y1 - c.y0)) + 1, pad = Math.round(h*0.5), sp = Math.round(h*1.1);
+    const width = list.reduce((a,c)=> a + (c.x1 - c.x0 + 1) + sp, pad*2);
+    const pc = document.createElement("canvas"); pc.width = width; pc.height = h + pad*2;
+    const g = pc.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, pc.width, pc.height);
+    let x = pad;
+    list.forEach(c=>{
+      const w = c.x1 - c.x0 + 1, hh = c.y1 - c.y0 + 1;
+      const top = pad + Math.round((h - hh) * 0.5);
+      g.drawImage(srcCanvas, c.x0, c.y0, w, hh, x, top, w, hh);
+      c.px0 = x; c.px1 = x + w; x += w + sp;
+    });
+    try{
+      const {data} = await worker.recognize(pc);
+      flatWords(data).forEach(wd=>{
+        const cx = (wd.bbox.x0 + wd.bbox.x1) / 2;
+        const c = list.find(c=> cx >= c.px0 - sp*0.4 && cx <= c.px1 + sp*0.4);
+        if(!c) return;
+        c.text = (c.text ? c.text : "") + wd.text; c.conf = Math.max(c.conf || 0, wd.confidence);
+      });
+    }catch(err){}
+  }
+  // 그래도 못 읽은 덩어리는 하나씩
+  const left = clusters.filter(c=> !parseChord(fixOcrChord(c.text || ""))).slice(0, 16);
+  if(left.length){
+    await worker.setParameters({tessedit_pageseg_mode:"8", tessedit_char_whitelist:CHORD_CHARS});
+    for(const c of left){
+      const w = c.x1 - c.x0 + 1, hh = c.y1 - c.y0 + 1, pad = Math.round(hh*0.6);
+      const pc = document.createElement("canvas"); pc.width = w + pad*2; pc.height = hh + pad*2;
+      const g = pc.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, pc.width, pc.height);
+      g.drawImage(srcCanvas, c.x0, c.y0, w, hh, pad, pad, w, hh);
+      try{ const {data} = await worker.recognize(pc); const t = String(data.text||"").replace(/\s+/g, ""); if(parseChord(fixOcrChord(t))){ c.text = t; c.conf = data.confidence; } }catch(err){}
+    }
+  }
+  return clusters.filter(c=> c.text);
+}
+function flatWords(data){
+  let ws = data.words;
+  if(!ws || !ws.length){ ws = []; (data.blocks||[]).forEach(b=>(b.paragraphs||[]).forEach(p=>(p.lines||[]).forEach(l=>(l.words||[]).forEach(w=>ws.push(w))))); }
+  return ws;
+}
+function boxIou(a, b){
+  const x0 = Math.max(a.x0,b.x0), y0 = Math.max(a.y0,b.y0), x1 = Math.min(a.x1,b.x1), y1 = Math.min(a.y1,b.y1);
+  const inter = Math.max(0, x1-x0) * Math.max(0, y1-y0), u = (a.x1-a.x0)*(a.y1-a.y0) + (b.x1-b.x0)*(b.y1-b.y0) - inter;
+  return u > 0 ? inter / u : 0;
+}
 async function ocrSheetTokens(sheet){
   if(sheet.kind === "pdf" && !(sheet.blob instanceof Blob)) await ensurePageBlob(sheet);
   if(!(sheet.blob instanceof Blob)) return [];
   const img = await loadImageFromBlob(sheet.blob);
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const nc = document.createElement("canvas"); nc.width = W; nc.height = H;
+  const nctx = nc.getContext("2d", {willReadFrequently:true});
+  nctx.fillStyle = "#fff"; nctx.fillRect(0, 0, W, H); nctx.drawImage(img, 0, 0);
+  const g = grayOf(nctx.getImageData(0, 0, W, H).data, W * H);
+  const {staves, gap} = findStaves(g, W, H, Math.min(190, otsu(g) + 10));
+  if(staves.length < 1) return ocrFullPage(img);                      // 오선 없는 코드 악보 → 전체 읽기
+  const worker = await getOcrWorker();
+  const sc = Math.max(1, Math.min(3.5, 22 / gap));                    // 오선 간격이 22px 이 되도록 키운다
+  const tokens = [];
+  for(let i = 0; i < staves.length; i++){
+    const st = staves[i], prevBottom = i ? staves[i-1].bottom : -1e9;
+    const y0 = Math.max(0, st.top - 8.5*gap, prevBottom + 0.8*gap), y1 = st.top - 0.05*gap;   // 분수 코드 두 줄까지 들어가게
+    if(y1 - y0 < 1.2*gap) continue;
+    const bc = document.createElement("canvas"); bc.width = Math.round(W*sc); bc.height = Math.round((y1-y0)*sc);
+    const bctx = bc.getContext("2d", {willReadFrequently:true});
+    bctx.imageSmoothingQuality = "high"; bctx.drawImage(nc, 0, y0, W, y1-y0, 0, 0, bc.width, bc.height);
+    const ink = cleanBand(bctx, bc.width, bc.height, gap*sc);
+    if(window.__mlsDebugBands) window.__mlsDebugBands.push(bc.toDataURL("image/png"));
+    const clusters = await readClusters(worker, bc, inkClusters(ink, bc.width, bc.height, gap*sc));
+    clusters.forEach(c=> tokens.push({
+      t:c.text, conf:Math.max(c.conf || 0, 50), band:true,
+      x:(c.x0/sc)/W*100, y:(y0 + c.y0/sc)/H*100, w:((c.x1 - c.x0 + 1)/sc)/W*100, h:((c.y1 - c.y0 + 1)/sc)/H*100,
+    }));
+    const clusterBox = (w)=> clusters.some(c=> boxIou({x0:c.x0, y0:c.y0, x1:c.x1, y1:c.y1}, w.bbox) > 0.2 && parseChord(fixOcrChord(c.text)));
+    await worker.setParameters({tessedit_pageseg_mode:"11", tessedit_char_whitelist:""});
+    const A = flatWords((await worker.recognize(bc)).data);
+    await worker.setParameters({tessedit_pageseg_mode:"6", tessedit_char_whitelist:CHORD_CHARS});
+    const B = flatWords((await worker.recognize(bc)).data);
+    // 두 결과 합치기: 같은 자리면 코드로 읽힌 쪽을 쓴다
+    const merged = A.map(w=>({text:w.text, confidence:w.confidence, bbox:w.bbox}));
+    B.forEach(wb=>{
+      const k = merged.findIndex(wa=> boxIou(wa.bbox, wb.bbox) > 0.3);
+      if(k < 0){ merged.push({text:wb.text, confidence:wb.confidence, bbox:wb.bbox}); return; }
+      const fa = fixOcrChord(merged[k].text), fb = fixOcrChord(wb.text);
+      if(parseChord(fa) && fa === fb) merged[k].confidence = Math.max(merged[k].confidence, wb.confidence, 70);   // 두 방식이 같게 읽음
+      else if(!parseChord(fa) && parseChord(fb)) merged[k] = {text:wb.text, confidence:wb.confidence, bbox:wb.bbox};
+    });
+    // 못 읽었거나 신뢰도 낮은 짧은 조각은 그 자리만 따로 다시 읽는다 (한 단어 모드 + 코드 글자만)
+    const weak = merged.filter(w=>{
+      const p = parseChord(fixOcrChord(w.text)), bw = w.bbox.x1 - w.bbox.x0, bh = w.bbox.y1 - w.bbox.y0;
+      if(bh < gap*sc*0.6 || bh > gap*sc*4.5 || bw > bh*5) return false;
+      return !p || (w.confidence < 40 && p.text.length <= 2);
+    }).slice(0, 12);
+    if(weak.length){
+      await worker.setParameters({tessedit_pageseg_mode:"8", tessedit_char_whitelist:CHORD_CHARS});
+      for(const w of weak){
+        const pad = Math.round((w.bbox.y1 - w.bbox.y0) * 0.4);
+        const left = Math.max(0, w.bbox.x0 - pad), top = Math.max(0, w.bbox.y0 - pad);
+        const rect = {left, top, width: Math.min(bc.width, w.bbox.x1 + pad) - left, height: Math.min(bc.height, w.bbox.y1 + pad) - top};
+        try{
+          const {data} = await worker.recognize(bc, {rectangle: rect});
+          const txt = fixOcrChord(String(data.text || "").replace(/\s+/g, "").replace(/^([ACDEFG])\1+$/, "$1"));
+          if(parseChord(txt) && data.confidence >= 30 && (data.confidence > w.confidence || !parseChord(fixOcrChord(w.text)))){
+            w.text = txt; w.confidence = data.confidence;
+          }
+        }catch(err){}
+      }
+    }
+    merged.filter(w=> !clusterBox(w)).forEach(w=> tokens.push({
+      t:w.text, conf:w.confidence, band:true,
+      x:(w.bbox.x0/sc)/W*100, y:(y0 + w.bbox.y0/sc)/H*100,
+      w:((w.bbox.x1 - w.bbox.x0)/sc)/W*100, h:((w.bbox.y1 - w.bbox.y0)/sc)/H*100,
+    }));
+  }
+  await worker.setParameters({tessedit_pageseg_mode:"11", tessedit_char_whitelist:""});
+  return tokens;
+}
+
+async function ocrFullPage(img){
   const W = img.naturalWidth, H = img.naturalHeight;
   const sc = Math.min(2.2, Math.max(1, 2800 / Math.max(W, H)));   // 작은 글씨는 키워서 인식률을 올린다
   const c = document.createElement("canvas");
@@ -2970,7 +3305,7 @@ function scopeLabel(scope){
   const n = scopeSheets(scope).length;
   return scope === "all" ? `전체 ${n}페이지` : scope === "song" ? `같은 곡 ${n}페이지` : "이 페이지";
 }
-if(location.hostname === "localhost") window.__mlsDebug = {ocrSheetTokens, pickChords, currentSheet: ()=>currentSheet(), getOcrWorker};   // 로컬 테스트 전용
+if(location.hostname === "localhost") window.__mlsDebug = {ocrSheetTokens, pickChords, currentSheet: ()=>currentSheet(), getOcrWorker, parse: parseChord, fix: fixOcrChord};   // 로컬 테스트 전용
 function chordsInReadingOrder(sheets){
   const out = [];
   sheets.forEach(s=>{
@@ -3003,26 +3338,23 @@ async function recognizeChords(force){
       showToast(`코드 인식 중… ${i+1} / ${targets.length}`);
       let found = [];
       if(sh.textItems && sh.textItems.length) found = pickChords(sh.textItems);
-      if(!found.length){
-        try{ found = pickChords(await ocrSheetTokens(sh)); usedOcr = true; }
-        catch(err){ failed = err; break; }
+      if(found.length < 4){
+        // PDF 글자가 없거나 적으면(코드가 그림으로 들어간 PDF 등) 이미지로도 읽어 합친다
+        try{
+          const more = pickChords(await ocrSheetTokens(sh)); usedOcr = true;
+          more.forEach(m=>{ if(!found.some(f=> Math.abs(f.x - m.x) < Math.max(f.w, m.w) && Math.abs(f.y - m.y) < Math.max(f.h, m.h))) found.push(m); });
+        }catch(err){ failed = err; if(!found.length) break; }
       }
       sh.chords = found.map(c=>Object.assign({id:uid()}, c));
     }
   } finally { recognizing = false; }
   if(failed){ alert("코드 인식 실패: " + (failed.message || failed) + (window.claude ? "\n(Claude 화면 안에서는 이미지 인식을 쓸 수 없어요. GitHub Pages 주소에서 써 주세요.)" : "")); }
-  // 범위 안 페이지들의 원래 키를 코드 진행으로 추정 (직접 고른 키는 유지)
   const seq = chordsInReadingOrder(inScope);
-  const k = detectKey(seq);
-  inScope.forEach(s=>{
-    if(!(s.chords||[]).length) return;
-    if(!s.key || s.key.auto) s.key = k ? {majorPc:k.majorPc, minor:k.minor, auto:true} : null;
-    if(s.transpose == null) s.transpose = 0;
-  });
+  inScope.forEach(s=>{ if((s.chords||[]).length && s.transpose == null) s.transpose = 0; });
   state.showChordBoxes = seq.length > 0;
   renderSheet(); renderKeyControls(); scheduleSave();
   if(seq.length){
-    showToast(`${scopeLabel(scope)} · 코드 ${seq.length}개 · 원래 키 ${prettyAcc(keyName(k.majorPc, k.minor))}${usedOcr ? " · 틀리거나 빠진 코드는 고치거나 추가하세요" : ""}`);
+    showToast(`${scopeLabel(scope)} · 코드 ${seq.length}개 인식${usedOcr ? " · 틀리거나 빠진 코드는 눌러서 고치거나 '＋ 코드 추가'" : ""}`);
   } else if(!failed){
     showToast("코드 기호를 찾지 못했어요 · '＋ 코드 추가'로 직접 넣을 수 있어요");
   }
@@ -3033,23 +3365,16 @@ function normT(t){ while(t > 6) t -= 12; while(t < -6) t += 12; return t; }
 function stepKey(d){
   const cur = currentSheet(); if(!cur) return;
   if(!(cur.chords||[]).length){ recognizeChords(false); return; }
-  if(!cur.key){ showToast("원래 키를 먼저 골라 주세요"); openKeyPop(document.querySelector("[data-key-ctl] .keyName")); return; }
   const t = normT((cur.transpose||0) + d);
-  scopeSheets(state.keyScope || "page").forEach(s=>{
-    if(!(s.chords||[]).length) return;
-    if(!s.key) s.key = Object.assign({}, cur.key);
-    s.transpose = t;
-  });
+  scopeSheets(state.keyScope || "page").forEach(s=>{ if((s.chords||[]).length) s.transpose = t; });
   if(t !== 0) state.showChordBoxes = false;
   renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave();
 }
 
 function renderKeyControls(){
   const cur = currentSheet();
-  const has = cur && (cur.chords||[]).length && cur.key;
+  const has = cur && (cur.chords||[]).length;
   const t = has ? (cur.transpose||0) : 0;
-  const orig = has ? prettyAcc(keyName(cur.key.majorPc, cur.key.minor)) : null;
-  const now = has ? prettyAcc(keyName(sheetTarget(cur), cur.key.minor)) : null;
   document.querySelectorAll("[data-key-ctl]").forEach(wrap=>{
     if(!wrap.firstChild){
       const cls = wrap.dataset.btnClass || "";
@@ -3058,25 +3383,37 @@ function renderKeyControls(){
       const name = mk("", "키 · 코드 인식", (e)=>{ e.stopPropagation(); openKeyPop(name); }, "keyName");
       mk("♯", "키 반음 올리기", ()=> stepKey(1));
     }
-    wrap.querySelector(".keyName").textContent = !orig ? "🎼 키" : (t ? `${now} ${t > 0 ? "+" : ""}${t}` : `🎼 ${orig}`);
+    wrap.querySelector(".keyName").textContent = !has ? "🎼 코드" : (t ? `코드 ${t > 0 ? "+" : ""}${t}` : "🎼 코드 0");
     wrap.classList.toggle("shifted", !!t);
   });
 }
 
+function chordFontHeight(sheet){
+  const hs = (sheet.chords||[]).map(c=> c.stacked ? c.h / 2.1 : c.h).filter(h=>h > 0).sort((a,b)=>a-b);
+  return hs.length ? hs[Math.floor(hs.length/2)] : 1.5;
+}
 function renderChords(){
   document.querySelectorAll(".chordTag, .keyBadge").forEach(el=>el.remove());
   const sheet = currentSheet(); if(!sheet || !sheet.chords || !sheet.chords.length) return;
-  const t = sheet.key ? (sheet.transpose || 0) : 0;
+  const t = sheet.transpose || 0;
   if(!t && !state.showChordBoxes) return;
   const stage = document.getElementById("sheetStage");
   const aspect = sheet._aspect || lastSheetAspect || 0.707;
+  const tmap = transposedMap(sheet);
+  const fontH = chordFontHeight(sheet);   // 한 페이지의 코드는 같은 크기로 (글자 상자마다 높이가 들쭉날쭉해서)
   sheet.chords.forEach(ch=>{
     const tag = document.createElement("div");
     tag.className = "chordTag" + (state.showChordBoxes ? " verify" : "") + (t ? " shifted" : "");
     tag.style.left = ch.x + "%"; tag.style.top = ch.y + "%";
     tag.style.minWidth = ch.w + "%"; tag.style.height = ch.h + "%";
-    tag.style.fontSize = (ch.h / aspect * 0.86) + "cqw";
-    tag.textContent = prettyAcc(chordShownFor(sheet, ch.text));
+    tag.style.fontSize = (fontH / aspect * 1.3) + "cqw";        // 글자 상자 높이(대문자 높이) → 글자 크기
+    const shown = prettyAcc(chordShownFor(sheet, ch.text, tmap, ch.id));
+    if(ch.stacked && shown.includes("/")){
+      const [top, bass] = shown.split("/");
+      tag.classList.add("stacked");
+      tag.innerHTML = `<span>${escapeHtml(top)}</span><span>${escapeHtml(bass)}</span>`;
+      tag.style.fontSize = (fontH / aspect * 1.15) + "cqw";
+    } else tag.textContent = shown;
     if(state.showChordBoxes){
       tag.title = "눌러서 고치기 · 지우기";
       tag.addEventListener("click", (e)=>{
@@ -3085,16 +3422,15 @@ function renderChords(){
         if(v === null) return;
         if(!v.trim()){ sheet.chords = sheet.chords.filter(x=>x.id !== ch.id); }
         else { const p = parseChord(v); if(!p){ alert("코드로 읽을 수 없어요: " + v); return; } ch.text = p.text; }
-        if(!sheet.key){ const k = detectKey(chordsInReadingOrder([sheet])); if(k) sheet.key = {majorPc:k.majorPc, minor:k.minor, auto:true}; }
         renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave();
       });
     }
     stage.appendChild(tag);
   });
-  if(t && sheet.key){
+  if(t){
     const b = document.createElement("div");
     b.className = "keyBadge";
-    b.textContent = `연주 키 ${prettyAcc(keyName(sheetTarget(sheet), sheet.key.minor))} · 원키 ${prettyAcc(keyName(sheet.key.majorPc, sheet.key.minor))} (${t > 0 ? "+" : ""}${t})`;
+    b.textContent = `코드 반음 ${t > 0 ? "+" : ""}${t} (${t > 0 ? "올림" : "내림"})`;
     stage.appendChild(b);
   }
 }
@@ -3124,7 +3460,7 @@ document.getElementById("sheetStage").addEventListener("click", (e)=>{
   const aspect = sheet._aspect || lastSheetAspect || 0.707;
   sheet.chords = sheet.chords || [];
   sheet.chords.push({id:uid(), x, y:y - h/2, w:p.text.length * 0.62 * h * aspect, h, text:p.text, manual:true});
-  if(!sheet.key){ const k = detectKey(chordsInReadingOrder([sheet])); if(k) sheet.key = {majorPc:k.majorPc, minor:k.minor, auto:true}; if(sheet.transpose == null) sheet.transpose = 0; }
+  if(sheet.transpose == null) sheet.transpose = 0;
   state.showChordBoxes = true;
   renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave();
 });
@@ -3143,10 +3479,9 @@ function updateKeyPop(){
     b.classList.toggle("active", b.dataset.scope === scope);
     if(b.dataset.scope === "song") b.disabled = !(cur && cur.songColor);
   });
-  const sel = p.querySelector("select");
-  sel.value = cur && cur.key ? `${cur.key.majorPc}:${cur.key.minor ? 1 : 0}` : "";
-  const t = cur && cur.key ? (cur.transpose||0) : 0;
-  p.querySelector(".kpTarget").textContent = cur && cur.key ? `${prettyAcc(keyName(sheetTarget(cur), cur.key.minor))}  (${t > 0 ? "+" : ""}${t})` : "—";
+  p.querySelector("#kpSpell").value = state.chordSpelling || "auto";
+  const t = cur ? (cur.transpose||0) : 0;
+  p.querySelector(".kpTarget").textContent = `${t > 0 ? "+" : ""}${t}`;
   p.querySelector("#kpBoxes").checked = !!state.showChordBoxes;
   p.querySelector("#kpRecog").textContent = notYet ? `🎼 코드 인식 (${notYet}p)` : "🎼 코드 인식";
 }
@@ -3154,34 +3489,23 @@ function openKeyPop(anchor){
   if(document.getElementById("keyPop")){ closeKeyPop(); return; }
   const p = document.createElement("div");
   p.className = "zoomPop keyPop"; p.id = "keyPop";
-  const opts = [];
-  for(let k = 0; k < 12; k++) opts.push(`<option value="${k}:0">${prettyAcc(keyName(k, false))} 장조</option>`);
-  for(let k = 0; k < 12; k++) opts.push(`<option value="${k}:1">${prettyAcc(keyName(k, true))} 단조</option>`);
   p.innerHTML = `<div class="zpHead"><span class="zpTitle">키 · 코드</span><span class="kpCount" style="font-size:11px; color:var(--text-dim);"></span></div>
     <div class="kpScope" role="radiogroup" aria-label="적용 범위">
       <button data-scope="page">이 페이지</button><button data-scope="song" title="페이지 번호 밑 곡 색이 같은 페이지">같은 곡</button><button data-scope="all">전체</button>
     </div>
     <div class="kpRow"><button class="primary" id="kpRecog">🎼 코드 인식</button><button id="kpRecogAll" title="이미 인식한 페이지도 다시">다시 인식</button></div>
-    <label class="kpLabel">원래 키 <select id="kpKey"><option value="">— 고르기 —</option>${opts.join("")}</select></label>
     <div class="kpRow kpStep"><button id="kpDown">♭ 반음 내림</button><b class="kpTarget"></b><button id="kpUp">♯ 반음 올림</button></div>
-    <div class="kpRow"><button id="kpReset">원래 키로</button><button id="kpAdd" title="인식이 놓친 코드를 직접">＋ 코드 추가</button></div>
+    <label class="kpLabel">표기 <select id="kpSpell"><option value="auto">자동 (구간마다 흐름에 맞게)</option><option value="sharp">♯ 위주 (C♯ D♯ F♯ G♯ A♯)</option><option value="flat">♭ 위주 (D♭ E♭ G♭ A♭ B♭)</option></select></label>
+    <div class="kpRow"><button id="kpReset">원래대로 (0)</button><button id="kpAdd" title="인식이 놓친 코드를 직접">＋ 코드 추가</button></div>
     <label class="settingsRow"><input type="checkbox" id="kpBoxes"><span>인식된 코드 확인·고치기 (테두리 표시, 눌러서 수정)</span></label>
-    <div class="zpHint">범위를 고르고 인식·키 바꾸기를 하면 그 페이지들에만 적용돼요. 코드 기호만 바뀌고 오선 위 음표는 그대로예요.</div>`;
+    <div class="zpHint">키와 상관없이 모든 코드가 반음씩 움직여요 (곡 중간 전조도 그대로). 범위를 고르면 그 페이지들에만 적용돼요. 오선 위 음표는 그대로예요.</div>`;
   p.querySelectorAll(".kpScope button").forEach(b=> b.addEventListener("click", ()=>{ state.keyScope = b.dataset.scope; updateKeyPop(); scheduleSave(); }));
   p.querySelector("#kpRecog").addEventListener("click", ()=> recognizeChords(false));
   p.querySelector("#kpRecogAll").addEventListener("click", ()=>{
     if(scopeSheets(state.keyScope||"page").some(s=>(s.chords||[]).length) && !confirm(`${scopeLabel(state.keyScope||"page")}를 다시 인식할까요? 고친 코드는 사라집니다.`)) return;
     recognizeChords(true);
   });
-  p.querySelector("#kpKey").addEventListener("change", (e)=>{
-    const v = e.target.value;
-    scopeSheets(state.keyScope || "page").forEach(s=>{
-      if(!v){ s.key = null; return; }
-      const [k, m] = v.split(":"); s.key = {majorPc:+k, minor:m === "1", auto:false};
-      if(s.transpose == null) s.transpose = 0;
-    });
-    renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave();
-  });
+  p.querySelector("#kpSpell").addEventListener("change", (e)=>{ state.chordSpelling = e.target.value; renderChords(); scheduleSave(); });
   p.querySelector("#kpDown").addEventListener("click", ()=> stepKey(-1));
   p.querySelector("#kpUp").addEventListener("click", ()=> stepKey(1));
   p.querySelector("#kpReset").addEventListener("click", ()=>{ scopeSheets(state.keyScope || "page").forEach(s=>{ s.transpose = 0; }); renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave(); });
@@ -3198,20 +3522,32 @@ function openKeyPop(anchor){
 }
 
 function drawChordsOnCanvas(g, sheet, W, H){
-  const t = sheet.key ? (sheet.transpose || 0) : 0;
+  const t = sheet.transpose || 0;
   if(!t || !sheet.chords || !sheet.chords.length) return;
   g.save();
   g.textBaseline = "middle";
+  const tmap = transposedMap(sheet);
+  const fh = H * chordFontHeight(sheet) / 100;
   sheet.chords.forEach(ch=>{
     const x = W*ch.x/100, y = H*ch.y/100, w = W*ch.w/100, h = H*ch.h/100;
-    const fs = h * 0.86;
+    const fs = fh * 1.3;
     g.font = `700 ${fs}px 'Figtree','Noto Sans KR',sans-serif`;
-    const txt = prettyAcc(chordShownFor(sheet, ch.text));
+    const txt = prettyAcc(chordShownFor(sheet, ch.text, tmap, ch.id));
+    if(ch.stacked && txt.includes("/")){
+      const [top, bass] = txt.split("/");
+      const tw = Math.max(g.measureText(top).width, g.measureText(bass).width);
+      g.fillStyle = "#ffffff"; g.fillRect(x - fs*0.12, y - fs*0.08, Math.max(w, tw) + fs*0.24, h + fs*0.16);
+      g.fillStyle = "#14204a"; g.textAlign = "center";
+      const cx = x + Math.max(w, tw)/2;
+      g.fillText(top, cx, y + h*0.27); g.fillRect(cx - tw/2, y + h/2 - fs*0.04, tw, Math.max(1, fs*0.08)); g.fillText(bass, cx, y + h*0.76);
+      g.textAlign = "left";
+      return;
+    }
     const tw = g.measureText(txt).width;
     g.fillStyle = "#ffffff"; g.fillRect(x - fs*0.12, y - fs*0.08, Math.max(w, tw) + fs*0.24, h + fs*0.16);
     g.fillStyle = "#14204a"; g.fillText(txt, x, y + h/2);
   });
-  const badge = `연주 키 ${prettyAcc(keyName(sheetTarget(sheet), sheet.key.minor))} (원키 ${prettyAcc(keyName(sheet.key.majorPc, sheet.key.minor))} ${t > 0 ? "+" : ""}${t})`;
+  const badge = `코드 반음 ${t > 0 ? "+" : ""}${t}`;
   const bfs = Math.max(12, W * 0.016);
   g.font = `700 ${bfs}px 'Figtree','Noto Sans KR',sans-serif`; g.textBaseline = "top";
   const bw = g.measureText(badge).width;
@@ -6105,7 +6441,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.26-5";
+const APP_BUILD = "2026.10.28-1";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

@@ -741,8 +741,12 @@
 
   .appToast{
     position:fixed; left:50%; top:76px; transform:translateX(-50%); z-index:95; padding:10px 18px; border-radius:999px;
-    background:var(--ink); color:var(--on-ink); font-size:13px; font-weight:700; box-shadow:var(--shadow); pointer-events:none; white-space:nowrap;
+    background:var(--ink); color:var(--on-ink); font-size:13px; font-weight:700; box-shadow:var(--shadow); pointer-events:none;
+    max-width:calc(100vw - 32px); width:max-content; text-align:center; line-height:1.4;
   }
+  .appToast.hasActions{pointer-events:auto; display:flex; align-items:center; gap:8px; padding:6px 6px 6px 18px;}
+  .appToast[hidden]{display:none;}
+  .appToast button{border:none; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:800; background:color-mix(in srgb, var(--on-ink) 18%, transparent); color:var(--on-ink); cursor:pointer;}
   .updateBanner{
     position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:96; display:flex; align-items:center; gap:10px;
     padding:10px 12px 10px 18px; border-radius:999px; background:var(--panel); color:var(--text); border:1px solid var(--border);
@@ -806,6 +810,9 @@
   .chordTag.shifted{background:#fff; padding:0 0.15em; margin-left:-0.15em; box-shadow:0 0 0 1px rgba(255,255,255,1);}
   .chordTag.verify{pointer-events:auto; cursor:pointer; outline:1.5px dashed #2457e6; outline-offset:1px; border-radius:3px;}
   .chordTag.verify:not(.shifted){color:transparent; background:rgba(36,87,230,0.10);}
+  .chordTag .chordDel{display:none; position:absolute; top:-11px; right:-11px; width:22px; height:22px; padding:0; border:none; border-radius:50%;
+    background:#e5484d; color:#fff; font:800 13px/22px sans-serif; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.35); cursor:pointer; z-index:1;}
+  .chordTag.verify .chordDel{display:block;}
   .keyBadge{
     position:absolute; left:1.2%; top:0.8%; z-index:6; padding:0.35em 0.7em; border-radius:999px;
     background:#14204a; color:#fff; font-size:1.25cqw; font-weight:800; pointer-events:none;
@@ -2687,6 +2694,7 @@ function normalizeChordText(raw){
     // 글자 인식이 굵은 글자를 두 번 읽는 경우: "Cc" → "C" (단, "Bb"는 B♭이라 그대로)
     .replace(/^([ACDEFG])([acdefg])(?=$|[^a-z])/, (m, a, b)=> a.toLowerCase() === b ? a : m);
   if(/^\(.*\)$/.test(t) && !/^\([^)]*\)\S/.test(t)) t = t.slice(1, -1);
+  if((t.match(/\(/g) || []).length === 1 && !t.includes(")") && /\(\d+$/.test(t)) t += ")";   // "F7(13" → "F7(13)" (닫는 괄호가 따로 떨어진 PDF)
   return t;
 }
 function parseChord(raw){
@@ -2843,6 +2851,13 @@ function splitGlued(tk){
 // 글자 인식이 '/'를 I·l·|·1 로, '#'을 H 로 읽는 경우 고치기 (고쳐야 코드가 될 때만)
 function fixOcrChord(t){
   t = String(t).replace(/\?/g, "7");    // '?'는 코드에 없는 글자 — 거의 항상 7을 잘못 읽은 것 (끝의 ?를 버리면 Dm7이 Dm이 된다)
+  // 코드 문법으로는 맞지만 악보에 거의 안 나오는 읽기 → 흔한 오독으로 본다
+  t = t.replace(/^([A-G][#b]?)-(?=m|M|add|sus|dim|\()/, "$1")          // E-m7 → Em7 (글자 사이 얼룩)
+    .replace(/^([A-G])4(?=7|9|m|\/)/, "$1#")                            // F47 → F#7 (♯ → 4)
+    .replace(/^([A-G][#b]?m?)7[4b6]?9$/, "$17(b9)")                     // A79·A749 → A7(b9) (♭·괄호 빠짐)
+    .replace(/^([A-G][#b]?)mb6$/, "$1m6").replace(/^([A-G][#b]?)mMm7/, "$1m7")
+    .replace(/^([A-G][#b]?)(?:m-?4|mo4|sus-4?|su-4|sus)(?=$|\/)/, "$1sus4")   // Esus-4·Em4 → Esus4
+    .replace(/^([A-G][#b]?)m[o(]?5\)?(?=$|\/)/, "$1m(b5)");             // F#m5·F#mo5 → F#m(b5)
   if(parseChord(t)) return t;
   // 글자 인식이 자주 틀리는 글자들: 7→?·T, #→H, /→I·l·|·1, 베이스 B→8 (고쳐서 코드가 될 때만 쓴다)
   let u = String(t).replace(/\?/g, "7").replace(/([A-G#bm\d)])T/g, "$17").replace(/([A-G])[Hgj](?=$|[\/m\d(Msaniu])/g, "$1#");
@@ -2952,7 +2967,8 @@ async function pdfPageTokens(pdf, pageNumber){
   const tc = await page.getTextContent();
   const out = [];
   for(const it of tc.items){
-    const str = (it.str || "");
+    // 악보 글꼴의 음표·쉼표(사용자 영역 글자)는 버린다 — 코드 조각(C·m·⁶) 사이에 끼어 코드가 끊긴다
+    const str = (it.str || "").replace(/[\uE000-\uF8FF]/g, "");
     if(!str.trim()) continue;
     const tr = it.transform;
     const h = Math.hypot(tr[2], tr[3]) || it.height || 10;
@@ -3167,17 +3183,17 @@ async function readClusters(worker, srcCanvas, clusters){
   // 행마다 덩어리를 촘촘히 이어 붙인 이미지 → 한 줄 모드로 읽기
   const byRow = new Map(); clusters.forEach(c=>{ if(!byRow.has(c.row)) byRow.set(c.row, []); byRow.get(c.row).push(c); });
   await worker.setParameters({tessedit_pageseg_mode:"7", tessedit_char_whitelist:CHORD_CHARS});
-  for(const list of byRow.values()){
-    const lays = list.map(layoutCluster);
-    const h = Math.max(...lays.map(l=>l.h)) + 1, pad = Math.round(h*0.5), sp = Math.round(h*1.1);
-    const width = lays.reduce((a,l)=> a + l.w + sp, pad*2);
+  // 한 행을 배율 k로 이어 붙여 읽고, 덩어리마다 읽은 글자를 돌려준다
+  const readRow = async (list, lays, k)=>{
+    const h = Math.round((Math.max(...lays.map(l=>l.h)) + 1) * k), pad = Math.round(h*0.5), sp = Math.round(h*1.1);
+    const width = lays.reduce((a,l)=> a + Math.round(l.w*k) + sp, pad*2);
     const pc = document.createElement("canvas"); pc.width = width; pc.height = h + pad*2;
-    const g = pc.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, pc.width, pc.height);
-    let x = pad;
+    const g = pc.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, pc.width, pc.height); g.imageSmoothingQuality = "high";
+    let x = pad; const box = [];
     list.forEach((c, i)=>{
-      const L = lays[i], top = pad + Math.round((h - L.h) * 0.5);
-      L.items.forEach(it=> g.drawImage(srcCanvas, it.sx, it.sy, it.sw, it.sh, x + it.dx, top + it.dy, it.dw, it.dh));
-      c.px0 = x; c.px1 = x + L.w; c.lay = L; c.symX1 = -1; x += L.w + sp;
+      const L = lays[i], top = pad + Math.round((h - L.h*k) * 0.5);
+      L.items.forEach(it=> g.drawImage(srcCanvas, it.sx, it.sy, it.sw, it.sh, x + it.dx*k, top + it.dy*k, it.dw*k, it.dh*k));
+      box.push({x0:x, x1:x + Math.round(L.w*k), text:"", conf:0}); x += Math.round(L.w*k) + sp;
     });
     if(window.__mlsDebugBands) window.__mlsDebugBands.push(pc.toDataURL("image/png"));
     try{
@@ -3188,13 +3204,28 @@ async function readClusters(worker, srcCanvas, clusters){
         const syms = wd.symbols && wd.symbols.length ? wd.symbols : [wd];
         syms.forEach(sy=>{
           const cx = (sy.bbox.x0 + sy.bbox.x1) / 2;
-          const c = list.find(c=> cx >= c.px0 - sp*0.4 && cx <= c.px1 + sp*0.4);
-          if(!c) return;
-          c.text = (c.text ? c.text : "") + sy.text; c.conf = Math.max(c.conf || 0, wd.confidence);
-          c.symX1 = Math.max(c.symX1, sy.bbox.x1);
+          const bx = box.find(b=> cx >= b.x0 - sp*0.4 && cx <= b.x1 + sp*0.4);
+          if(!bx) return;
+          bx.text += sy.text; bx.conf = Math.max(bx.conf, wd.confidence);
         });
       });
     }catch(err){}
+    return box;
+  };
+  const accN = (t)=> (t.match(/[#b]/g) || []).length;
+  for(const list of byRow.values()){
+    const lays = list.map(layoutCluster);
+    const r1 = await readRow(list, lays, 1);
+    list.forEach((c, i)=>{ c.lay = lays[i]; c.text = r1[i].text; c.conf = r1[i].conf; });
+    // 못 읽은 덩어리가 있거나 슬래시 코드 끝 ♯·♭이 빠졌을 수 있으면(…/C) 1.5배로 한 번 더 읽어 더 나은 쪽을 쓴다
+    if(!list.some(c=> !parseChord(fixOcrChord(c.text || "")) || /\/[A-G]$/.test(c.text || ""))) continue;
+    const r2 = await readRow(list, lays, 1.5);
+    list.forEach((c, i)=>{
+      const p1 = parseChord(fixOcrChord(c.text || "")), t2 = r2[i].text, p2 = parseChord(fixOcrChord(t2 || ""));
+      if(!p2) return;
+      const bare = (t)=> t.replace(/[#b]/g, "");
+      if(!p1 || (bare(p1.text) === bare(p2.text) && accN(p2.text) > accN(p1.text))){ c.text = t2; c.conf = r2[i].conf; }
+    });
   }
   // 맨 끝 ♯을 아예 빠뜨린 경우(D/F# → D/F): 조각 수가 읽은 글자보다 많고 마지막 조각이 가늘면 그 조각만 따로 읽어 본다
   const tailCand = clusters.filter(c=>{
@@ -3259,10 +3290,24 @@ async function ocrSheetTokens(sheet){
   const g = grayOf(nctx.getImageData(0, 0, W, H).data, W * H);
   // 얇고 흐린 오선(안티앨리어싱)도 잡도록 두 기준으로 찾고 더 많이 찾은 쪽을 쓴다
   const sA = findStaves(g, W, H, Math.min(190, otsu(g) + 10)), sB = findStaves(g, W, H, 215);
-  const {staves, gap} = sB.staves.length > sA.staves.length ? sB : sA;
+  let {staves, gap} = sB.staves.length > sA.staves.length ? sB : sA;
+  // 작은 이미지(오선 간격 4~6px)는 오선이 뭉개져 못 찾는다 → 키운 그림에서 오선만 찾고 원래 크기로 되돌린다
+  if(W < 1600 && (!staves.length || gap < 7)){
+    const pre = Math.min(3, 2000 / W), uw = Math.round(W*pre), uh = Math.round(H*pre);
+    const uc = document.createElement("canvas"); uc.width = uw; uc.height = uh;
+    const uctx = uc.getContext("2d", {willReadFrequently:true});
+    uctx.imageSmoothingQuality = "high"; uctx.drawImage(nc, 0, 0, uw, uh);
+    const ug = grayOf(uctx.getImageData(0, 0, uw, uh).data, uw * uh);
+    const uA = findStaves(ug, uw, uh, Math.min(190, otsu(ug) + 10)), uB = findStaves(ug, uw, uh, 215);
+    const u = uB.staves.length > uA.staves.length ? uB : uA;
+    if(u.staves.length > staves.length){
+      staves = u.staves.map(st=> ({top: st.top/pre, bottom: st.bottom/pre}));
+      gap = u.gap / pre;
+    }
+  }
   if(staves.length < 1) return ocrFullPage(img);                      // 오선 없는 코드 악보 → 전체 읽기
   const worker = await getOcrWorker();
-  const sc = Math.max(1, Math.min(3.5, 22 / gap));                    // 오선 간격이 22px 이 되도록 키운다
+  const sc = Math.max(1, Math.min(5, 22 / gap));                    // 오선 간격이 22px 이 되도록 키운다
   const tokens = [];
   for(let i = 0; i < staves.length; i++){
     const st = staves[i], prevBottom = i ? staves[i-1].bottom : -1e9;
@@ -3411,9 +3456,9 @@ function scopeSheets(scope){
 }
 function scopeLabel(scope){
   const n = scopeSheets(scope).length;
-  return scope === "all" ? `전체 ${n}페이지` : scope === "song" ? `같은 곡 ${n}페이지` : "이 페이지";
+  return scope === "all" ? `전체 ${n}페이지` : scope === "song" ? `같은 곡 ${n}페이지` : `이 페이지(${state.currentIndex + 1}p)`;
 }
-if(location.hostname === "localhost") window.__mlsDebug = {ocrSheetTokens, pickChords, currentSheet: ()=>currentSheet(), getOcrWorker, parse: parseChord, fix: fixOcrChord, findStaves, grayOf, otsu};   // 로컬 테스트 전용
+if(location.hostname === "localhost") window.__mlsDebug = {ocrSheetTokens, pickChords, pdfPageTokens, getPdfDoc, pdfBuffers: ()=>pdfBuffers, currentSheet: ()=>currentSheet(), getOcrWorker, parse: parseChord, fix: fixOcrChord, findStaves, grayOf, otsu};   // 로컬 테스트 전용
 function chordsInReadingOrder(sheets){
   const out = [];
   sheets.forEach(s=>{
@@ -3432,37 +3477,57 @@ function migrateKeyModel(){
 }
 
 let recognizing = false;
+// 저장된 PDF 글자에 섞인 악보 글꼴 음표(사용자 영역 글자)를 뺀다 — 예전에 불러온 PDF도 다시 인식하면 바로잡힌다
+function cleanTextItems(items){
+  return (items || []).map(t=> Object.assign({}, t, {t: String(t.t || "").replace(/[\uE000-\uF8FF]/g, "")})).filter(t=> t.t.trim());
+}
+// 이미지 인식이 멈춰 버리면(메모리 부족 등) 일정 시간 뒤 작업자를 끝내고 오류로 돌린다 — 다음 번엔 새로 만든다
+function withOcrTimeout(p, ms){
+  let timer;
+  const stop = new Promise((_, rej)=>{ timer = setTimeout(async ()=>{
+    try{ const w = await ocrWorkerPromise; ocrWorkerPromise = null; if(w) w.terminate(); }catch(err){}
+    rej(new Error("인식이 너무 오래 걸려 멈췄어요. 다시 눌러 주세요"));
+  }, ms); });
+  return Promise.race([p, stop]).finally(()=> clearTimeout(timer));
+}
 async function recognizeChords(force){
-  if(recognizing) return;
+  if(recognizing){ showToast("코드 인식 중이에요… 잠시만 기다려 주세요"); return; }
   const scope = state.keyScope || "page";
   const inScope = scopeSheets(scope);
   if(!inScope.length){ showToast("먼저 악보를 올려 주세요"); return; }
-  const targets = inScope.filter(s => force || !Array.isArray(s.chords));
-  recognizing = true;
+  let targets = inScope.filter(s => force || !Array.isArray(s.chords));
+  if(!targets.length){
+    // 범위 안 페이지를 이미 다 인식했다 → 아무 반응 없이 끝내지 말고 다시 인식할지 묻는다
+    if(!confirm(`${scopeLabel(scope)}는 이미 인식했어요. 다시 인식할까요?\n(직접 고친 코드는 사라집니다)`)) return;
+    targets = inScope.slice(); force = true;
+  }
+  recognizing = true; updateKeyPop();
   let usedOcr = false, failed = null;
   try{
     for(let i = 0; i < targets.length; i++){
       const sh = targets[i];
-      showToast(`코드 인식 중… ${i+1} / ${targets.length}`);
+      const pg = state.sheets.indexOf(sh) + 1;
+      showToast(`🎼 코드 인식 중… ${targets.length > 1 ? `${i+1} / ${targets.length} · ` : ""}${pg}페이지`, {sticky:true});
       let found = [];
-      if(sh.textItems && sh.textItems.length) found = pickChords(sh.textItems);
+      const items = cleanTextItems(sh.textItems);
+      if(items.length) found = pickChords(items);
       if(found.length < 4){
         // PDF 글자가 없거나 적으면(코드가 그림으로 들어간 PDF 등) 이미지로도 읽어 합친다
         try{
-          const more = pickChords(await ocrSheetTokens(sh)); usedOcr = true;
+          const more = pickChords(await withOcrTimeout(ocrSheetTokens(sh), 180000)); usedOcr = true;
           more.forEach(m=>{ if(!found.some(f=> Math.abs(f.x - m.x) < Math.max(f.w, m.w) && Math.abs(f.y - m.y) < Math.max(f.h, m.h))) found.push(m); });
         }catch(err){ failed = err; if(!found.length) break; }
       }
       sh.chords = found.map(c=>Object.assign({id:uid()}, c));
     }
   } finally { recognizing = false; }
-  if(failed){ alert("코드 인식 실패: " + (failed.message || failed) + (window.claude ? "\n(Claude 화면 안에서는 이미지 인식을 쓸 수 없어요. GitHub Pages 주소에서 써 주세요.)" : "")); }
+  if(failed){ showToast("코드 인식 실패"); alert("코드 인식 실패: " + (failed.message || failed) + (window.claude ? "\n(Claude 화면 안에서는 이미지 인식을 쓸 수 없어요. GitHub Pages 주소에서 써 주세요.)" : "")); }
   const seq = chordsInReadingOrder(inScope);
   inScope.forEach(s=>{ if((s.chords||[]).length && s.transpose == null) s.transpose = 0; });
   state.showChordBoxes = seq.length > 0;
   renderSheet(); renderKeyControls(); scheduleSave();
   if(seq.length){
-    showToast(`${scopeLabel(scope)} · 코드 ${seq.length}개 인식${usedOcr ? " · 틀리거나 빠진 코드는 눌러서 고치거나 '＋ 코드 추가'" : ""}`);
+    showToast(`${scopeLabel(scope)} · 코드 ${seq.length}개 ${force ? "다시 " : ""}인식 · 틀린 코드는 눌러서 고치고, 가사 등 잘못 잡힌 건 ✕로 지우세요`, {ms:5000});
   } else if(!failed){
     showToast("코드 기호를 찾지 못했어요 · '＋ 코드 추가'로 직접 넣을 수 있어요");
   }
@@ -3523,12 +3588,16 @@ function renderChords(){
       tag.style.fontSize = (fontH / aspect * 1.15) + "cqw";
     } else tag.textContent = shown;
     if(state.showChordBoxes){
-      tag.title = "눌러서 고치기 · 지우기";
+      tag.title = "눌러서 고치기 · ✕ 지우기";
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "chordDel"; del.textContent = "✕"; del.title = "이 코드 지우기 (가사 등을 코드로 잘못 찾았을 때)";
+      del.addEventListener("click", (e)=>{ e.stopPropagation(); deleteChordWithUndo(sheet, ch); });
+      tag.appendChild(del);
       tag.addEventListener("click", (e)=>{
         e.stopPropagation();
         const v = prompt("코드 고치기 (원래 키 기준으로 입력 · 비우면 지움)", ch.text);
         if(v === null) return;
-        if(!v.trim()){ sheet.chords = sheet.chords.filter(x=>x.id !== ch.id); }
+        if(!v.trim()){ deleteChordWithUndo(sheet, ch); return; }
         else { const p = parseChord(v); if(!p){ alert("코드로 읽을 수 없어요: " + v); return; } ch.text = p.text; }
         renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave();
       });
@@ -3541,6 +3610,25 @@ function renderChords(){
     b.textContent = `코드 반음 ${t > 0 ? "+" : ""}${t} (${t > 0 ? "올림" : "내림"})`;
     stage.appendChild(b);
   }
+}
+
+/* --- 잘못 찾은 코드(가사·제목 등) 지우기: 되돌리기, 같은 줄 한꺼번에 지우기 --- */
+function deleteChordWithUndo(sheet, ch){
+  const before = (sheet.chords || []).slice();
+  const refresh = ()=>{ renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave(); };
+  const undo = {label:"되돌리기", fn:()=>{ sheet.chords = before; refresh(); showToast("되돌렸어요"); }};
+  sheet.chords = before.filter(x=> x.id !== ch.id);
+  // 가사 한 줄이 통째로 코드로 잡히는 일이 많아, 같은 높이의 나머지도 한 번에 지울 수 있게 한다
+  const cy = ch.y + ch.h/2;
+  const row = sheet.chords.filter(x=> Math.abs((x.y + x.h/2) - cy) < Math.max(x.h, ch.h) * 0.6);
+  const actions = [undo];
+  if(row.length) actions.push({label:`이 줄 ${row.length}개도 지우기`, fn:()=>{
+    const ids = new Set(row.map(x=> x.id));
+    sheet.chords = sheet.chords.filter(x=> !ids.has(x.id)); refresh();
+    showToast(`이 줄 코드 ${row.length + 1}개를 지웠어요`, {actions:[undo]});
+  }});
+  refresh();
+  showToast(`'${prettyAcc(ch.text)}' 지움`, {actions});
 }
 
 /* --- 빠진 코드 직접 추가: 버튼 → 악보 위를 탭 --- */
@@ -3591,7 +3679,9 @@ function updateKeyPop(){
   const t = cur ? (cur.transpose||0) : 0;
   p.querySelector(".kpTarget").textContent = `${t > 0 ? "+" : ""}${t}`;
   p.querySelector("#kpBoxes").checked = !!state.showChordBoxes;
-  p.querySelector("#kpRecog").textContent = notYet ? `🎼 코드 인식 (${notYet}p)` : "🎼 코드 인식";
+  const rb = p.querySelector("#kpRecog"), ra = p.querySelector("#kpRecogAll");
+  rb.disabled = ra.disabled = recognizing;
+  rb.textContent = recognizing ? "⏳ 인식 중…" : notYet ? `🎼 코드 인식 (${notYet}p)` : "🎼 코드 인식";
 }
 function openKeyPop(anchor){
   if(document.getElementById("keyPop")){ closeKeyPop(); return; }
@@ -4599,11 +4689,21 @@ async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
   }catch(err){ alert("업로드 실패: " + (err && err.message ? err.message : err)); }
 }
 
-function showToast(msg){
+// opts: {sticky: 안 사라짐, ms: 보이는 시간, actions: [{label, fn}] — 버튼(되돌리기 등)}
+function showToast(msg, opts){
+  opts = opts || {};
   let t = document.getElementById("appToast");
   if(!t){ t = document.createElement("div"); t.id = "appToast"; t.className = "appToast"; document.body.appendChild(t); }
   t.textContent = msg; t.hidden = false;
-  clearTimeout(t._timer); t._timer = setTimeout(()=>{ t.hidden = true; }, 2400);
+  const acts = opts.actions || [];
+  t.classList.toggle("hasActions", acts.length > 0);
+  acts.forEach(a=>{
+    const b = document.createElement("button"); b.type = "button"; b.textContent = a.label;
+    b.addEventListener("click", (e)=>{ e.stopPropagation(); t.hidden = true; a.fn(); });
+    t.appendChild(b);
+  });
+  clearTimeout(t._timer);
+  if(!opts.sticky) t._timer = setTimeout(()=>{ t.hidden = true; }, opts.ms || (acts.length ? 6000 : 2400));
 }
 
 document.getElementById("uploadBtn").addEventListener("click", ()=>document.getElementById("fileInput").click());
@@ -6549,7 +6649,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.28-2";
+const APP_BUILD = "2026.10.28-3";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

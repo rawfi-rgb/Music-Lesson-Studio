@@ -810,9 +810,11 @@
   .chordTag.shifted{background:#fff; padding:0 0.15em; margin-left:-0.15em; box-shadow:0 0 0 1px rgba(255,255,255,1);}
   .chordTag.verify{pointer-events:auto; cursor:pointer; outline:1.5px dashed #2457e6; outline-offset:1px; border-radius:3px;}
   .chordTag.verify:not(.shifted){color:transparent; background:rgba(36,87,230,0.10);}
-  .chordTag .chordDel{display:none; position:absolute; top:-11px; right:-11px; width:22px; height:22px; padding:0; border:none; border-radius:50%;
+  .chordTag .chordDel{display:none; position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); width:24px; height:24px; padding:0; border:none; border-radius:50%;
     background:#e5484d; color:#fff; font:800 13px/22px sans-serif; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.35); cursor:pointer; z-index:1;}
-  .chordTag.verify .chordDel{display:block;}
+  /* ✕는 코드를 한 번 누른(고른) 때만 코드 위쪽에 — 평소엔 코드를 가리지 않는다 */
+  .chordTag.verify.sel{outline:2px solid #e5484d;}
+  .chordTag.verify.sel .chordDel{display:block;}
   .keyBadge{
     position:absolute; left:1.2%; top:0.8%; z-index:6; padding:0.35em 0.7em; border-radius:999px;
     background:#14204a; color:#fff; font-size:1.25cqw; font-weight:800; pointer-events:none;
@@ -3527,7 +3529,7 @@ async function recognizeChords(force){
   state.showChordBoxes = seq.length > 0;
   renderSheet(); renderKeyControls(); scheduleSave();
   if(seq.length){
-    showToast(`${scopeLabel(scope)} · 코드 ${seq.length}개 ${force ? "다시 " : ""}인식 · 틀린 코드는 눌러서 고치고, 가사 등 잘못 잡힌 건 ✕로 지우세요`, {ms:5000});
+    showToast(`${scopeLabel(scope)} · 코드 ${seq.length}개 ${force ? "다시 " : ""}인식 · 코드를 누르면 ✕(지우기), 한 번 더 누르면 고치기`, {ms:5000});
   } else if(!failed){
     showToast("코드 기호를 찾지 못했어요 · '＋ 코드 추가'로 직접 넣을 수 있어요");
   }
@@ -3565,6 +3567,12 @@ function chordFontHeight(sheet){
   const hs = (sheet.chords||[]).map(c=> c.stacked ? c.h / 2.1 : c.h).filter(h=>h > 0).sort((a,b)=>a-b);
   return hs.length ? hs[Math.floor(hs.length/2)] : 1.5;
 }
+let selChordId = null;
+document.addEventListener("pointerdown", (e)=>{
+  if(selChordId && !e.target.closest(".chordTag") && !e.target.closest("#appToast")){
+    selChordId = null; document.querySelectorAll(".chordTag.sel").forEach(el=> el.classList.remove("sel"));
+  }
+}, true);
 function renderChords(){
   document.querySelectorAll(".chordTag, .keyBadge").forEach(el=>el.remove());
   const sheet = currentSheet(); if(!sheet || !sheet.chords || !sheet.chords.length) return;
@@ -3588,13 +3596,20 @@ function renderChords(){
       tag.style.fontSize = (fontH / aspect * 1.15) + "cqw";
     } else tag.textContent = shown;
     if(state.showChordBoxes){
-      tag.title = "눌러서 고치기 · ✕ 지우기";
+      tag.title = "한 번 누르면 ✕(지우기) · 한 번 더 누르면 고치기";
       const del = document.createElement("button");
       del.type = "button"; del.className = "chordDel"; del.textContent = "✕"; del.title = "이 코드 지우기 (가사 등을 코드로 잘못 찾았을 때)";
       del.addEventListener("click", (e)=>{ e.stopPropagation(); deleteChordWithUndo(sheet, ch); });
       tag.appendChild(del);
+      if(ch.id === selChordId) tag.classList.add("sel");
       tag.addEventListener("click", (e)=>{
         e.stopPropagation();
+        // 첫 번째 탭: 고르기(✕ 보이기) · 같은 코드를 한 번 더 탭: 고치기
+        if(selChordId !== ch.id){
+          selChordId = ch.id;
+          document.querySelectorAll(".chordTag.sel").forEach(el=> el.classList.remove("sel"));
+          tag.classList.add("sel"); return;
+        }
         const v = prompt("코드 고치기 (원래 키 기준으로 입력 · 비우면 지움)", ch.text);
         if(v === null) return;
         if(!v.trim()){ deleteChordWithUndo(sheet, ch); return; }
@@ -6649,7 +6664,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.28-3";
+const APP_BUILD = "2026.10.28-4";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

@@ -6721,7 +6721,17 @@ const PAGE_NEXT_KEYS = new Set(["ArrowRight","ArrowDown","PageDown","Right","Dow
 const PAGE_PREV_KEYS = new Set(["ArrowLeft","ArrowUp","PageUp","Left","Up","UIKeyInputLeftArrow","UIKeyInputUpArrow","UIKeyInputPageUp"]);
 const NEXT_CODES = new Set(["ArrowRight","ArrowDown","PageDown","Enter","NumpadEnter"]);
 const PREV_CODES = new Set(["ArrowLeft","ArrowUp","PageUp"]);
+/* 터너 키 직접 등록: 설정에서 '다음/이전 페이지 키 등록'을 누르고 페달을 밟으면 그 신호를 기억한다 (기기마다 따로 저장).
+ * 터너가 이상한 키 이름을 보내도, 앱이 그 키를 받기만 하면 반드시 넘어간다. */
+let turnerCustom = {next:[], prev:[]}, turnerLearn = null;
+try{ const j = JSON.parse(localStorage.getItem("mls-turner") || "null"); if(j && Array.isArray(j.next) && Array.isArray(j.prev)) turnerCustom = j; }catch(err){}
+function saveTurnerCustom(){ try{ localStorage.setItem("mls-turner", JSON.stringify(turnerCustom)); }catch(err){} }
+const turnerSig = (e)=> (e.key || "") + "|" + (e.code || "") + "|" + (e.keyCode || 0);
+const lastDownAt = {};
 function turnerDirection(e){
+  const sg = turnerSig(e);
+  if(turnerCustom.next.includes(sg)) return 1;
+  if(turnerCustom.prev.includes(sg)) return -1;
   if(e.key === " " || e.key === "Spacebar" || e.code === "Space") return e.shiftKey ? -1 : 1;
   if(PAGE_NEXT_KEYS.has(e.key) || NEXT_CODES.has(e.code)) return 1;
   if(PAGE_PREV_KEYS.has(e.key) || PREV_CODES.has(e.code)) return -1;
@@ -6737,6 +6747,19 @@ let lastTypingAt = 0;
 document.addEventListener("input", (e)=>{ if(isTypingTarget(e.target)) lastTypingAt = Date.now(); }, true);
 let lastTurnerKey = "";
 window.addEventListener("keydown", (e)=>{
+  lastDownAt[turnerSig(e)] = Date.now();
+  if(turnerLearn){
+    if(["Shift","Control","Alt","Meta","CapsLock","Tab"].includes(e.key)) return;
+    e.preventDefault(); e.stopPropagation();
+    const side = turnerLearn, other = side === "next" ? "prev" : "next", sg = turnerSig(e);
+    turnerLearn = null;
+    turnerCustom[other] = turnerCustom[other].filter(x=> x !== sg);
+    if(!turnerCustom[side].includes(sg)) turnerCustom[side].push(sg);
+    saveTurnerCustom();
+    showToast(`${side === "next" ? "다음" : "이전"} 페이지 키로 등록했어요: ${e.key || e.code || e.keyCode}`);
+    const info = document.getElementById("turnerLearnInfo"); if(info) info.textContent = turnerInfoText();
+    return;
+  }
   lastTurnerKey = `${e.key || "?"} · ${e.code || "?"} · ${e.keyCode || 0}`;
   const kt = document.getElementById("turnerKeyLabel");
   if(kt) kt.textContent = lastTurnerKey + (turnerDirection(e) ? (turnerDirection(e) > 0 ? "  → 다음 페이지" : "  → 이전 페이지") : "  (페이지 넘김 신호 아님)");
@@ -6753,6 +6776,54 @@ window.addEventListener("keydown", (e)=>{
   if(e.repeat) return;
   if(dir > 0) goNextPage(); else goPrevPage();
 }, true);
+// 일부 터너·기기는 keydown 없이 keyup 만 보낸다 — keydown 이 처리하지 않은 신호만 여기서 처리 (중복 방지)
+window.addEventListener("keyup", (e)=>{
+  if(turnerLearn || e.metaKey || e.ctrlKey || e.altKey) return;
+  const dir = turnerDirection(e); if(!dir) return;
+  const sg = turnerSig(e);
+  if(lastDownAt[sg] && Date.now() - lastDownAt[sg] < 3000) return;
+  const t = document.activeElement;
+  if(isTypingTarget(t) && !focusMode && Date.now() - lastTypingAt < 8000) return;
+  if(t && (t.tagName === "SELECT" || (t.tagName === "BUTTON" && !focusMode && (e.key === " " || e.key === "Enter")))) return;
+  lastDownAt[sg] = Date.now();
+  lastTurnerKey = `${e.key || "?"} · ${e.code || "?"} · ${e.keyCode || 0} (keyup)`;
+  if(dir > 0) goNextPage(); else goPrevPage();
+}, true);
+
+/* 미디어 키 모드: 터너가 '다음 곡/이전 곡'(미디어 키)을 보내는 경우 웹은 키보드 이벤트를 못 받는다.
+ * 소리 없는 오디오를 재생 중으로 두면 Safari 가 이 페이지를 '재생 중인 앱'으로 보고 미디어 키를 넘겨준다. */
+let mediaAudio = null;
+function silentWavUrl(){
+  const sr = 8000, n = sr, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const w = (o, str)=>[...str].forEach((c, i)=> v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, "data"); v.setUint32(40, n, true);
+  new Uint8Array(buf, 44).fill(128);
+  return URL.createObjectURL(new Blob([buf], {type:"audio/wav"}));
+}
+function armMediaTurner(on){
+  if(!("mediaSession" in navigator)) return false;
+  const acts = ["nexttrack", "previoustrack", "seekforward", "seekbackward", "play", "pause"];
+  if(!on){
+    if(mediaAudio){ mediaAudio.pause(); mediaAudio = null; }
+    acts.forEach(a=>{ try{ navigator.mediaSession.setActionHandler(a, null); }catch(err){} });
+    try{ navigator.mediaSession.playbackState = "none"; }catch(err){}
+    return true;
+  }
+  if(!mediaAudio){ mediaAudio = new Audio(silentWavUrl()); mediaAudio.loop = true; }
+  mediaAudio.play().catch(()=>{});
+  try{ navigator.mediaSession.metadata = new MediaMetadata({title:"페이지 터너 대기 중", artist:"Music Lesson Studio"}); navigator.mediaSession.playbackState = "playing"; }catch(err){}
+  const h = {nexttrack:goNextPage, seekforward:goNextPage, previoustrack:goPrevPage, seekbackward:goPrevPage,
+    play:()=>{ goNextPage(); }, pause:()=>{ goNextPage(); if(mediaAudio) mediaAudio.play().catch(()=>{}); }};
+  Object.keys(h).forEach(a=>{ try{ navigator.mediaSession.setActionHandler(a, ()=>{ lastTurnerKey = "미디어 키 · " + a; h[a](); }); }catch(err){} });
+  return true;
+}
+const mediaTurnerPref = ()=>{ try{ return localStorage.getItem("mls-turner-media") === "1"; }catch(err){ return false; } };
+document.addEventListener("pointerdown", ()=>{ if(mediaTurnerPref() && !mediaAudio) armMediaTurner(true); }, true);   // 다시 열었을 때는 화면을 한 번 만지면 켜진다
+function turnerInfoText(){
+  const f = (a)=> a.length ? a.map(x=> x.split("|")[0] || x.split("|")[1] || x.split("|")[2]).join(", ") : "없음";
+  return `등록한 키 — 다음: ${f(turnerCustom.next)} · 이전: ${f(turnerCustom.prev)}`;
+}
 
 function setPlacingType(key){
   placingType = key;
@@ -7446,7 +7517,14 @@ function renderSettingsPop(p){
   p.innerHTML = `<h3>화면 테마</h3><div class="themeGrid"></div>
     <label class="settingsRow"><input type="checkbox" id="darkInFocusChk"><span>전체화면(연주)에서는 <b>스테이지 다크</b>로 자동 전환<br><span style="color:var(--text-dim); font-size:11px;">악보 종이는 흰색 그대로, 주변만 어두워집니다.</span></span></label>
     <div class="turnerTest"><b>페이지 터너 확인</b> — 페달을 밟아 보세요<br><span id="turnerKeyLabel">${lastTurnerKey ? escapeHtml(lastTurnerKey) : "아직 받은 신호 없음"}</span>
-      <div style="color:var(--text-dim); font-size:10px; margin-top:4px;">아무 신호도 안 뜨면 터너를 '방향키' 또는 'PageUp/PageDown' 모드로 바꿔 주세요. (볼륨·카메라 모드는 웹에서 받을 수 없어요)</div></div>
+      <div style="color:var(--text-dim); font-size:10px; margin-top:4px;">아무 신호도 안 뜨면 터너를 '방향키' 또는 'PageUp/PageDown' 모드로 바꾸거나, 아래 '미디어 키 모드'를 켜 보세요. (볼륨·카메라 모드는 웹에서 받을 수 없어요)</div>
+      <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+        <button type="button" id="turnerLearnNext">다음 페이지 키 등록</button>
+        <button type="button" id="turnerLearnPrev">이전 페이지 키 등록</button>
+        <button type="button" id="turnerLearnReset">초기화</button></div>
+      <div id="turnerLearnInfo" style="color:var(--text-dim); font-size:10px; margin-top:4px;">${escapeHtml(turnerInfoText())}</div>
+      <div style="color:var(--text-dim); font-size:10px; margin-top:2px;">버튼을 누른 뒤 페달을 한 번 밟으면 그 신호가 등록돼요. 위에 신호가 떴는데도 안 넘어가면 등록해 보세요.</div></div>
+    <label class="settingsRow"><input type="checkbox" id="turnerMediaChk"><span>미디어 키 모드 (터너가 ‘다음 곡/이전 곡’ 버튼을 보내는 경우)<br><span style="color:var(--text-dim); font-size:11px;">소리 없는 오디오가 재생 중으로 표시되고, 다른 앱의 음악은 멈출 수 있어요.</span></span></label>
     <button type="button" id="importLogBtn" style="width:100%; margin-top:8px;">가져오기 기록 보기 (불러오기가 안 될 때)</button>
     <div class="settingsVersion">버전 ${APP_BUILD}</div>`;
   const grid = p.querySelector(".themeGrid");
@@ -7460,6 +7538,16 @@ function renderSettingsPop(p){
   });
   p.querySelector("#importLogBtn").addEventListener("click", ()=>{
     appAlert("빌드 " + APP_BUILD + " · " + navigator.userAgent.slice(0, 90) + "\n\n" + (importLog.length ? importLog.join("\n") : "(아직 기록이 없어요. 불러오기를 한 번 시도한 뒤 다시 열어 보세요.)"), {title:"가져오기 기록"});
+  });
+  p.querySelector("#turnerLearnNext").addEventListener("click", ()=>{ turnerLearn = "next"; showToast("지금 '다음 페이지' 페달을 한 번 밟아 주세요", {ms:6000}); });
+  p.querySelector("#turnerLearnPrev").addEventListener("click", ()=>{ turnerLearn = "prev"; showToast("지금 '이전 페이지' 페달을 한 번 밟아 주세요", {ms:6000}); });
+  p.querySelector("#turnerLearnReset").addEventListener("click", ()=>{ turnerCustom = {next:[], prev:[]}; saveTurnerCustom(); p.querySelector("#turnerLearnInfo").textContent = turnerInfoText(); });
+  const mchk = p.querySelector("#turnerMediaChk");
+  mchk.checked = mediaTurnerPref();
+  mchk.addEventListener("change", ()=>{
+    try{ localStorage.setItem("mls-turner-media", mchk.checked ? "1" : "0"); }catch(err){}
+    const ok = armMediaTurner(mchk.checked);
+    showToast(!ok ? "이 브라우저는 미디어 키를 지원하지 않아요" : mchk.checked ? "미디어 키 모드 켜짐 — 터너의 ‘다음 곡’ 버튼으로 넘겨 보세요" : "미디어 키 모드 꺼짐");
   });
   const chk = p.querySelector("#darkInFocusChk");
   chk.checked = !!state.darkInFocus;
@@ -7485,7 +7573,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.31-3";
+const APP_BUILD = "2026.10.31-4";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

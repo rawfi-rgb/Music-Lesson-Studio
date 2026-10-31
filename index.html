@@ -496,7 +496,7 @@
   .notesHead h2{font-family:'Caprasimo', 'Gowun Batang', serif; text-transform:none; letter-spacing:0; font-size:16px; color:var(--text);}
 
   .pageNav{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--text-dim);}
-  #fileInput,#addPageInput{display:none;}
+  #fileInput,#addPageInput{position:fixed; left:0; bottom:0; width:1px; height:1px; opacity:0; pointer-events:none;}   /* display:none 은 일부 iPad 에서 파일 창이 안 열려서 보이지 않게만 */
   .hint{font-size:11px; color:var(--text-muted); padding:6px 12px;}
 
   /* Page Strip Thumbnails */
@@ -801,6 +801,26 @@
   .sheetTopBar .keyCtl button{border:none; background:transparent; padding:4px 9px; border-radius:999px;}
   .keyCtl .keyName{font-weight:800; font-size:12px; min-width:54px; white-space:nowrap;}
   .keyCtl.shifted .keyName{color:var(--accent);}
+  .contiPanel{position:fixed; left:50%; bottom:84px; transform:translateX(-50%); width:min(600px, 94vw); max-height:62vh; z-index:40; display:flex; flex-direction:column;
+    background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); overflow:hidden;}
+  .contiHead{display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); font-size:14px;}
+  .contiHead span{color:var(--text-dim); font-size:12px; flex:1;}
+  .contiBody{overflow:auto; padding:8px; display:flex; flex-direction:column; gap:6px;}
+  .contiRow{border:1px solid var(--border); border-radius:12px; padding:8px 10px; display:flex; flex-direction:column; gap:6px;}
+  .contiRow.cur{border-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, transparent);}
+  .contiTop{display:flex; align-items:center; gap:8px; cursor:pointer;}
+  .contiDot{width:10px; height:10px; border-radius:50%; flex:none;}
+  .contiNo{font-weight:800; font-size:12px; color:var(--text-dim); min-width:14px;}
+  .contiTitle{font-weight:800; font-size:14px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .contiMeta{font-size:11px; color:var(--text-dim); white-space:nowrap;}
+  .contiEdit{border:none; background:transparent; color:var(--text-dim); font-size:14px; padding:2px 6px; cursor:pointer;}
+  .contiForm{display:flex; flex-wrap:wrap; align-items:center; gap:4px;}
+  .contiChip{border:none; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:800; color:#fff; cursor:pointer;}
+  .contiChip.plain{background:var(--panel-alt); color:var(--text); min-width:28px;}
+  .contiChip.plain.on{background:var(--accent); color:var(--on-accent);}
+  .contiArrow{color:var(--text-dim); font-weight:800;}
+  .contiEmpty{padding:18px; text-align:center; color:var(--text-dim); font-size:13px;}
+  .keyCtl .spellBtn{font-size:11px; font-weight:800; white-space:nowrap;}
   .metroDock .keyCtl .keyName, .focusBar .keyCtl .keyName{color:var(--on-ink); background:color-mix(in srgb, var(--on-ink) 12%, transparent);}
   .metroDock .keyCtl.shifted .keyName, .focusBar .keyCtl.shifted .keyName{color:var(--accent);}
   .chordTag{
@@ -1038,9 +1058,10 @@
       <div class="toolbar-group">
         <button class="primary" id="uploadBtn">악보 업로드</button>
         <button id="addPageBtn">＋ 페이지</button>
+        <button id="pasteBtn" title="굿노트 등 다른 앱에서 복사한 악보(이미지·PDF) 붙여넣기">📋 붙여넣기</button>
       </div>
-      <input type="file" id="fileInput">
-      <input type="file" id="addPageInput">
+      <input type="file" id="fileInput" multiple>
+      <input type="file" id="addPageInput" multiple>
 
       <div class="toolbar-group">
         <button class="icon" id="prevPage">‹</button>
@@ -1127,7 +1148,9 @@
         <div class="miniDots" id="focusMiniDots"></div>
         <span id="focusBpmLabel" style="font-size:12px; font-weight:700; ">100 BPM</span>
         <div class="keyCtl" data-key-ctl data-btn-class="icon" title="키 · 코드 바꾸기"></div>
-        <div class="zoomCtl" data-zoom-ctl data-btn-class="icon" title="악보 크기"></div>
+        <div class="zoomCtl" data-zoom-ctl data-btn-class="icon" title="악보 크기 (％를 좌우로 끌어도 돼요)"></div>
+        <button class="icon" id="focusFitBtn" title="폭 맞춤 ↔ 한 장 전체 보기 (악보를 두 번 탭해도 바뀌어요)">↔ 폭맞춤</button>
+        <button class="icon" id="focusContiBtn" title="전체 곡 콘티(순서) 보기">📋 콘티</button>
         <button class="icon" id="focusExitBtn">✕ 나가기</button>
       </div>
 
@@ -1630,7 +1653,7 @@ async function buildPagesData(){
       sheet._cloudImageCache = imageB64;
       sheet.dirtyImage = false;
     }
-    pagesData.push({index:i, image:imageB64, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null, chords:sheet.chords||null, key:sheet.key||null, transpose:sheet.transpose||0});
+    pagesData.push({index:i, image:imageB64, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null, songName:sheet.songName||null, chords:sheet.chords||null, key:sheet.key||null, transpose:sheet.transpose||0});
   }
   return pagesData;
 }
@@ -1782,7 +1805,7 @@ async function loadProjectData(id){
     const blob = pd.image ? await dataUrlToBlob(pd.image) : null;
     sheets.push({
       id: uid(), blob, dirtyImage:false, _cloudImageCache: pd.image || null,
-      annotations: pd.annotations||[], markers: pd.markers||[], textBoxes: pd.textBoxes||[], songColor: pd.songColor||null,
+      annotations: pd.annotations||[], markers: pd.markers||[], textBoxes: pd.textBoxes||[], songColor: pd.songColor||null, songName: pd.songName||null,
       chords: pd.chords||null, key: pd.key||null, transpose: pd.transpose||0,
     });
   }
@@ -1812,7 +1835,7 @@ function hashStr(str){
 }
 function projectSignature(){
   return hashStr(JSON.stringify({
-    p: state.sheets.map(s=>[s.id, s.annotations||[], s.markers||[], s.textBoxes||[], s.songColor||null, s.chords||null, s.key||null, s.transpose||0]),
+    p: state.sheets.map(s=>[s.id, s.annotations||[], s.markers||[], s.textBoxes||[], s.songColor||null, s.songName||null, s.chords||null, s.key||null, s.transpose||0]),
     k: [state.songKey||null, state.transpose||0],
     n: state.notes || "", b: [state.bpm, state.beatsPerBar, state.beatUnit, state.beatPattern],
   }));
@@ -2104,7 +2127,7 @@ async function buildProjectFileData(name){
   for(const sheet of state.sheets){
     if(sheet.kind==="pdf" && !(sheet.blob instanceof Blob)) await ensurePageBlob(sheet);
     const image = sheet.blob instanceof Blob ? await compressBlobForLocalSave(sheet.blob) : null;
-    pages.push({image, srcW: sheet.blob instanceof Blob ? localSaveSrcW(sheet.blob) : null, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null, chords:sheet.chords||null, textItems:sheet.textItems||null, key:sheet.key||null, transpose:sheet.transpose||0});
+    pages.push({image, srcW: sheet.blob instanceof Blob ? localSaveSrcW(sheet.blob) : null, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null, songName:sheet.songName||null, chords:sheet.chords||null, textItems:sheet.textItems||null, key:sheet.key||null, transpose:sheet.transpose||0});
   }
   return {
     __type:"music-lesson-studio-project", version:1,
@@ -2268,7 +2291,7 @@ document.getElementById("fallbackLoadInput").addEventListener("change", async (e
   // 반드시 먼저 다 읽고 나서 비운다. (예전에는 먼저 비워서 iCloud 파일 불러오기가 계속 실패)
   let data;
   try{ data = await readProjectFile(file); }
-  catch(err){ e.target.value = ""; alert("불러오기 실패: " + err.message); return; }
+  catch(err){ e.target.value = ""; showImportError("프로젝트를 불러오지 못했어요.", err, [file]); return; }
   e.target.value = "";
   await openProjectData(data, file.name);
 });
@@ -2314,7 +2337,7 @@ async function applyProjectFileData(data){
   let legacyShift = 0;
   for(const p of (data.pages||[])){
     const blob = p.image ? await dataUrlToBlob(p.image) : null;
-    const sh = {id:uid(), blob, dirtyImage:true, annotations:p.annotations||[], markers:p.markers||[], textBoxes:p.textBoxes||[], songColor:p.songColor||null, chords:p.chords||null, textItems:p.textItems||null, key:p.key||null, transpose:p.transpose||0};
+    const sh = {id:uid(), blob, dirtyImage:true, annotations:p.annotations||[], markers:p.markers||[], textBoxes:p.textBoxes||[], songColor:p.songColor||null, songName:p.songName||null, chords:p.chords||null, textItems:p.textItems||null, key:p.key||null, transpose:p.transpose||0};
     if(p.srcW) await fitAnnotationsToImage(sh, p.srcW);
     else if(blob && sh.annotations.length){
       // 예전 버전 파일: 2000px 넘는 원본을 줄여 저장하면서 필기 좌표는 그대로 둬서 어긋난다.
@@ -2342,26 +2365,104 @@ async function loadFromFolder(fname){
     var fileHandle = await folderHandle.getFileHandle(fname);
     file = await fileHandle.getFile();
     data = await readProjectFile(file);
-  }catch(err){ alert("불러오기 실패: " + (err && err.message ? err.message : err)); return; }
+  }catch(err){ showImportError("프로젝트를 불러오지 못했어요.", err, file ? [file] : []); return; }
   await openProjectData(data, fname, {fileHandle, mtime:file.lastModified});
 }
 
 async function loadProjectFromDroppedFile(file, handlePromise){
   let data;
   try{ data = await readProjectFile(file); }   // 확인 창을 띄우기 전에 먼저 읽는다
-  catch(err){ alert("불러오기 실패: " + err.message); return; }
+  catch(err){ showImportError("프로젝트를 불러오지 못했어요.", err, [file]); return; }
   let h = null;
   try{ h = handlePromise ? await handlePromise : null; }catch(err){}
   await openProjectData(data, file.name, h && h.kind === "file" ? {fileHandle:h, mtime:file.lastModified} : {});
 }
 
+/* ---------- 파일 읽기·가져오기 진단 ----------
+ * 아이패드·iCloud 파일은 읽는 방법에 따라 실패하는 일이 있어 여러 방법을 차례로 시도하고,
+ * 그래도 안 되면 어느 단계에서 왜 막혔는지(파일 이름·크기·형식·오류 이름)를 화면에 그대로 보여 준다.
+ * 경고창(alert)이 막힌 곳(앱 안의 내장 화면 등)에서도 보이도록 경고는 앱 안의 창으로 띄운다. */
+const importLog = [];
+function ilog(msg){
+  importLog.push(new Date().toTimeString().slice(0, 8) + " " + msg);
+  if(importLog.length > 80) importLog.shift();
+  try{ console.log("[가져오기]", msg); }catch(e){}
+}
+function errText(err){
+  if(!err) return "알 수 없는 오류";
+  const n = err.name && err.name !== "Error" ? err.name + ": " : "";
+  return n + (err.message || String(err));
+}
+function fileBrief(f){ return `${f.name || "(이름 없음)"} · ${f.size == null ? "?" : Math.round(f.size/1024)}KB · ${f.type || "형식 정보 없음"}`; }
+function appAlert(msg, opts){
+  opts = opts || {};
+  return new Promise(resolve=>{
+    const ov = document.createElement("div");
+    ov.className = "libraryOverlay"; ov.style.cssText = "justify-content:center; align-items:center; z-index:95;";
+    const box = document.createElement("div");
+    box.style.cssText = "background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:18px; width:480px; max-width:92vw; max-height:84vh; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow);";
+    const h = document.createElement("div"); h.style.cssText = "font-weight:800; font-size:15px;"; h.textContent = opts.title || "알림";
+    const body = document.createElement("div"); body.style.cssText = "white-space:pre-wrap; word-break:break-word; font-size:13px; line-height:1.65; overflow:auto; user-select:text; -webkit-user-select:text;"; body.textContent = msg;
+    const row = document.createElement("div"); row.style.cssText = "display:flex; gap:8px; justify-content:flex-end;";
+    const done = ()=>{ ov.remove(); resolve(); };
+    const cp = document.createElement("button"); cp.type = "button"; cp.textContent = "내용 복사";
+    cp.addEventListener("click", async ()=>{ try{ await navigator.clipboard.writeText(msg); cp.textContent = "복사됨 ✓"; }catch(err){ const r = document.createRange(); r.selectNodeContents(body); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); cp.textContent = "선택됨 · 길게 눌러 복사"; } });
+    const ok = document.createElement("button"); ok.type = "button"; ok.className = "primary"; ok.textContent = "확인"; ok.addEventListener("click", done);
+    row.append(cp, ok); box.append(h, body, row); ov.appendChild(box); document.body.appendChild(ov);
+    setTimeout(()=> ok.focus(), 30);
+  });
+}
+function importErrorText(headline, err, files){
+  const lines = [headline];
+  if(err) lines.push("· 오류: " + errText(err));
+  (files || []).slice(0, 4).forEach(f=> lines.push("· 파일: " + fileBrief(f)));
+  lines.push("", "── 진단 정보 (안 될 때 이 화면을 캡처해 보내 주세요) ──", "빌드 " + (typeof APP_BUILD !== "undefined" ? APP_BUILD : "?") + " · " + (navigator.userAgent.match(/(iPad|iPhone|Macintosh|Windows|Android)[^)]*\)/) || [""])[0]);
+  lines.push(...importLog.slice(-10));
+  return lines.join("\n");
+}
+function showImportError(headline, err, files){
+  ilog("오류: " + headline + (err ? " / " + errText(err) : ""));
+  return appAlert(importErrorText(headline, err, files), {title:"불러오지 못했어요"});
+}
+// 확인창이 막힌 환경(바로 false 가 돌아옴)에서는 '예'로 본다 — 사람이 0.04초 안에 '취소'를 누를 수는 없다
+function safeConfirm(msg){
+  const t0 = performance.now(), r = confirm(msg);
+  return r || performance.now() - t0 > 40;
+}
+function concatBuffers(parts){
+  const out = new Uint8Array(parts.reduce((n, b)=> n + b.byteLength, 0)); let o = 0;
+  parts.forEach(b=>{ out.set(new Uint8Array(b), o); o += b.byteLength; });
+  return out.buffer;
+}
+function frRead(blob){
+  return new Promise((res, rej)=>{ const r = new FileReader(); r.onload = ()=> res(r.result); r.onerror = ()=> rej(r.error || new Error("FileReader 오류")); r.readAsArrayBuffer(blob); });
+}
+async function readBlobBuffer(blob){
+  const tries = [
+    ["arrayBuffer", ()=> blob.arrayBuffer()],
+    ["FileReader", ()=> frRead(blob)],
+    ["fetch", async ()=>{ const u = URL.createObjectURL(blob); try{ return await (await fetch(u)).arrayBuffer(); } finally{ URL.revokeObjectURL(u); } }],
+    ["조각 읽기", async ()=>{ const parts = [], N = 1 << 20; for(let o = 0; o < blob.size; o += N) parts.push(await frRead(blob.slice(o, o + N))); return concatBuffers(parts); }],
+  ];
+  if(!blob.size) throw new Error("파일 크기가 0KB예요. iCloud에서 아직 내려받지 않은 파일일 수 있어요. 파일 앱에서 그 파일을 한 번 눌러 내려받은 뒤 다시 골라 주세요.");
+  let last;
+  for(const [name, fn] of tries){
+    try{
+      const b = await fn();
+      if(b && b.byteLength > 0){ ilog("읽기 성공 (" + name + ") " + b.byteLength + "바이트"); return b; }
+      ilog("읽기 결과가 비어 있음 (" + name + ")");
+    }catch(err){ last = err; ilog("읽기 실패 (" + name + "): " + errText(err)); }
+  }
+  throw last || new Error("파일 내용을 읽지 못했어요");
+}
+async function readBlobText(blob){ return new TextDecoder("utf-8").decode(await readBlobBuffer(blob)); }
+
 /* 프로젝트 파일 읽기 — 실패 이유를 구체적으로 알려준다 */
 async function readProjectFile(file){
+  ilog("프로젝트 파일 읽기: " + fileBrief(file));
   let text;
-  try{ text = await file.text(); }
-  catch(err){
-    throw new Error("파일을 읽지 못했어요.\niCloud에서 아직 내려받지 않은 파일일 수 있어요. 파일 앱에서 그 파일을 한 번 눌러 내려받은 뒤 다시 불러와 주세요.");
-  }
+  try{ text = await readBlobText(file); }
+  catch(err){ throw new Error("파일을 읽지 못했어요. (" + errText(err) + ")"); }
   text = text.replace(/^\uFEFF/, "");
   const start = text.indexOf("{");
   if(start > 0) text = text.slice(start);
@@ -2395,7 +2496,7 @@ async function openProjectData(data, fileName, opts){
     showToast(`'${currentProjectName || "프로젝트"}' 불러옴 · ${state.sheets.length}페이지${when ? " · " + when + " 저장본" : ""}`);
     return true;
   }catch(err){
-    alert("불러오기 실패: " + (err && err.message ? err.message : err));
+    showImportError("프로젝트를 여는 도중 멈췄어요.", err, []);
     return false;
   }
 }
@@ -2560,40 +2661,57 @@ window.addEventListener("pagehide", ()=>{ flushFolderAutosave(); });
  * 아이패드·Safari: 파일 앱. 형식 제한(accept)을 걸면 아이패드에서 .json 파일이 흐리게 나와
  * 고를 수 없으므로 제한 없이 연다 — 고른 뒤 내용으로 판별한다. */
 let pickerInput = null;
-function pickFilesViaInput(){
+function pickFilesViaInput(multiple){
   return new Promise((resolve)=>{
     if(pickerInput) pickerInput.remove();   // 이전 입력칸은 다음에 열 때 정리 (읽는 도중에 지우지 않게)
     const inp = document.createElement("input");
-    inp.type = "file";
-    inp.style.cssText = "position:fixed; left:-1000px; top:0; width:1px; height:1px; opacity:0;";
+    inp.type = "file"; inp.multiple = !!multiple;
+    inp.style.cssText = "position:fixed; left:0; bottom:0; width:1px; height:1px; opacity:0; pointer-events:none;";
     document.body.appendChild(inp);
     pickerInput = inp;
     let done = false;
     const finish = (files)=>{ if(done) return; done = true; resolve(files); };
-    inp.addEventListener("change", ()=> finish(Array.from(inp.files || [])));
-    inp.addEventListener("cancel", ()=> finish([]));
+    inp.addEventListener("change", ()=>{ const fl = Array.from(inp.files || []); ilog("파일 앱에서 " + fl.length + "개 선택: " + fl.map(fileBrief).join(" | ")); finish(fl); });
+    inp.addEventListener("cancel", ()=>{ ilog("파일 고르기 취소"); finish([]); });
+    ilog("파일 고르기 창 열기");
     inp.click();
   });
 }
 async function openProjectFromPicker(){
   if(window.showOpenFilePicker){
-    let h;
+    let h = null;
     try{
       [h] = await window.showOpenFilePicker({id:"mls-icloud", multiple:false,
         types:[{description:"Music Lesson Studio 프로젝트", accept:{"application/json":[".json"]}}]});
-    }catch(err){ return; }
-    let file, data;
-    try{ file = await h.getFile(); data = await readProjectFile(file); }
-    catch(err){ alert("불러오기 실패: " + (err && err.message ? err.message : err)); return; }
-    await openProjectData(data, file.name, {fileHandle:h, mtime:file.lastModified});
+    }catch(err){
+      if(err && err.name === "AbortError") return;     // 사용자가 닫음
+      ilog("showOpenFilePicker 실패 → 일반 파일 고르기로 전환: " + errText(err));   // 내장 화면(iframe)에서는 SecurityError
+      h = null;
+    }
+    if(h){
+      let file, data;
+      try{ file = await h.getFile(); data = await readProjectFile(file); }
+      catch(err){ showImportError("프로젝트를 불러오지 못했어요.", err, file ? [file] : []); return; }
+      await openProjectData(data, file.name, {fileHandle:h, mtime:file.lastModified});
+      return;
+    }
+  }
+  // 아이패드·Safari(또는 위 전환): 고른 것이 프로젝트(.json)면 열고, 악보(PDF·이미지)면 악보로 추가한다 — 어느 쪽을 골라도 '프로젝트 파일이 아니에요' 오류가 나지 않게
+  const files = await pickFilesViaInput(true);
+  if(!files.length) return;
+  await routePickedFiles(files);
+}
+async function routePickedFiles(files){
+  const proj = files.find(f=> /\.json$/i.test(f.name || "") || (f.type === "application/json"));
+  if(proj){
+    let data;
+    try{ data = await readProjectFile(proj); }   // 입력칸을 건드리기 전에 먼저 다 읽는다
+    catch(err){ showImportError("프로젝트를 불러오지 못했어요.", err, [proj]); return; }
+    await openProjectData(data, proj.name);
     return;
   }
-  const files = await pickFilesViaInput();
-  if(!files.length) return;
-  let data;
-  try{ data = await readProjectFile(files[0]); }   // 입력칸을 건드리기 전에 먼저 다 읽는다
-  catch(err){ alert("불러오기 실패: " + err.message); return; }
-  await openProjectData(data, files[0].name);
+  closeLibrary();
+  await handleIncomingFiles(files, {forceReplace:false});
 }
 
 /* ---------- ⌘S / 저장 버튼 ----------
@@ -2733,21 +2851,28 @@ function spellPc(pc, majorPc){
   return letter + (acc === 1 ? "#" : acc === -1 ? "b" : "");
 }
 function keyName(majorPc, minor){ return minor ? spellPc((majorPc + 9) % 12, majorPc) + "m" : MAJOR_KEY_NAMES[majorPc]; }
-function prettyAcc(t){ return String(t).replace(/([A-G])#/g, "$1♯").replace(/([A-G])b/g, "$1♭").replace(/(^|[^\d])69(?!\d)/, "$16/9"); }
+function prettyAcc(t){
+  return String(t).replace(/([A-G])#/g, "$1♯").replace(/([A-G])b/g, "$1♭").replace(/(^|[^\d])69(?!\d)/, "$16/9")
+    .replace(/([(,\d])b(\d)/g, "$1♭$2").replace(/([(,\d])#(\d)/g, "$1♯$2");   // 7b9 · (b5) · (#11) 의 음표 기호도 ♭·♯ 로
+}
 
+function scoreKey(chords, k){
+  const diat = {[k]:"M", [(k+2)%12]:"m", [(k+4)%12]:"m", [(k+5)%12]:"M", [(k+7)%12]:"M", [(k+9)%12]:"m", [(k+11)%12]:"d"};
+  let sc = 0;
+  chords.forEach(c=>{
+    const pc = pcOf(c.root, c.acc), kind = chordKind(c.quality);
+    if(pc in diat){
+      sc += 1;
+      if(diat[pc] === kind || (diat[pc] === "M" && kind === "7" && pc === (k+7)%12)) sc += 0.6;
+    } else sc -= 0.4;
+  });
+  return sc;
+}
 function detectKey(chords, local){
   if(!chords.length) return null;
   let best = null;
   for(let k = 0; k < 12; k++){
-    const diat = {[k]:"M", [(k+2)%12]:"m", [(k+4)%12]:"m", [(k+5)%12]:"M", [(k+7)%12]:"M", [(k+9)%12]:"m", [(k+11)%12]:"d"};
-    let sc = 0;
-    chords.forEach(c=>{
-      const pc = pcOf(c.root, c.acc), kind = chordKind(c.quality);
-      if(pc in diat){
-        sc += 1;
-        if(diat[pc] === kind || (diat[pc] === "M" && kind === "7" && pc === (k+7)%12)) sc += 0.6;
-      } else sc -= 0.4;
-    });
+    let sc = scoreKey(chords, k);
     const f = chords[0], l = chords[chords.length-1];
     const fpc = pcOf(f.root, f.acc), lpc = pcOf(l.root, l.acc);
     if(local){ if(!best || sc > best.sc) best = {k, sc}; continue; }   // 구간 추정: 첫·끝 코드 가산 없이
@@ -2761,7 +2886,7 @@ function detectKey(chords, local){
   const lMinorTonic = pcOf(l.root, l.acc) === rel && chordKind(l.quality) === "m";
   const fMinorTonic = pcOf(f.root, f.acc) === rel && chordKind(f.quality) === "m";
   const minor = lMinorTonic || (fMinorTonic && pcOf(l.root, l.acc) !== best.k);
-  return {majorPc: best.k, minor};
+  return {majorPc: best.k, minor, sc: best.sc};
 }
 function transposeChordText(text, semis, targetMajorPc){
   const c = parseChord(text);
@@ -2797,7 +2922,10 @@ function transposeBySemis(text, semis){
   if(!c || !semis) return text;
   const root = rootName((pcOf(c.root, c.acc) + semis + 120) % 12, c.quality);
   let out = root + c.quality;
-  if(c.bassRoot) out += "/" + spellFromRoot((pcOf(c.bassRoot, c.bassAcc) + semis + 120) % 12, root);
+  if(c.bassRoot){
+    const bpc = (pcOf(c.bassRoot, c.bassAcc) + semis + 120) % 12, pref = state.chordSpelling || "auto";
+    out += "/" + (pref === "sharp" ? SHARP_NAMES[bpc] : pref === "flat" ? FLAT_NAMES[bpc] : spellFromRoot(bpc, root));
+  }
   return out;
 }
 // '자동' 표기: 코드 줄마다(앞뒤 줄 포함) 그 구간의 키를 추정해 그 키에 맞는 이름으로 — 전조 구간도 각자 맞게
@@ -2815,10 +2943,19 @@ function transposedMap(sheet){
   if(!t){ chords.forEach(c=> m.set(c.id, c.text)); return m; }
   if((state.chordSpelling || "auto") !== "auto"){ chords.forEach(c=> m.set(c.id, transposeBySemis(c.text, t))); return m; }
   const lines = chordLines(chords);
+  // 곡 전체(같은 곡 색의 모든 페이지)의 코드로 기본 키를 잡고, 한 줄만 다른 키로 보이는 것은 뚜렷한 차이(전조)일 때만 따른다 —
+  // 줄마다 따로 키를 찾으면 애매한 줄에서 ♯·♭ 표기가 줄마다 뒤죽박죽이 된다.
+  const group = sheet.songColor ? state.sheets.filter(x=> x.songColor === sheet.songColor) : [sheet];
+  const all = []; group.forEach(sh=> (sh.chords || []).forEach(c=>{ const q = parseChord(c.text); if(q) all.push(q); }));
+  const base = all.length >= 4 ? detectKey(all) : null;
   lines.forEach((L, i)=>{
     const own = L.map(c=>parseChord(c.text)).filter(Boolean);
     const win = own.length >= 3 ? own : [...(lines[i-1]||[]), ...L, ...(lines[i+1]||[])].map(c=>parseChord(c.text)).filter(Boolean);
-    const k = win.length >= 3 ? detectKey(win, true) : null;
+    let k = base;
+    if(win.length >= 3){
+      const loc = detectKey(win, true);
+      if(!base || loc.majorPc === base.majorPc || loc.sc - scoreKey(win, base.majorPc) >= 1.5) k = loc;
+    }
     L.forEach(c=> m.set(c.id, k ? transposeChordText(c.text, t, (k.majorPc + t + 120) % 12) : transposeBySemis(c.text, t)));
   });
   return m;
@@ -3762,12 +3899,21 @@ function renderKeyControls(){
       mk("♭", "키 반음 내리기", ()=> stepKey(-1));
       const name = mk("", "키 · 코드 인식", (e)=>{ e.stopPropagation(); openKeyPop(name); }, "keyName");
       mk("♯", "키 반음 올리기", ()=> stepKey(1));
+      mk("", "코드 표기 바꾸기: 자동 → ♯(샵) → ♭(플랫)", cycleSpelling, "spellBtn");
     }
+    const spellLabel = {auto:"♯♭ 자동", sharp:"♯ 샵", flat:"♭ 플랫"}[state.chordSpelling || "auto"] || "♯♭ 자동";
+    const sb = wrap.querySelector(".spellBtn"); if(sb) sb.textContent = spellLabel;
     wrap.querySelector(".keyName").textContent = !has ? "🎼 코드" : (t ? `코드 ${t > 0 ? "+" : ""}${t}` : "🎼 코드 0");
     wrap.classList.toggle("shifted", !!t);
   });
 }
 
+function cycleSpelling(){
+  const order = ["auto", "sharp", "flat"], cur = state.chordSpelling || "auto";
+  state.chordSpelling = order[(order.indexOf(cur) + 1) % 3];
+  renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave();
+  showToast({auto:"코드 표기: 자동 (곡의 키에 맞춰 ♯·♭)", sharp:"코드 표기: 모두 ♯(샵)", flat:"코드 표기: 모두 ♭(플랫)"}[state.chordSpelling], {ms:1600});
+}
 function chordFontHeight(sheet){
   const hs = (sheet.chords||[]).map(c=> c.stacked ? c.h / 2.1 : c.h).filter(h=>h > 0).sort((a,b)=>a-b);
   return hs.length ? hs[Math.floor(hs.length/2)] : 1.5;
@@ -4021,7 +4167,7 @@ function openKeyPop(anchor){
     if(scopeSheets(state.keyScope||"page").some(s=>(s.chords||[]).length) && !confirm(`${scopeLabel(state.keyScope||"page")}를 다시 인식할까요? 고친 코드는 사라집니다.`)) return;
     recognizeChords(true);
   });
-  p.querySelector("#kpSpell").addEventListener("change", (e)=>{ state.chordSpelling = e.target.value; renderChords(); scheduleSave(); });
+  p.querySelector("#kpSpell").addEventListener("change", (e)=>{ state.chordSpelling = e.target.value; renderChords(); renderKeyControls(); scheduleSave(); });
   p.querySelector("#kpDown").addEventListener("click", ()=> stepKey(-1));
   p.querySelector("#kpUp").addEventListener("click", ()=> stepKey(1));
   p.querySelector("#kpReset").addEventListener("click", ()=>{ scopeSheets(state.keyScope || "page").forEach(s=>{ s.transpose = 0; }); renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave(); });
@@ -4866,9 +5012,45 @@ function revokeUrls(){ const old = objectUrls; objectUrls = []; setTimeout(()=> 
 let pdfBuffers = new Map();
 let pdfDocCache = new Map();
 
+const PDFJS_VER = "3.11.174";
+async function ensurePdfJs(){
+  if(typeof pdfjsLib !== "undefined") return;
+  ilog("PDF 라이브러리가 없어 다시 불러오는 중");
+  await new Promise((resolve)=>{
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/" + PDFJS_VER + "/pdf.min.js";
+    sc.onload = resolve; sc.onerror = resolve; document.head.appendChild(sc);
+  });
+  if(typeof pdfjsLib === "undefined") throw new Error("PDF 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/" + PDFJS_VER + "/pdf.worker.min.js";
+}
+let pdfWorkerRetried = false;
+/* PDF 열기: 버퍼는 복사본을 넘겨(워커가 원본을 가져가 비워 버리는 일 방지), 응답이 없으면 같은 출처의 워커로 한 번 더 시도한다 */
+async function openPdfData(buf){
+  await ensurePdfJs();
+  const open = ()=> new Promise((resolve, reject)=>{
+    const task = pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))});
+    const timer = setTimeout(()=>{ try{ task.destroy(); }catch(e){} reject(new Error("PDF 처리기가 응답하지 않아요")); }, 25000);
+    task.promise.then(d=>{ clearTimeout(timer); resolve(d); }, e=>{ clearTimeout(timer); reject(e); });
+  });
+  try{ return await open(); }
+  catch(err){
+    ilog("PDF 열기 실패: " + errText(err));
+    if(pdfWorkerRetried || /password|Invalid PDF|InvalidPDF|Missing PDF/i.test(errText(err))) throw err;
+    pdfWorkerRetried = true;
+    try{
+      const txt = await (await fetch(pdfjsLib.GlobalWorkerOptions.workerSrc)).text();
+      pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([txt], {type:"text/javascript"}));
+      ilog("PDF 처리기를 앱 안에서 다시 시작");
+    }catch(e2){ ilog("PDF 처리기 가져오기 실패: " + errText(e2)); throw err; }
+    return await open();
+  }
+}
 function getPdfDoc(sourceId){
   if(!pdfDocCache.has(sourceId)){
-    pdfDocCache.set(sourceId, pdfjsLib.getDocument({data:pdfBuffers.get(sourceId)}).promise);
+    const p = openPdfData(pdfBuffers.get(sourceId));
+    pdfDocCache.set(sourceId, p);
+    p.catch(()=> pdfDocCache.delete(sourceId));
   }
   return pdfDocCache.get(sourceId);
 }
@@ -4890,13 +5072,14 @@ async function ensurePageBlob(sheet){
 async function fileToPages(file){
   const pages = [];
   if(file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")){
-    if(typeof pdfjsLib === "undefined"){
-      throw new Error("PDF 라이브러리를 불러오지 못했습니다.");
-    }
-    const buf = await file.arrayBuffer();
+    let buf;
+    try{ buf = await readBlobBuffer(file); }
+    catch(err){ throw new Error("PDF 파일을 읽지 못했어요. (" + errText(err) + ")"); }
     const sourceId = uid();
     pdfBuffers.set(sourceId, buf);
-    const pdf = await getPdfDoc(sourceId);
+    let pdf;
+    try{ pdf = await getPdfDoc(sourceId); }
+    catch(err){ pdfBuffers.delete(sourceId); throw new Error("PDF를 열지 못했어요. " + (/password/i.test(errText(err)) ? "암호가 걸린 PDF예요." : "손상됐거나 PDF가 아닐 수 있어요.") + " (" + errText(err) + ")"); }
     for(let p=1;p<=pdf.numPages;p++){
       let textItems = null;
       try{ textItems = await pdfPageTokens(pdf, p); }catch(err){}
@@ -4975,20 +5158,24 @@ async function normalizeIncoming(all){
 
 async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
   const all = Array.from(fileList);
+  ilog("가져오기 시작: " + (all.map(fileBrief).join(" | ") || "파일 없음"));
   const proj = all.find(f => /\.mlsproj\.json$/i.test(f.name||"") || (/\.json$/i.test(f.name||"") && all.length === 1));
   if(proj){ loadProjectFromDroppedFile(proj); return; }
-  const {files, rejected, archives} = await normalizeIncoming(all);
+  let norm;
+  try{ norm = await normalizeIncoming(all); }
+  catch(err){ showImportError("파일을 확인하는 중 멈췄어요.", err, all); return; }
+  const {files, rejected, archives} = norm;
   const fromGoodNotes = archives.some(n => /\.goodnotes$/i.test(n||""));
   if(!files.length){
     if(!all.length) return;
     const gn = rejected.some(f => /\.goodnotes$/i.test(f.name||""));
-    alert(gn
+    showImportError(gn
       ? "굿노트 파일 안에서 악보를 찾지 못했어요.\n\n굿노트에서: 공유(⤴︎) → 내보내기 → PDF → '주석 포함'을 켜고 저장한 뒤, 그 PDF를 끌어다 놓아 주세요. 손글씨까지 그대로 옮겨집니다."
-      : "악보로 열 수 없는 파일입니다: " + rejected.map(f=>f.name||"(이름 없음)").join(", ") + "\n이미지(JPG·PNG 등)나 PDF를 올려주세요.");
+      : "악보로 열 수 없는 파일이에요. 이미지(JPG·PNG 등)나 PDF를 올려 주세요.", null, rejected);
     return;
   }
   const replace = forceReplace || state.sheets.length===0;
-  if(replace && state.sheets.length && !confirm("현재 악보를 교체할까요?")) return;
+  if(replace && state.sheets.length && !safeConfirm("현재 악보를 교체할까요?")) return;
   try{
     let newPages = [];
     for(const f of files) newPages = newPages.concat(await fileToPages(f));
@@ -5004,7 +5191,7 @@ async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
     scheduleSave();
     showToast((replace ? `악보 ${newPages.length}페이지를 열었습니다` : `＋ ${newPages.length}페이지 추가 · ${state.currentIndex+1} / ${state.sheets.length}`)
       + (fromGoodNotes ? " · 굿노트 원본 악보 (손글씨 제외)" : ""));
-  }catch(err){ alert("업로드 실패: " + (err && err.message ? err.message : err)); }
+  }catch(err){ showImportError("악보를 여는 도중 멈췄어요.", err, files); }
 }
 
 // opts: {sticky: 안 사라짐, ms: 보이는 시간, actions: [{label, fn}] — 버튼(되돌리기 등)}
@@ -5031,6 +5218,56 @@ document.getElementById("fileInput").addEventListener("change", async (e)=>{
 });
 
 document.getElementById("addPageBtn").addEventListener("click", ()=>document.getElementById("addPageInput").click());
+
+/* 📋 붙여넣기: 굿노트·사진·Safari 등에서 '복사'한 악보(이미지·PDF)를 가져온다.
+ * 클립보드를 직접 읽을 수 있으면(Chrome·최신 Safari) 바로, 아니면 '붙여넣기 칸'을 띄워 길게 눌러 붙여넣게 한다. */
+async function importFromClipboardApi(){
+  if(!navigator.clipboard || !navigator.clipboard.read) return null;
+  const items = await navigator.clipboard.read();
+  const files = [];
+  for(const it of items){
+    const t = it.types.find(x=> /^image\//.test(x) || x === "application/pdf");
+    if(t){ const b = await it.getType(t); files.push(new File([b], (t === "application/pdf" ? "붙여넣은 악보.pdf" : "붙여넣은 악보." + t.split("/")[1]), {type:t})); }
+  }
+  return files;
+}
+function openPasteBox(){
+  if(document.getElementById("pasteBoxOv")) return;
+  const ov = document.createElement("div");
+  ov.id = "pasteBoxOv"; ov.className = "libraryOverlay"; ov.style.cssText = "justify-content:center; align-items:center; z-index:95;";
+  ov.innerHTML = `<div style="background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:14px; padding:18px; width:420px; max-width:92vw; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow);">
+    <div style="font-weight:800; font-size:15px;">📋 악보 붙여넣기</div>
+    <div style="font-size:12px; line-height:1.6; color:var(--text-dim);">① 굿노트·사진·파일 앱에서 악보(이미지·PDF)를 <b>복사</b>하세요.<br>② 아래 칸을 <b>길게 눌러 '붙여넣기'</b> (맥은 ⌘V).</div>
+    <div id="pasteBoxArea" contenteditable="true" style="min-height:96px; border:2px dashed var(--border); border-radius:12px; padding:12px; font-size:13px; color:var(--text-muted); outline:none; -webkit-user-select:text; user-select:text;">여기를 길게 눌러 붙여넣기</div>
+    <div style="display:flex; justify-content:flex-end;"><button type="button" id="pasteBoxClose">닫기</button></div></div>`;
+  document.body.appendChild(ov);
+  const area = ov.querySelector("#pasteBoxArea");
+  const close = ()=> ov.remove();
+  ov.querySelector("#pasteBoxClose").addEventListener("click", close);
+  area.addEventListener("focus", ()=>{ if(area.textContent.startsWith("여기를")) area.textContent = ""; });
+  area.addEventListener("paste", async (e)=>{
+    const dt = e.clipboardData; if(!dt) return;
+    let files = Array.from(dt.files || []);
+    if(!files.length) files = Array.from(dt.items || []).filter(i=>i.kind === "file").map(i=>i.getAsFile()).filter(Boolean);
+    ilog("붙여넣기 칸: 파일 " + files.length + "개 · 형식 [" + Array.from(dt.types || []).join(", ") + "]");
+    if(files.length){ e.preventDefault(); close(); handleIncomingFiles(files, {forceReplace:false}); return; }
+    const html = dt.getData("text/html") || "";
+    const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if(m){ e.preventDefault(); close(); importFromWeb(m[1].replace(/&amp;/g, "&"), {forceReplace:false}); return; }
+    const txt = (dt.getData("text/plain") || "").trim();
+    if(/^https?:\/\/\S+$/i.test(txt)){ e.preventDefault(); close(); importFromWeb(unwrapUrl(txt), {forceReplace:false}); return; }
+    e.preventDefault();
+    area.textContent = "악보 이미지·PDF가 아니에요. 복사한 것이 이미지나 PDF인지 확인해 주세요.";
+  });
+  setTimeout(()=> area.focus(), 60);
+}
+document.getElementById("pasteBtn").addEventListener("click", async ()=>{
+  try{
+    const files = await importFromClipboardApi();
+    if(files && files.length){ ilog("클립보드에서 " + files.length + "개 읽음"); handleIncomingFiles(files, {forceReplace:false}); return; }
+  }catch(err){ ilog("클립보드 직접 읽기 실패: " + errText(err)); }
+  openPasteBox();
+});
 document.getElementById("addPageInput").addEventListener("change", async (e)=>{
   if(e.target.files.length) await handleIncomingFiles(e.target.files, {forceReplace:false});
   e.target.value = "";
@@ -5047,13 +5284,28 @@ document.getElementById("addPageInput").addEventListener("change", async (e)=>{
   let depth = 0;
   // 이 앱 안에서 시작한 끌기(송폼·악기 버튼, 페이지 순서 바꾸기)만 구분하고, 나머지는 전부 외부 파일로 본다.
   // Safari·아이패드는 끌기 중 dataTransfer.types 에 "Files" 를 안 주는 경우가 있어 types 로 거르지 않는다.
-  let internalDrag = false;
-  document.addEventListener("dragstart", ()=>{ internalDrag = true; }, true);
+  // 앱 안 끌기가 dragend 없이 끝나면(끌던 요소가 다시 그려지면 dragend 가 오지 않는다) 표시가 계속 남아
+  // 이후 밖에서 끌어온 파일을 전부 무시하던 문제 → 새로 누르는 순간·일정 시간이 지나면 풀고, 'Files' 가 보이면 무조건 외부 파일로 본다.
+  let internalDrag = false, internalAt = 0;
+  document.addEventListener("dragstart", ()=>{ internalDrag = true; internalAt = Date.now(); }, true);
   document.addEventListener("dragend", ()=>{ internalDrag = false; }, true);
+  ["pointerdown", "mousedown", "touchstart"].forEach(t=> document.addEventListener(t, ()=>{ internalDrag = false; }, true));
   function typesOf(e){ return Array.from((e.dataTransfer && e.dataTransfer.types) || []); }
   function isTextOnly(e){ const t = typesOf(e); return t.length && !t.includes("Files") && t.every(x=>/^text\//.test(x)); }
+  function isInternal(e){
+    if(typesOf(e).includes("Files")) return false;
+    if(internalDrag && Date.now() - internalAt > 20000) internalDrag = false;
+    return internalDrag;
+  }
+  // 끌어온 쪽이 '이동'만 허용하는데 '복사'로 답하면 놓기가 취소된다(굿노트 등 다른 앱) — 상대가 허용하는 것으로 답한다
+  function acceptEffect(e){
+    try{
+      const ea = e.dataTransfer.effectAllowed;
+      e.dataTransfer.dropEffect = (ea === "move" || ea === "linkMove") ? "move" : (ea === "link" ? "link" : "copy");
+    }catch(err){}
+  }
   function hasFiles(e){
-    if(internalDrag || !e.dataTransfer) return false;
+    if(isInternal(e) || !e.dataTransfer) return false;
     // 메모장에 글자를 끌어다 놓는 것은 그대로 허용
     if(isTextOnly(e) && e.target.closest && e.target.closest("textarea, input, [contenteditable=true]")) return false;
     return true;
@@ -5076,15 +5328,41 @@ document.getElementById("addPageInput").addEventListener("change", async (e)=>{
   window.addEventListener("dragover", (e)=>{
     if(!hasFiles(e)) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
+    acceptEffect(e);
     const thumb = e.target.closest && e.target.closest(".pageThumb:not(.addTile)");
     document.querySelectorAll(".pageThumb.dragOver").forEach(t=>{ if(t!==thumb) t.classList.remove("dragOver"); });
     if(thumb) thumb.classList.add("dragOver");
   });
   window.addEventListener("dragleave", (e)=>{ if(!hasFiles(e)) return; depth = Math.max(0, depth-1); if(depth===0) hide(); });
   window.addEventListener("drop", (e)=>{
-    if(internalDrag){ internalDrag = false; hide(); return; }
+    if(isInternal(e)){ internalDrag = false; hide(); return; }
     if(!hasFiles(e)){ hide(); return; }
+    ilog("놓기: 형식 [" + typesOf(e).join(", ") + "] · 파일 " + ((e.dataTransfer.files || []).length) + "개 · 항목 " + ((e.dataTransfer.items || []).length) + "개");
+    // 폴더를 끌어온 경우: 항목 정보는 이 이벤트 안에서만 읽을 수 있으니 지금 모아 둔다
+    const entries = Array.from((e.dataTransfer && e.dataTransfer.items) || []).map(i=> (i.kind === "file" && i.webkitGetAsEntry) ? i.webkitGetAsEntry() : null);
+    const hasDir = entries.some(en=> en && en.isDirectory);
+    if(hasDir){
+      e.preventDefault(); hide();
+      (async ()=>{
+        const out = [];
+        const walk = async (en)=>{
+          if(en.isFile){ await new Promise(res=> en.file(f=>{ out.push(f); res(); }, res)); }
+          else if(en.isDirectory){
+            const rd = en.createReader();
+            for(;;){
+              const batch = await new Promise(res=> rd.readEntries(res, ()=> res([])));
+              if(!batch.length) break;
+              for(const c of batch) await walk(c);
+            }
+          }
+        };
+        for(const en of entries) if(en) await walk(en);
+        const scores = out.filter(f=> !/^\./.test(f.name)).sort((a,b)=> a.name.localeCompare(b.name, undefined, {numeric:true}));
+        if(!scores.length){ showToast("폴더 안에서 파일을 찾지 못했어요"); return; }
+        handleIncomingFiles(scores, {forceReplace:false});
+      })();
+      return;
+    }
     const files = collectFiles(e.dataTransfer);
     const thumb = e.target.closest && e.target.closest(".pageThumb:not(.addTile)");
     hide();
@@ -5100,7 +5378,7 @@ document.getElementById("addPageInput").addEventListener("change", async (e)=>{
       if(url){ e.preventDefault(); importFromWeb(url, {forceReplace:false, insertAt}); return; }
       if(e.target.closest && e.target.closest("textarea, input, [contenteditable=true]")) return; // 글자 끌어놓기
       e.preventDefault();
-      showToast("파일을 읽지 못했어요 · 파일 자체나 웹의 악보 이미지를 끌어다 놓아 주세요");
+      appAlert("끌어온 항목에서 파일을 받지 못했어요.\n\n· 파일 앱·바탕화면·폴더의 파일은 그대로 끌어다 놓으면 됩니다.\n· 굿노트 등 다른 앱에서는 페이지를 직접 끌기보다, 공유(⤴︎) → 'PDF로 내보내기' → 파일에 저장한 뒤 그 PDF를 끌어 오거나, 이미지·PDF를 '복사'하고 위쪽 '📋 붙여넣기' 버튼을 눌러 주세요.\n\n[받은 형식] " + (typesOf(e).join(", ") || "없음"), {title:"악보를 받지 못했어요"});
       return;
     }
     e.preventDefault();
@@ -5171,9 +5449,9 @@ async function importFromWeb(url, opts){
   let file;
   try{ file = await fetchAsFile(url); }
   catch(err){
-    alert(err && err.message === "not-a-score"
+    appAlert(err && err.message === "not-a-score"
       ? "이 링크는 악보 이미지나 PDF가 아니에요.\n웹페이지 주소가 아니라 악보 이미지 자체(또는 PDF 링크)를 끌어다 놓아 주세요."
-      : "이 사이트는 다른 곳에서 직접 가져가는 것을 막아 두었어요.\n\n이미지: 우클릭(아이패드는 길게 누르기) → '이미지 복사' → 앱에서 Cmd+V(붙여넣기)하면 바로 추가됩니다.\nPDF: 내려받은 파일을 끌어다 놓아 주세요.");
+      : "이 사이트는 다른 곳에서 직접 가져가는 것을 막아 두었어요.\n\n이미지: 우클릭(아이패드는 길게 누르기) → '이미지 복사' → 앱 위쪽의 '📋 붙여넣기' 버튼(또는 Cmd+V)을 누르면 바로 추가됩니다.\nPDF: 내려받은 파일을 끌어다 놓아 주세요.", {title:"가져오지 못했어요"});
     return;
   }
   await handleIncomingFiles([file], opts || {forceReplace:false});
@@ -5424,6 +5702,94 @@ function openSongPalette(i, anchor){
     if(!ev.target.closest("#songPalette")){ closeSongPalette(); document.removeEventListener("pointerdown", off, true); }
   }, true), 0);
 }
+
+/* ---------- 전체화면: 콘티(곡 순서) ----------
+ * 프로젝트 안의 곡들을 순서대로 보여 준다. 곡 = 같은 '곡 색'이 이어지는 페이지 묶음(색이 없으면 색 없는 페이지 묶음).
+ * 곡마다 이름(✎로 정하기)·페이지·키·송폼 순서(인트로 → 벌스 → …)를 보여 주고, 누르면 그 곡 첫 페이지로 간다. */
+function computeContiSongs(){
+  const groups = [];
+  state.sheets.forEach((sh, i)=>{
+    const last = groups[groups.length - 1];
+    if(last && (last.color || null) === (sh.songColor || null)) last.pages.push(i);
+    else groups.push({color: sh.songColor || null, pages:[i]});
+  });
+  return groups.map((g, n)=>{
+    const first = state.sheets[g.pages[0]];
+    const chords = []; let t = 0, tSet = false;
+    g.pages.forEach(i=>{
+      const sh = state.sheets[i];
+      (sh.chords || []).forEach(c=>{ const q = parseChord(c.text); if(q) chords.push(q); });
+      if(!tSet && (sh.chords || []).length){ t = sh.transpose || 0; tSet = true; }
+    });
+    let keyText = "";
+    if(chords.length >= 4){
+      const k = detectKey(chords);
+      if(k){ keyText = keyName(k.majorPc, k.minor); if(t) keyText += " → " + keyName((k.majorPc + t + 120) % 12, k.minor); }
+    }
+    const form = [];
+    g.pages.forEach(i=>{
+      (state.sheets[i].markers || []).filter(m=> m.kind !== "inst" && m.label).slice()
+        .sort((a,b)=> (a.yPct||0) - (b.yPct||0) || (a.xPct||0) - (b.xPct||0))
+        .forEach(m=> form.push({label:m.label, color:m.color, page:i}));
+    });
+    return {no:n + 1, color:g.color, pages:g.pages, name:first.songName || "", keyText, form};
+  });
+}
+function closeConti(){ const p = document.getElementById("contiPanel"); if(p) p.remove(); }
+function openConti(){
+  if(document.getElementById("contiPanel")){ closeConti(); return; }
+  const songs = computeContiSongs();
+  const p = document.createElement("div");
+  p.id = "contiPanel"; p.className = "contiPanel";
+  const head = document.createElement("div"); head.className = "contiHead";
+  head.innerHTML = `<b>콘티</b><span>${songs.length}곡 · ${state.sheets.length}페이지</span>`;
+  const x = document.createElement("button"); x.type = "button"; x.className = "icon"; x.textContent = "✕"; x.addEventListener("click", closeConti);
+  head.appendChild(x); p.appendChild(head);
+  const body = document.createElement("div"); body.className = "contiBody"; p.appendChild(body);
+  if(!songs.length) body.innerHTML = `<div class="contiEmpty">악보가 없어요.</div>`;
+  songs.forEach(sg=>{
+    const cur = sg.pages.includes(state.currentIndex);
+    const row = document.createElement("div"); row.className = "contiRow" + (cur ? " cur" : "");
+    const dot = `<span class="contiDot" style="background:${sg.color || "var(--border)"}"></span>`;
+    const title = sg.name || ("곡 " + sg.no);
+    const range = sg.pages.length > 1 ? `p.${sg.pages[0] + 1}–${sg.pages[sg.pages.length - 1] + 1}` : `p.${sg.pages[0] + 1}`;
+    const top = document.createElement("div"); top.className = "contiTop";
+    top.innerHTML = `${dot}<span class="contiNo">${sg.no}</span><span class="contiTitle">${escapeHtml(title)}</span><span class="contiMeta">${range}${sg.keyText ? " · 키 " + escapeHtml(sg.keyText) : ""}</span>`;
+    top.addEventListener("click", ()=>{ state.currentIndex = sg.pages[0]; renderSheet(); scheduleSave(); closeConti(); });
+    const ed = document.createElement("button"); ed.type = "button"; ed.className = "contiEdit"; ed.textContent = "✎"; ed.title = "곡 이름 정하기";
+    ed.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      const v = prompt("곡 이름 (비우면 '곡 " + sg.no + "')", sg.name || "");
+      if(v === null) return;
+      state.sheets[sg.pages[0]].songName = v.trim() || null;
+      scheduleSave(); closeConti(); openConti();
+    });
+    top.appendChild(ed);
+    row.appendChild(top);
+    if(sg.form.length){
+      const fl = document.createElement("div"); fl.className = "contiForm";
+      sg.form.forEach((f, i)=>{
+        const c = document.createElement("button"); c.type = "button"; c.className = "contiChip";
+        c.style.background = f.color || "var(--panel-alt)"; c.textContent = f.label; c.title = "p." + (f.page + 1);
+        c.addEventListener("click", ()=>{ state.currentIndex = f.page; renderSheet(); scheduleSave(); closeConti(); });
+        fl.appendChild(c);
+        if(i < sg.form.length - 1){ const ar = document.createElement("span"); ar.className = "contiArrow"; ar.textContent = "›"; fl.appendChild(ar); }
+      });
+      row.appendChild(fl);
+    } else {
+      const pg = document.createElement("div"); pg.className = "contiForm";
+      sg.pages.forEach(i=>{ const c = document.createElement("button"); c.type = "button"; c.className = "contiChip plain" + (i === state.currentIndex ? " on" : ""); c.textContent = i + 1;
+        c.addEventListener("click", ()=>{ state.currentIndex = i; renderSheet(); scheduleSave(); closeConti(); }); pg.appendChild(c); });
+      row.appendChild(pg);
+    }
+    body.appendChild(row);
+  });
+  document.body.appendChild(p);
+  const curRow = p.querySelector(".contiRow.cur"); if(curRow) curRow.scrollIntoView({block:"nearest"});
+}
+document.getElementById("focusContiBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && document.getElementById("contiPanel")){ closeConti(); e.stopPropagation(); } }, true);
+document.addEventListener("pointerdown", (e)=>{ if(document.getElementById("contiPanel") && !e.target.closest("#contiPanel") && !e.target.closest("#focusContiBtn")) closeConti(); }, true);
 
 /* ---------- 전체화면: 오른쪽 페이지 서랍 ---------- */
 function renderFocusPages(){
@@ -5685,7 +6051,12 @@ function stageBaseWidth(){
   const sheet = currentSheet();
   const aspect = (sheet && sheet._aspect) || lastSheetAspect;
   if(state.fitMode === "page" && sheet && availH > 80) return Math.max(160, Math.min(availW, availH * aspect));
-  return Math.max(160, Math.min(availW, 1200));
+  return Math.max(160, focusMode ? availW : Math.min(availW, 1200));
+}
+function toggleFitMode(){
+  state.fitMode = state.fitMode === "page" ? "width" : "page";
+  setScale(1);
+  if(focusMode) showToast(state.fitMode === "page" ? "한 장 전체 보기" : "폭 맞춤", {ms:1200});
 }
 function applyZoom(){
   const stage = document.getElementById("sheetStage");
@@ -5695,11 +6066,11 @@ function applyZoom(){
   const fb = document.getElementById("fitModeBtn");
   fb.textContent = state.fitMode === "page" ? "↕ 전체 보기" : "↔ 폭 맞춤";
   fb.classList.toggle("active", state.fitMode === "page");
+  const ff = document.getElementById("focusFitBtn");
+  if(ff){ ff.textContent = state.fitMode === "page" ? "↔ 폭맞춤" : "↕ 한 장"; }   // 누르면 바뀔 쪽을 보여 준다
 }
-document.getElementById("fitModeBtn").addEventListener("click", ()=>{
-  state.fitMode = state.fitMode === "page" ? "width" : "page";
-  setScale(1);
-});
+document.getElementById("fitModeBtn").addEventListener("click", toggleFitMode);
+document.getElementById("focusFitBtn").addEventListener("click", toggleFitMode);
 if(window.ResizeObserver){
   new ResizeObserver(()=> applyZoom()).observe(document.getElementById("sheetViewport"));
 }
@@ -5760,7 +6131,20 @@ function buildZoomControls(){
     };
     const pct = document.createElement("span");
     pct.className = "zoomPct"; pct.title = "눌러서 세밀하게 조절"; pct.textContent = Math.round(scale*100) + "%";
-    pct.addEventListener("click", (e)=>{ e.stopPropagation(); toggleZoomPop(pct); });
+    // ％를 좌우로 끌면 연속으로 확대·축소 (오른쪽 = 크게). 끌지 않고 누르면 세밀 조절 창.
+    let scrub = null;
+    pct.style.touchAction = "none";
+    pct.addEventListener("pointerdown", (e)=>{ scrub = {x:e.clientX, s:scale, moved:false}; try{ pct.setPointerCapture(e.pointerId); }catch(err){} });
+    pct.addEventListener("pointermove", (e)=>{
+      if(!scrub) return;
+      const dx = e.clientX - scrub.x;
+      if(!scrub.moved && Math.abs(dx) < 6) return;
+      scrub.moved = true; closeZoomPop();
+      setScale(scrub.s * Math.exp(dx * 0.006));
+    });
+    const endScrub = ()=>{ if(scrub && scrub.moved){ pct._skipClick = true; setTimeout(()=>{ pct._skipClick = false; }, 0); } scrub = null; };
+    pct.addEventListener("pointerup", endScrub); pct.addEventListener("pointercancel", endScrub);
+    pct.addEventListener("click", (e)=>{ e.stopPropagation(); if(pct._skipClick) return; toggleZoomPop(pct); });
     wrap.append(mkBtn("－", -1, "악보 작게 (꾹: 1%씩)"), pct, mkBtn("＋", 1, "악보 크게 (꾹: 1%씩)"));
   });
 }
@@ -5811,42 +6195,61 @@ document.addEventListener("keydown", (e)=>{
 });
 
 (function setupTouchGestures(){
+  /* 두 손가락 핀치 + 두 번 탭한 채 위아래로 끌기(위 = 확대, 아래 = 축소) + 전체화면에서 두 번 탭 = 폭 맞춤 ↔ 한 장.
+   * 아이패드 Safari 는 손가락 팬을 허용한 영역에서 포인터 이벤트(pointercancel)로 핀치가 끊기므로 Touch 이벤트를 쓴다. */
   const viewport = document.getElementById("sheetViewport");
-  const activePointers = new Map();
-  let pinchStartDist = null, pinchStartScale = 1;
+  const IGN = ".markerPill, .markerBracket, .instTag, .textBoxWrap, button, input, select, textarea, .chordTag, .contiPanel, .focusBar";
+  let pinch = null, dbl = null, lastTap = {t:0, x:0, y:0};
+  const tdist = (a, b)=> Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 
-  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
-
-  viewport.addEventListener("pointerdown", (e)=>{
-    if(e.pointerType !== "touch") return;
-    activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-
-    if(activePointers.size === 2){
-      const pts = Array.from(activePointers.values());
-      pinchStartDist = dist(pts[0], pts[1]);
-      pinchStartScale = scale;
+  viewport.addEventListener("touchstart", (e)=>{
+    if(e.touches.length === 2){
+      pinch = {d0: Math.max(10, tdist(e.touches[0], e.touches[1])), s0: scale};
+      dbl = null; return;
     }
-  });
+    if(e.touches.length === 1 && !e.target.closest(IGN) && !placingType && !placingText){
+      const t = e.touches[0], now = Date.now();
+      if(now - lastTap.t < 320 && Math.hypot(t.clientX - lastTap.x, t.clientY - lastTap.y) < 40){
+        dbl = {y0:t.clientY, s0:scale, moved:false, x:t.clientX, y:t.clientY};
+      }
+      lastTap = {t:now, x:t.clientX, y:t.clientY};
+    }
+  }, {passive:true});
 
-  viewport.addEventListener("pointermove", (e)=>{
-    if(e.pointerType !== "touch" || !activePointers.has(e.pointerId)) return;
-    activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-
-    if(activePointers.size === 2 && pinchStartDist){
+  viewport.addEventListener("touchmove", (e)=>{
+    if(pinch && e.touches.length === 2){
       e.preventDefault();
-      const pts = Array.from(activePointers.values());
-      const ratio = dist(pts[0], pts[1]) / pinchStartDist;
-      setScale(pinchStartScale * ratio, (pts[0].x+pts[1].x)/2, (pts[0].y+pts[1].y)/2);
+      const a = e.touches[0], b = e.touches[1];
+      setScale(pinch.s0 * tdist(a, b) / pinch.d0, (a.clientX + b.clientX)/2, (a.clientY + b.clientY)/2);
       return;
+    }
+    if(dbl && e.touches.length === 1){
+      const t = e.touches[0], dy = t.clientY - dbl.y0;
+      if(!dbl.moved && Math.abs(dy) < 8) return;
+      dbl.moved = true; e.preventDefault();
+      setScale(dbl.s0 * Math.exp(-dy * 0.008), dbl.x, dbl.y);
     }
   }, {passive:false});
 
-  function release(e){
-    activePointers.delete(e.pointerId);
-    if(activePointers.size < 2) pinchStartDist = null;
-  }
-  viewport.addEventListener("pointerup", release);
-  viewport.addEventListener("pointercancel", release);
+  viewport.addEventListener("touchend", (e)=>{
+    if(e.touches.length < 2) pinch = null;
+    if(dbl){
+      const moved = dbl.moved; dbl = null;
+      if(!moved && focusMode){ lastTap.t = 0; toggleFitMode(); }
+    }
+  }, {passive:true});
+  viewport.addEventListener("touchcancel", ()=>{ pinch = null; dbl = null; }, {passive:true});
+
+  // 마우스: ⌥(Option)을 누른 채 악보를 위아래로 끌면 확대·축소 (맥 트랙패드 핀치와 ⌘+휠은 그대로)
+  let mz = null;
+  viewport.addEventListener("pointerdown", (e)=>{
+    if(e.pointerType !== "mouse" || !e.altKey || e.target.closest(IGN)) return;
+    mz = {y0:e.clientY, s0:scale, x:e.clientX, y:e.clientY}; e.preventDefault(); e.stopPropagation();
+    try{ viewport.setPointerCapture(e.pointerId); }catch(err){}
+  }, true);
+  viewport.addEventListener("pointermove", (e)=>{ if(mz) setScale(mz.s0 * Math.exp(-(e.clientY - mz.y0) * 0.008), mz.x, mz.y); });
+  const endMz = ()=>{ mz = null; };
+  viewport.addEventListener("pointerup", endMz); viewport.addEventListener("pointercancel", endMz);
 })();
 
 /* ---------- 손가락 스와이프: 페이지 넘김 / 전체화면 종료 ----------
@@ -5951,6 +6354,7 @@ function updateFocusBar(){
 }
 
 function setFocusMode(on){
+  closeConti();
   focusMode = on;
   document.body.classList.toggle("focusMode", on);
   document.querySelector(".app-layout").classList.toggle("focusMode", on);
@@ -6481,7 +6885,11 @@ function onStageClickForMarker(e){
 
 (function setupMarkerDragDrop(){
   const stage = document.getElementById("sheetStage");
-  stage.addEventListener("dragover", (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect="copy"; });
+  stage.addEventListener("dragover", (e)=>{
+    e.preventDefault();
+    const ea = e.dataTransfer.effectAllowed;
+    try{ e.dataTransfer.dropEffect = (ea === "move" || ea === "linkMove") ? "move" : (ea === "link" ? "link" : "copy"); }catch(err){}
+  });
   stage.addEventListener("drop", (e)=>{
     e.preventDefault();
     const key = e.dataTransfer.getData("text/plain");
@@ -6933,6 +7341,7 @@ function renderSettingsPop(p){
     <label class="settingsRow"><input type="checkbox" id="darkInFocusChk"><span>전체화면(연주)에서는 <b>스테이지 다크</b>로 자동 전환<br><span style="color:var(--text-dim); font-size:11px;">악보 종이는 흰색 그대로, 주변만 어두워집니다.</span></span></label>
     <div class="turnerTest"><b>페이지 터너 확인</b> — 페달을 밟아 보세요<br><span id="turnerKeyLabel">${lastTurnerKey ? escapeHtml(lastTurnerKey) : "아직 받은 신호 없음"}</span>
       <div style="color:var(--text-dim); font-size:10px; margin-top:4px;">아무 신호도 안 뜨면 터너를 '방향키' 또는 'PageUp/PageDown' 모드로 바꿔 주세요. (볼륨·카메라 모드는 웹에서 받을 수 없어요)</div></div>
+    <button type="button" id="importLogBtn" style="width:100%; margin-top:8px;">가져오기 기록 보기 (불러오기가 안 될 때)</button>
     <div class="settingsVersion">버전 ${APP_BUILD}</div>`;
   const grid = p.querySelector(".themeGrid");
   THEMES.forEach(t=>{
@@ -6942,6 +7351,9 @@ function renderSettingsPop(p){
       <div class="themeName">${t.name}</div><div class="themeHint">${t.hint}</div>`;
     b.addEventListener("click", ()=>{ state.theme = t.key; applyTheme(); renderSettingsPop(p); scheduleSave(); });
     grid.appendChild(b);
+  });
+  p.querySelector("#importLogBtn").addEventListener("click", ()=>{
+    appAlert("빌드 " + APP_BUILD + " · " + navigator.userAgent.slice(0, 90) + "\n\n" + (importLog.length ? importLog.join("\n") : "(아직 기록이 없어요. 불러오기를 한 번 시도한 뒤 다시 열어 보세요.)"), {title:"가져오기 기록"});
   });
   const chk = p.querySelector("#darkInFocusChk");
   chk.checked = !!state.darkInFocus;
@@ -6967,7 +7379,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.28-7";
+const APP_BUILD = "2026.10.31-1";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

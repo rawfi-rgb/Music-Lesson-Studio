@@ -1883,12 +1883,29 @@ function saveToCurrentTarget(name){
   return saveProjectAsFile(name, {silent:true});
 }
 
+/* 이름 없이 작업하던 내용 보관: 저장해 둔 프로젝트를 열 때 "새 이름을 정해 달라"고 묻는 대신 그냥 열고,
+ * 작업하던 내용은 메모리에 두었다가 알림의 [이전 작업 복구] 로 되살릴 수 있게 한다. */
+let scratchStash = null;
+function restoreScratch(){
+  const st = scratchStash; if(!st) return;
+  scratchStash = null;
+  state.sheets = st.sheets; state.notes = st.notes; state.currentIndex = st.index;
+  currentProjectId = null; currentProjectName = ""; clearLink();
+  refreshUiFromState(); notesArea.value = state.notes || "";
+  setProjectNameInputs(); updateCurrentProjectLabel(); renderSheet(); scheduleSave();
+  showToast("작업하던 내용을 복구했어요");
+}
 async function confirmSwitchAway(opts){
   opts = opts || {};
+  scratchStash = null;
   // 바뀐 게 없으면 묻지 않는다 — 불러오기만 하고 아무것도 안 고쳤는데 저장하라고 하지 않게
   if(!hasUnsavedWork() || !isProjectDirty()) return true;
   if(hasFileLink() && currentProjectName){ await flushFolderAutosave(); if(!isProjectDirty()) return true; }
   const known = currentProjectName || "";
+  if(opts.quietIfUnnamed && !known){
+    scratchStash = {sheets: state.sheets.slice(), notes: state.notes || "", index: state.currentIndex};
+    return true;
+  }
   const synced = cloudReady && currentProjectId;
   const body = synced
     ? `"${known}"은(는) 클라우드에 자동 동기화 중입니다. 지금 한 번 더 저장하고 넘어갈 수 있습니다.`
@@ -1943,11 +1960,12 @@ async function flushCurrentProject(){
 
 async function openProject(id){
   if(!cloudReady) return;
-  if(!(await confirmSwitchAway())) return;
+  if(!(await confirmSwitchAway({quietIfUnnamed:true}))) return;
   try{
     await flushCurrentProject();
     await loadProjectData(id);
     closeLibrary();
+    if(scratchStash) showToast(`'${currentProjectName || "프로젝트"}' 불러옴`, {actions:[{label:"이전 작업 복구", fn:restoreScratch}], ms:9000});
   }catch(err){
     alert("프로젝트 실패: " + (err && err.message ? err.message : err));
   }
@@ -2481,7 +2499,7 @@ async function readProjectFile(file){
 
 async function openProjectData(data, fileName, opts){
   opts = opts || {};
-  if(!(await confirmSwitchAway())) return false;
+  if(!(await confirmSwitchAway({quietIfUnnamed:true}))) return false;
   try{
     await flushCurrentProject();
     await applyProjectFileData(data);
@@ -2497,7 +2515,8 @@ async function openProjectData(data, fileName, opts){
     closeLibrary();
     renderSyncStatus();
     const when = data.savedAt ? new Date(data.savedAt).toLocaleString("ko-KR", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"}) : "";
-    showToast(`'${currentProjectName || "프로젝트"}' 불러옴 · ${state.sheets.length}페이지${when ? " · " + when + " 저장본" : ""}`);
+    showToast(`'${currentProjectName || "프로젝트"}' 불러옴 · ${state.sheets.length}페이지${when ? " · " + when + " 저장본" : ""}`,
+      scratchStash ? {actions:[{label:"이전 작업 복구", fn:restoreScratch}], ms:9000} : undefined);
     return true;
   }catch(err){
     showImportError("프로젝트를 여는 도중 멈췄어요.", err, []);
@@ -7466,7 +7485,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.31-2";
+const APP_BUILD = "2026.10.31-3";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

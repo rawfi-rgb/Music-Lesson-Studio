@@ -813,6 +813,8 @@
   .contiNo{font-weight:800; font-size:12px; color:var(--text-dim); min-width:14px;}
   .contiTitle{font-weight:800; font-size:14px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .contiMeta{font-size:11px; color:var(--text-dim); white-space:nowrap;}
+  body:not(.focusMode) .contiPanel{top:76px; bottom:auto; max-height:calc(100vh - 110px);}
+  .contiEdit:disabled{opacity:0.25; cursor:default;}
   .contiEdit{border:none; background:transparent; color:var(--text-dim); font-size:14px; padding:2px 6px; cursor:pointer;}
   .contiForm{display:flex; flex-wrap:wrap; align-items:center; gap:4px;}
   .contiChip{border:none; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:800; color:#fff; cursor:pointer;}
@@ -1059,6 +1061,7 @@
         <button class="primary" id="uploadBtn">악보 업로드</button>
         <button id="addPageBtn">＋ 페이지</button>
         <button id="pasteBtn" title="굿노트 등 다른 앱에서 복사한 악보(이미지·PDF) 붙여넣기">📋 붙여넣기</button>
+        <button id="contiBtn" title="콘티(곡 순서) 보기 · 이름·색·순서 정하기">🎼 콘티</button>
       </div>
       <input type="file" id="fileInput" multiple>
       <input type="file" id="addPageInput" multiple>
@@ -1150,7 +1153,7 @@
         <div class="keyCtl" data-key-ctl data-btn-class="icon" title="키 · 코드 바꾸기"></div>
         <div class="zoomCtl" data-zoom-ctl data-btn-class="icon" title="악보 크기 (％를 좌우로 끌어도 돼요)"></div>
         <button class="icon" id="focusFitBtn" title="폭 맞춤 ↔ 한 장 전체 보기 (악보를 두 번 탭해도 바뀌어요)">↔ 폭맞춤</button>
-        <button class="icon" id="focusContiBtn" title="전체 곡 콘티(순서) 보기">📋 콘티</button>
+        <button class="icon" id="focusContiBtn" title="전체 곡 콘티(순서) 보기">🎼 콘티</button>
         <button class="icon" id="focusExitBtn">✕ 나가기</button>
       </div>
 
@@ -1753,6 +1756,7 @@ async function syncCurrentProjectQuiet(){
 }
 
 function refreshUiFromState(){
+  pageUndo.length = 0; pageRedo.length = 0;     // 다른 프로젝트로 바뀌면 악보 되돌리기 기록은 비운다
   setTimeout(renderKeyControls, 0);
   rebuildNumeratorOptions();
   document.getElementById("numeratorSel").value = state.beatsPerBar;
@@ -3802,7 +3806,7 @@ function scopeLabel(scope){
   const n = scopeSheets(scope).length;
   return scope === "all" ? `전체 ${n}페이지` : scope === "song" ? `같은 곡 ${n}페이지` : `이 페이지(${state.currentIndex + 1}p)`;
 }
-if(location.hostname === "localhost") window.__mlsDebug = {ocrSheetTokens, pickChords, pdfPageTokens, getPdfDoc, pdfBuffers: ()=>pdfBuffers, currentSheet: ()=>currentSheet(), getOcrWorker, parse: parseChord, fix: fixOcrChord, findStaves, grayOf, otsu};   // 로컬 테스트 전용
+if(location.hostname === "localhost") window.__mlsDebug = {ocrSheetTokens, pickChords, pdfPageTokens, getPdfDoc, pdfBuffers: ()=>pdfBuffers, getState: ()=>state, currentSheet: ()=>currentSheet(), getOcrWorker, parse: parseChord, fix: fixOcrChord, findStaves, grayOf, otsu};   // 로컬 테스트 전용
 function chordsInReadingOrder(sheets){
   const out = [];
   sheets.forEach(s=>{
@@ -5179,6 +5183,8 @@ async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
   try{
     let newPages = [];
     for(const f of files) newPages = newPages.concat(await fileToPages(f));
+    const before = pageSnap();
+    pushPageUndo(replace && before.sheets.length ? `악보 ${newPages.length}페이지로 교체` : `악보 ${newPages.length}페이지 가져오기`, before);
     if(replace){
       state.sheets = newPages;
       state.currentIndex = 0;
@@ -5190,7 +5196,7 @@ async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
     renderSheet();
     scheduleSave();
     showToast((replace ? `악보 ${newPages.length}페이지를 열었습니다` : `＋ ${newPages.length}페이지 추가 · ${state.currentIndex+1} / ${state.sheets.length}`)
-      + (fromGoodNotes ? " · 굿노트 원본 악보 (손글씨 제외)" : ""));
+      + (fromGoodNotes ? " · 굿노트 원본 악보 (손글씨 제외)" : ""), {actions:[{label:"되돌리기 (⌘Z)", fn:undoPageOp}], ms:7000});
   }catch(err){ showImportError("악보를 여는 도중 멈췄어요.", err, files); }
 }
 
@@ -5750,21 +5756,45 @@ function openConti(){
   songs.forEach(sg=>{
     const cur = sg.pages.includes(state.currentIndex);
     const row = document.createElement("div"); row.className = "contiRow" + (cur ? " cur" : "");
-    const dot = `<span class="contiDot" style="background:${sg.color || "var(--border)"}"></span>`;
+    const dot = `<span class="contiDot" title="누르면 곡 색 바꾸기" style="background:${sg.color || "var(--border)"}"></span>`;
     const title = sg.name || ("곡 " + sg.no);
     const range = sg.pages.length > 1 ? `p.${sg.pages[0] + 1}–${sg.pages[sg.pages.length - 1] + 1}` : `p.${sg.pages[0] + 1}`;
     const top = document.createElement("div"); top.className = "contiTop";
     top.innerHTML = `${dot}<span class="contiNo">${sg.no}</span><span class="contiTitle">${escapeHtml(title)}</span><span class="contiMeta">${range}${sg.keyText ? " · 키 " + escapeHtml(sg.keyText) : ""}</span>`;
-    top.addEventListener("click", ()=>{ state.currentIndex = sg.pages[0]; renderSheet(); scheduleSave(); closeConti(); });
+    top.addEventListener("click", (e)=>{
+      if(e.target.closest(".contiDot")){                                    // 곡 색: 다른 곡이 안 쓰는 다음 색으로
+        const used = new Set(songs.filter(o=> o !== sg).map(o=> o.color));
+        const pool = SONG_COLORS.filter(c=> !used.has(c)), at = pool.indexOf(sg.color);
+        const next = pool.length ? pool[(at + 1) % pool.length] : sg.color;
+        if(next === sg.color) return;
+        const before = pageSnap(); pushPageUndo("곡 색 바꾸기", before);
+        sg.pages.forEach(i=>{ state.sheets[i].songColor = next; });
+        renderPageStrip(); scheduleSave(); closeConti(); openConti(); return;
+      }
+      state.currentIndex = sg.pages[0]; renderSheet(); scheduleSave(); closeConti();
+    });
+    const moveSong = (dir)=>(e)=>{                                          // 곡 순서 바꾸기 (페이지 묶음째 이동)
+      e.stopPropagation();
+      const other = songs[songs.indexOf(sg) + dir]; if(!other) return;
+      const before = pageSnap(), cur = state.sheets[state.currentIndex];
+      const order = songs.map(o=> o.pages);
+      const k = songs.indexOf(sg); [order[k], order[k + dir]] = [order[k + dir], order[k]];
+      const nextSheets = []; order.forEach(pg=> pg.forEach(i=> nextSheets.push(state.sheets[i])));
+      pushPageUndo("곡 순서 바꾸기", before);
+      state.sheets = nextSheets; state.currentIndex = Math.max(0, state.sheets.indexOf(cur));
+      renderSheet(); scheduleSave(); closeConti(); openConti();
+    };
+    const mkSmall = (txt, title, fn, off)=>{ const b = document.createElement("button"); b.type = "button"; b.className = "contiEdit"; b.textContent = txt; b.title = title; b.disabled = !!off; b.addEventListener("click", fn); return b; };
     const ed = document.createElement("button"); ed.type = "button"; ed.className = "contiEdit"; ed.textContent = "✎"; ed.title = "곡 이름 정하기";
     ed.addEventListener("click", (e)=>{
       e.stopPropagation();
       const v = prompt("곡 이름 (비우면 '곡 " + sg.no + "')", sg.name || "");
       if(v === null) return;
+      const before = pageSnap(); pushPageUndo("곡 이름 바꾸기", before);
       state.sheets[sg.pages[0]].songName = v.trim() || null;
       scheduleSave(); closeConti(); openConti();
     });
-    top.appendChild(ed);
+    top.append(mkSmall("▲", "곡을 위로", moveSong(-1), sg.no === 1), mkSmall("▼", "곡을 아래로", moveSong(1), sg.no === songs.length), ed);
     row.appendChild(top);
     if(sg.form.length){
       const fl = document.createElement("div"); fl.className = "contiForm";
@@ -5788,8 +5818,9 @@ function openConti(){
   const curRow = p.querySelector(".contiRow.cur"); if(curRow) curRow.scrollIntoView({block:"nearest"});
 }
 document.getElementById("focusContiBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
+document.getElementById("contiBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
 document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && document.getElementById("contiPanel")){ closeConti(); e.stopPropagation(); } }, true);
-document.addEventListener("pointerdown", (e)=>{ if(document.getElementById("contiPanel") && !e.target.closest("#contiPanel") && !e.target.closest("#focusContiBtn")) closeConti(); }, true);
+document.addEventListener("pointerdown", (e)=>{ if(document.getElementById("contiPanel") && !e.target.closest("#contiPanel") && !e.target.closest("#focusContiBtn") && !e.target.closest("#contiBtn")) closeConti(); }, true);
 
 /* ---------- 전체화면: 오른쪽 페이지 서랍 ---------- */
 function renderFocusPages(){
@@ -5874,7 +5905,41 @@ document.getElementById("focusPenTab").addEventListener("click", ()=>{
   renderFocusPen(); scheduleSave();
 });
 
+/* ---------- 악보(페이지) 되돌리기 ----------
+ * 악보 가져오기·삭제·순서 바꾸기는 ⌘Z(Ctrl+Z)로 되돌리고, ⇧⌘Z 로 다시 실행한다. 필기 되돌리기와는 시간 순서로 이어진다. */
+const pageUndo = [], pageRedo = [];
+let lastAnnotAt = 0;
+function pageSnap(){ return {sheets: state.sheets.slice(), index: state.currentIndex, meta: state.sheets.map(sh=> [sh.songColor || null, sh.songName || null])}; }
+function pushPageUndo(label, before){
+  pageUndo.push({label, before, at: Date.now()});
+  if(pageUndo.length > 30) pageUndo.shift();
+  pageRedo.length = 0;
+}
+function restorePageSnap(snap){
+  state.sheets = snap.sheets.slice();
+  state.sheets.forEach((sh, i)=>{ const m = snap.meta && snap.meta[i]; if(m){ sh.songColor = m[0]; sh.songName = m[1]; } });   // 곡 색·이름도 그때 값으로
+  state.currentIndex = Math.max(0, Math.min(snap.index, state.sheets.length - 1));
+  closeConti();
+  renderSheet(); scheduleSave();
+}
+function undoPageOp(){
+  const e = pageUndo.pop(); if(!e) return false;
+  pageRedo.push({label:e.label, after:pageSnap()});
+  restorePageSnap(e.before);
+  showToast("되돌렸어요 · " + e.label, {actions:[{label:"다시 실행", fn:redoPageOp}]});
+  return true;
+}
+function redoPageOp(){
+  const e = pageRedo.pop(); if(!e) return false;
+  pageUndo.push({label:e.label, before:pageSnap(), at:Date.now()});
+  restorePageSnap(e.after);
+  showToast("다시 실행 · " + e.label);
+  return true;
+}
+
 function movePage(from, to){
+  const before = pageSnap();
+  if(from !== to) pushPageUndo("페이지 순서 바꾸기", before);
   const [moved] = state.sheets.splice(from,1);
   state.sheets.splice(to,0,moved);
   if(state.currentIndex===from) state.currentIndex = to;
@@ -5885,12 +5950,28 @@ function movePage(from, to){
 }
 
 function deletePage(i){
-  if(!confirm(`${i+1}번 페이지를 삭제할까요?`)) return;
+  if(!state.sheets[i]) return;
+  const before = pageSnap();
   state.sheets.splice(i,1);
   if(state.currentIndex >= state.sheets.length) state.currentIndex = Math.max(0, state.sheets.length-1);
+  pushPageUndo(`${i+1}번 페이지 삭제`, before);
   renderSheet();
   scheduleSave();
+  showToast(`${i+1}번 페이지를 삭제했어요`, {actions:[{label:"되돌리기", fn:undoPageOp}]});
 }
+// Delete(맥의 ⌫) 키: 고른 코드가 있으면 그 코드, 없으면 지금 보는 악보 페이지를 바로 지운다 (⌘Z 로 되돌릴 수 있음)
+document.addEventListener("keydown", (e)=>{
+  if((e.key !== "Delete" && e.key !== "Backspace") || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+  if(isTypingTarget(document.activeElement) || focusMode || placingType || placingText) return;
+  if(document.querySelector(".libraryOverlay:not([hidden])")) return;
+  const sheet = currentSheet(); if(!sheet) return;
+  if(selChordId){
+    const ch = (sheet.chords || []).find(c=> c.id === selChordId);
+    if(ch){ e.preventDefault(); deleteChordWithUndo(sheet, ch); return; }
+  }
+  e.preventDefault();
+  deletePage(state.currentIndex);
+});
 
 function redrawAnnotations(){
   if(!ctx) return;
@@ -5975,6 +6056,7 @@ function onPointerUp(){
     if(sheet){
       sheet.annotations.push(strokeInProgress);
       sheet.redoStack = [];
+      lastAnnotAt = Date.now(); pageRedo.length = 0;
     }
     scheduleSave();
   }
@@ -6013,8 +6095,13 @@ document.addEventListener("keydown", (e)=>{
   const mod = e.metaKey || e.ctrlKey;
   if(!mod) return;
   const key = e.key.toLowerCase();
-  if(key==="z" && !e.shiftKey){ e.preventDefault(); undoAnnotation(); }
-  else if((key==="z" && e.shiftKey) || key==="y"){ e.preventDefault(); redoAnnotation(); }
+  if(key==="z" && !e.shiftKey){
+    e.preventDefault();
+    const top = pageUndo[pageUndo.length - 1], sh = currentSheet();
+    // 가장 최근에 한 일부터: 방금 필기했으면 필기, 아니면 악보 가져오기·삭제
+    if(top && (!(sh && sh.annotations.length) || top.at >= lastAnnotAt)) undoPageOp(); else undoAnnotation();
+  }
+  else if((key==="z" && e.shiftKey) || key==="y"){ e.preventDefault(); if(pageRedo.length) redoPageOp(); else redoAnnotation(); }
 });
 
 function renderColorSwatches(){
@@ -7379,7 +7466,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.31-1";
+const APP_BUILD = "2026.10.31-2";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

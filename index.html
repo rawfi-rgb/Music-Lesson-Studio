@@ -566,6 +566,38 @@
   .projectActions button{padding:4px 8px; font-size:11px;}
   .libraryEmpty{text-align:center; color:var(--text-muted); font-size:13px; padding:40px 10px;}
 
+
+  /* ---------- 스테이지 뷰 (무대용) ---------- */
+  #stageView{position:fixed; inset:0; z-index:98; background:#000; color:#fff; display:flex; flex-direction:column; padding:max(14px, env(safe-area-inset-top)) 18px max(14px, env(safe-area-inset-bottom)); font-family:-apple-system,"Apple SD Gothic Neo",sans-serif; gap:12px; user-select:none; -webkit-user-select:none;}
+  #stageView[hidden]{display:none;}
+  #stageView button{font-family:inherit; color:#fff; background:#111; border:2px solid #fff; border-radius:14px; font-weight:800; cursor:pointer;}
+  #stageView button:active{background:#fff; color:#000;}
+  .stTop{display:flex; align-items:center; gap:12px;}
+  .stTop .stTitle{flex:1; font-size:clamp(18px,3.2vw,30px); font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .stTop button{padding:8px 16px; font-size:18px;}
+  .stSecs{display:grid; grid-template-columns:1.6fr 1fr; gap:12px; flex:1; min-height:0;}
+  .stCard{border:3px solid #fff; border-radius:20px; padding:12px 18px; display:flex; flex-direction:column; justify-content:center; min-width:0; overflow:hidden;}
+  .stCard small{font-size:clamp(13px,2vw,20px); color:#ffd400; font-weight:800; letter-spacing:.06em;}
+  .stCard.next{border-color:#8a8a8a;} .stCard.next small{color:#9cf;}
+  .stCard .stBig{font-size:clamp(34px,10vw,150px); line-height:1.05; font-weight:900; overflow-wrap:anywhere;}
+  .stCard.next .stBig{font-size:clamp(28px,6.5vw,96px); color:#ddd;}
+  .stCard .stSub{font-size:clamp(14px,2.2vw,24px); color:#bbb; margin-top:4px;}
+  .stBottom{display:flex; align-items:stretch; gap:12px; flex:1; min-height:0;}
+  .stFlash{flex:0 0 clamp(90px,22vw,230px); border:3px solid #fff; border-radius:50%; aspect-ratio:1; align-self:center; background:#000; transition:background .09s, box-shadow .09s;}
+  .stFlash.on{background:#fff; box-shadow:0 0 60px 20px rgba(255,255,255,.7); transition:none;}
+  .stFlash.on.accent{background:#ffd400; box-shadow:0 0 70px 24px rgba(255,212,0,.8);}
+  .stBpm{display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; min-width:0;}
+  .stBpm b{font-size:clamp(60px,16vw,200px); line-height:1; font-weight:900; font-variant-numeric:tabular-nums;}
+  .stBpm span{font-size:clamp(14px,2.4vw,26px); color:#bbb; font-weight:800;}
+  .stBtns{display:grid; grid-template-columns:1fr 1fr; gap:10px; flex:1.2; min-width:0;}
+  .stBtns button{font-size:clamp(18px,3.4vw,38px); padding:6px;}
+  .stBtns .stTap{grid-column:1 / -1; grid-row:span 2; font-size:clamp(30px,7vw,84px); background:#fff; color:#000;}
+  .stBtns .stTap:active{background:#ffd400;}
+  .stBtns .stPlay.on{background:#d60000; border-color:#d60000;}
+  .stNav{display:flex; gap:10px;}
+  .stNav button{flex:1; padding:12px 6px; font-size:clamp(16px,2.8vw,28px);}
+  .stBorder{position:absolute; inset:0; pointer-events:none; border:0 solid #fff; transition:border-width .08s;} .stBorder.on{border-width:10px; transition:none;}
+  @media (max-width:640px){ #stageView{overflow-y:auto;} .stSecs{grid-template-columns:1fr; flex:none;} .stCard{padding:8px 14px; overflow:visible;} .stBottom{flex-direction:column; flex:none;} .stFlash{display:none;} .stBpm b{font-size:clamp(60px,26vw,140px);} .stBtns{flex:none;} .stBtns .stTap{grid-row:auto; padding:18px 0;} .stBtns button{padding:12px 6px;} .stNav{flex-wrap:wrap;} .stNav button{flex:1 1 44%;} }
   .libTabs{display:flex; gap:6px; margin-bottom:16px; background:var(--panel-alt); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border);}
   .libTabs button{flex:1; border:none; background:transparent; border-radius:4px;}
   .libTabs button.active{background:var(--panel); color:var(--text); box-shadow:var(--shadow-sm);}
@@ -1062,6 +1094,7 @@
         <button id="addPageBtn">＋ 페이지</button>
         <button id="pasteBtn" title="굿노트 등 다른 앱에서 복사한 악보(이미지·PDF) 붙여넣기">📋 붙여넣기</button>
         <button id="contiBtn" title="콘티(곡 순서) 보기 · 이름·색·순서 정하기">🎼 콘티</button>
+        <button id="stageBtn" title="무대용 스테이지 뷰 (검정 화면 · 현재/다음 섹션 · 큰 탭 템포)">🎤 스테이지</button>
       </div>
       <input type="file" id="fileInput" multiple>
       <input type="file" id="addPageInput" multiple>
@@ -1243,6 +1276,21 @@
 
 </div>
 
+<div id="stageView" hidden>
+  <div class="stBorder" id="stBorder"></div>
+  <div class="stTop"><div class="stTitle" id="stTitle"></div><button id="stMidiLbl" style="display:none; font-size:14px; padding:4px 10px;"></button><button id="stExit">✕ 종료</button></div>
+  <div class="stSecs">
+    <div class="stCard" id="stCur"><small>지금 · 현재 섹션</small><div class="stBig" id="stCurBig">—</div><div class="stSub" id="stCurSub"></div></div>
+    <div class="stCard next" id="stNext"><small>다음 섹션 (탭하면 넘김)</small><div class="stBig" id="stNextBig">—</div><div class="stSub" id="stNextSub"></div></div>
+  </div>
+  <div class="stBottom">
+    <div class="stFlash" id="stFlash"></div>
+    <div class="stBpm"><b id="stBpm">100</b><span>BPM · <span id="stMeter">4/4</span></span></div>
+    <div class="stBtns"><button class="stTap" id="stTap">TAP</button><button class="stPlay" id="stPlay">▶ 시작</button><button id="stLoop">A-B 반복</button></div>
+  </div>
+  <div class="stNav"><button id="stSongPrev">◀ 이전 곡</button><button id="stPagePrev">⟨ 이전 페이지</button><button id="stPageNext">다음 페이지 ⟩</button><button id="stSongNext">다음 곡 ▶</button></div>
+</div>
+
 <div class="libraryOverlay" id="libraryOverlay" hidden>
   <div class="libraryPanel">
     <div class="libraryHead">
@@ -1253,6 +1301,7 @@
       <div class="libTabs">
         <button class="active" id="tabCloud" data-tab="cloud">클라우드</button>
         <button id="tabLocal" data-tab="local">iCloud</button>
+        <button id="tabSetlist" data-tab="setlist">셋리스트</button>
         <button id="tabExport" data-tab="export">내보내기</button>
       </div>
 
@@ -1289,6 +1338,13 @@
           <button id="fallbackLoadBtn" style="width:100%; margin-top:8px;">☁️ iCloud에서 열기</button>
           <input type="file" id="fallbackLoadInput" style="display:none;">
         </div>
+      </div>
+
+      <div id="setlistSection" style="display:none;">
+        <div class="hint" style="padding:0 0 10px; line-height:1.6;">공연 순서대로 곡(저장한 프로젝트)을 모아 두세요. 스테이지 뷰에서 ‘다음 곡’ 으로 순서대로 넘어갑니다. (클라우드에 저장한 프로젝트가 대상이에요)</div>
+        <div class="saveRow"><select id="setlistAddSel" style="flex:1;"></select><button class="primary" id="setlistAddBtn">추가</button></div>
+        <div id="setlistList" style="margin:10px 0;"></div>
+        <button class="primary" id="setlistStageBtn" style="width:100%;">🎤 스테이지 뷰 시작</button>
       </div>
 
       <div id="exportSection" style="display:none;">
@@ -2048,6 +2104,8 @@ document.querySelectorAll(".libTabs button").forEach(btn=>{
     document.getElementById("cloudSection").style.display = tab==="cloud" ? "block" : "none";
     document.getElementById("localSection").style.display = tab==="local" ? "block" : "none";
     document.getElementById("exportSection").style.display = tab==="export" ? "block" : "none";
+    document.getElementById("setlistSection").style.display = tab==="setlist" ? "block" : "none";
+    if(tab==="setlist") renderSetlist();
   });
 });
 
@@ -4766,6 +4824,7 @@ function visualLoop(){
 }
 
 function flashBeat(beat){
+  if(typeof stageFlash === "function") stageFlash((state.beatPattern[beat] || "normal") === "accent");
   pulseDockRing((state.beatPattern[beat] || "normal") === "accent");
   clearBeatFlash();
   const dot = document.querySelector(`.beatDot[data-index="${beat}"]`);
@@ -6749,7 +6808,7 @@ function turnerDirection(e){
   const sg = turnerSig(e);
   if(turnerCustom.next.includes(sg)) return 1;
   if(turnerCustom.prev.includes(sg)) return -1;
-  if(e.key === " " || e.key === "Spacebar" || e.code === "Space") return e.shiftKey ? -1 : 1;
+  if(e.key === " " || e.key === "Spacebar" || e.code === "Space") return spaceMode() === "play" ? 0 : (e.shiftKey ? -1 : 1);
   if(PAGE_NEXT_KEYS.has(e.key) || NEXT_CODES.has(e.code)) return 1;
   if(PAGE_PREV_KEYS.has(e.key) || PREV_CODES.has(e.code)) return -1;
   if(!e.key || e.key === "Unidentified"){
@@ -7542,6 +7601,11 @@ function renderSettingsPop(p){
       <div id="turnerLearnInfo" style="color:var(--text-dim); font-size:10px; margin-top:4px;">${escapeHtml(turnerInfoText())}</div>
       <div style="color:var(--text-dim); font-size:10px; margin-top:2px;">버튼을 누른 뒤 페달을 한 번 밟으면 그 신호가 등록돼요. 위에 신호가 떴는데도 안 넘어가면 등록해 보세요.</div></div>
     <label class="settingsRow"><input type="checkbox" id="turnerMediaChk"><span>미디어 키 모드 (터너가 ‘다음 곡/이전 곡’ 버튼을 보내는 경우)<br><span style="color:var(--text-dim); font-size:11px;">소리 없는 오디오가 재생 중으로 표시되고, 다른 앱의 음악은 멈출 수 있어요.</span></span></label>
+    <div class="turnerTest"><b>라이브 페달</b>
+      <label class="settingsRow"><input type="checkbox" id="spacePlayChk"><span>Space 키 = 메트로놈 + 오디오 재생/정지<br><span style="color:var(--text-dim); font-size:11px;">끄면 Space 가 다음 페이지(Shift+Space 이전)로 돌아갑니다.</span></span></label>
+      <label class="settingsRow"><input type="checkbox" id="midiChk"><span>MIDI 페달 사용 (Web MIDI)<br><span style="color:var(--text-dim); font-size:11px;">CC#64 다음 · #65 이전 · #80 재생/정지 · #81 A-B 반복 — 밟을 때 한 번만 동작</span></span></label>
+      <div id="midiInfo" style="color:var(--text-dim); font-size:11px;"></div>
+    </div>
     <button type="button" id="importLogBtn" style="width:100%; margin-top:8px;">가져오기 기록 보기 (불러오기가 안 될 때)</button>
     <div class="settingsVersion">버전 ${APP_BUILD}</div>`;
   const grid = p.querySelector(".themeGrid");
@@ -7559,6 +7623,11 @@ function renderSettingsPop(p){
   p.querySelector("#turnerLearnNext").addEventListener("click", ()=>{ turnerLearn = "next"; showToast("지금 '다음 페이지' 페달을 한 번 밟아 주세요", {ms:6000}); });
   p.querySelector("#turnerLearnPrev").addEventListener("click", ()=>{ turnerLearn = "prev"; showToast("지금 '이전 페이지' 페달을 한 번 밟아 주세요", {ms:6000}); });
   p.querySelector("#turnerLearnReset").addEventListener("click", ()=>{ turnerCustom = {next:[], prev:[]}; saveTurnerCustom(); p.querySelector("#turnerLearnInfo").textContent = turnerInfoText(); });
+  const sp = p.querySelector("#spacePlayChk"); sp.checked = spaceMode() === "play";
+  sp.addEventListener("change", ()=>{ try{ localStorage.setItem("mls-space", sp.checked ? "play" : "page"); }catch(err){} });
+  const mi = p.querySelector("#midiChk"); mi.checked = midiPref();
+  mi.addEventListener("change", async ()=>{ const ok = await enableMidi(mi.checked); if(!ok) mi.checked = false; midiBind(); });
+  midiBind();
   const mchk = p.querySelector("#turnerMediaChk");
   mchk.checked = mediaTurnerPref();
   mchk.addEventListener("change", ()=>{
@@ -7586,11 +7655,198 @@ document.getElementById("settingsBtn").addEventListener("click", (e)=>{
 });
 document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings(); });
 
+
+/* ============ 라이브 페달 · 셋리스트 · 스테이지 뷰 ============
+ * 키보드/블루투스 페달: PageDown·→ 다음, PageUp·← 이전 (위의 페이지 터너 코드),  Space = 메트로놈+오디오 동시 재생/정지.
+ * MIDI 페달(Web MIDI): CC#64 다음 페이지 · CC#65 이전 페이지 · CC#80 재생/정지 · CC#81 A-B 구간 반복 켜기/끄기.
+ * 페달은 밟을 때(값 ≥ 64)만 한 번 반응하고, 뗄 때(값 < 64)는 무시한다. */
+function spaceMode(){ try{ return localStorage.getItem("mls-space") === "page" ? "page" : "play"; }catch(err){ return "play"; } }
+
+function playStopAll(){
+  const audioOn = !!(audioEl && !audioEl.paused);
+  if(isPlaying || audioOn){
+    if(isPlaying) stopMetronome();
+    if(audioEl && !audioEl.paused) audioEl.pause();
+  } else {
+    ensureAudio();
+    if(audioCtx.state === "suspended") audioCtx.resume();
+    startMetronome();
+    if(audioEl) audioEl.play().catch(()=>{});
+  }
+  stageSync();
+}
+window.addEventListener("keydown", (e)=>{
+  if(!(e.key === " " || e.code === "Space") || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+  if(spaceMode() !== "play" || turnerLearn) return;
+  if(turnerCustom.next.includes(turnerSig(e)) || turnerCustom.prev.includes(turnerSig(e))) return;
+  const t = document.activeElement;
+  if(isTypingTarget(t) && Date.now() - lastTypingAt < 8000) return;
+  if(t && (t.tagName === "SELECT" || t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && /^(text|number|search|email|url|tel|password)$/i.test(t.type || "text")))) return;
+  if(t && t.tagName === "BUTTON" && !focusMode && !stageOpen()) return;
+  e.preventDefault();
+  if(e.repeat) return;
+  if(t && t.blur && t.tagName !== "BODY") t.blur();
+  playStopAll();
+}, true);
+
+let abStash = null;
+function toggleABLoop(){
+  if(!audioEl){ showToast("오디오를 먼저 불러와 주세요"); return; }
+  if(loopStart != null && loopEnd != null){ abStash = {a:loopStart, b:loopEnd}; loopStart = loopEnd = null; showToast("구간 반복 꺼짐"); }
+  else if(abStash){ loopStart = abStash.a; loopEnd = abStash.b; abStash = null; if(audioEl.currentTime > loopEnd || audioEl.currentTime < loopStart) audioEl.currentTime = loopStart; showToast("구간 반복 켜짐 " + fmtTime(loopStart) + " ~ " + fmtTime(loopEnd)); }
+  else if(loopStart == null){ loopStart = audioEl.currentTime; showToast("A 지점 " + fmtTime(loopStart) + " — 한 번 더 누르면 B 지점"); }
+  else { loopEnd = audioEl.currentTime; if(loopEnd <= loopStart){ loopEnd = null; showToast("B 지점이 A 보다 앞이에요"); } else showToast("구간 반복 켜짐 " + fmtTime(loopStart) + " ~ " + fmtTime(loopEnd)); }
+  updateLoopHint(); stageSync();
+}
+document.getElementById("clearLoopBtn").addEventListener("click", ()=>{ abStash = null; stageSync(); });
+
+/* ---- Web MIDI ---- */
+let midiAccess = null; const midiHeld = {};
+function midiPref(){ try{ return localStorage.getItem("mls-midi") === "1"; }catch(err){ return false; } }
+const MIDI_ACTIONS = {64:["다음 페이지", ()=> goNextPage()], 65:["이전 페이지", ()=> goPrevPage()], 80:["재생/정지", ()=> playStopAll()], 81:["A-B 반복", ()=> toggleABLoop()]};
+function onMidiMessage(ev){
+  const [st, d1, d2] = ev.data; if(st === undefined || (st & 0xF0) !== 0xB0) return;   // Control Change 만
+  const on = d2 >= 64, was = !!midiHeld[d1]; midiHeld[d1] = on;
+  const act = MIDI_ACTIONS[d1];
+  lastTurnerKey = `MIDI CC#${d1} = ${d2}` + (act ? " → " + act[0] : " (연결 안 된 번호)");
+  const kt = document.getElementById("turnerKeyLabel"); if(kt) kt.textContent = lastTurnerKey;
+  if(!act || !on || was) return;       // 밟는 순간 한 번만
+  act[1]();
+}
+function midiBind(){
+  if(!midiAccess) return;
+  let n = 0;
+  midiAccess.inputs.forEach(inp=>{ inp.onmidimessage = onMidiMessage; n++; });
+  midiAccess.onstatechange = ()=>{ midiBind(); };
+  const lbl = document.getElementById("stMidiLbl");
+  if(lbl){ lbl.style.display = midiPref() ? "" : "none"; lbl.textContent = "MIDI " + n; }
+  const info = document.getElementById("midiInfo");
+  if(info){ const names = []; midiAccess.inputs.forEach(i=> names.push(i.name)); info.textContent = n ? "연결된 MIDI 입력: " + names.join(", ") : "연결된 MIDI 장치 없음 — 페달/키보드를 USB·블루투스로 연결하세요"; }
+}
+async function enableMidi(on){
+  try{ localStorage.setItem("mls-midi", on ? "1" : "0"); }catch(err){}
+  if(!on){ if(midiAccess){ midiAccess.inputs.forEach(i=>{ i.onmidimessage = null; }); midiAccess.onstatechange = null; } midiAccess = null; midiBind(); return true; }
+  if(!navigator.requestMIDIAccess){ showToast("이 브라우저는 Web MIDI 를 지원하지 않아요 (맥 Chrome 이나 MIDI 앱 연동 필요 — 아이패드 Safari 는 미지원)", {ms:7000}); return false; }
+  try{ midiAccess = await navigator.requestMIDIAccess({sysex:false}); midiBind(); return true; }
+  catch(err){ showToast("MIDI 권한을 받지 못했어요: " + (err && err.message || err), {ms:6000}); return false; }
+}
+if(midiPref()) enableMidi(true);
+
+/* ---- 셋리스트 (보관함 탭) ---- */
+function loadSetlist(){ try{ const a = JSON.parse(localStorage.getItem("mls-setlist") || "[]"); return Array.isArray(a) ? a.filter(x=> x && x.id) : []; }catch(err){ return []; } }
+function saveSetlist(a){ try{ localStorage.setItem("mls-setlist", JSON.stringify(a)); }catch(err){} }
+function renderSetlist(){
+  const list = loadSetlist(), box = document.getElementById("setlistList"), sel = document.getElementById("setlistAddSel");
+  if(!box || !sel) return;
+  sel.innerHTML = "";
+  const rest = (cachedProjectList || []).filter(p=> !list.some(x=> x.id === p.id));
+  rest.forEach(p=>{ const o = document.createElement("option"); o.value = p.id; o.textContent = p.name || "(제목 없음)"; sel.appendChild(o); });
+  if(!rest.length){ const o = document.createElement("option"); o.textContent = cloudReady ? "추가할 프로젝트가 없어요" : "클라우드 프로젝트를 쓸 수 없어요"; o.value = ""; sel.appendChild(o); }
+  box.innerHTML = "";
+  if(!list.length){ box.innerHTML = '<div class="libraryEmpty">셋리스트가 비어 있어요. 위에서 곡을 추가하세요.</div>'; return; }
+  list.forEach((it, i)=>{
+    const row = document.createElement("div"); row.className = "projectItem"; row.style.alignItems = "center";
+    const live = (cachedProjectList || []).find(p=> p.id === it.id);
+    const name = live ? (live.name || it.name) : it.name;
+    row.innerHTML = `<div class="projectMeta"><div class="pname">${i+1}. ${escapeHtml(name || "(제목 없음)")}${it.id === currentProjectId ? " · 현재" : ""}</div></div>`;
+    const act = document.createElement("div"); act.className = "projectActions";
+    const mk = (t, fn)=>{ const b = document.createElement("button"); b.className = "icon"; b.textContent = t; b.addEventListener("click", fn); act.appendChild(b); };
+    mk("열기", ()=> openProject(it.id));
+    mk("▲", ()=>{ if(i > 0){ [list[i-1], list[i]] = [list[i], list[i-1]]; saveSetlist(list); renderSetlist(); } });
+    mk("▼", ()=>{ if(i < list.length - 1){ [list[i+1], list[i]] = [list[i], list[i+1]]; saveSetlist(list); renderSetlist(); } });
+    mk("✕", ()=>{ list.splice(i, 1); saveSetlist(list); renderSetlist(); });
+    row.appendChild(act); box.appendChild(row);
+  });
+}
+document.getElementById("setlistAddBtn").addEventListener("click", ()=>{
+  const id = document.getElementById("setlistAddSel").value; if(!id) return;
+  const p = (cachedProjectList || []).find(x=> x.id === id); if(!p) return;
+  const list = loadSetlist(); list.push({id, name:p.name || ""}); saveSetlist(list); renderSetlist();
+});
+document.getElementById("setlistStageBtn").addEventListener("click", ()=>{ closeLibrary(); openStage(); });
+
+/* ---- 스테이지 뷰 ---- */
+const stageEl = document.getElementById("stageView");
+let stageTimer = null, stageSecIdx = 0, stageSecKey = "";
+const stageOpen = ()=> !stageEl.hidden;
+function stageSections(){
+  const out = [];
+  state.sheets.forEach((sh, i)=>{
+    (sh.markers || []).filter(m=> m.kind !== "inst" && m.label).slice()
+      .sort((a,b)=> (a.yPct||0) - (b.yPct||0) || (a.xPct||0) - (b.xPct||0))
+      .forEach(m=> out.push({label:m.label + (m.bar ? " · " + m.bar + "마디" : ""), page:i}));
+  });
+  return out;
+}
+function stageFlash(accent){
+  if(!stageOpen()) return;
+  const f = document.getElementById("stFlash"), b = document.getElementById("stBorder");
+  f.classList.add("on"); b.classList.add("on"); f.classList.toggle("accent", !!accent);
+  clearTimeout(stageFlash.t); stageFlash.t = setTimeout(()=>{ f.classList.remove("on"); b.classList.remove("on"); }, 90);
+}
+function stageSync(){
+  if(!stageOpen()) return;
+  const secs = stageSections(), key = state.currentIndex + ":" + secs.length + ":" + currentProjectId;
+  if(key !== stageSecKey){   // 페이지가 바뀌면 그 페이지의 첫 섹션(없으면 직전 섹션)을 현재로
+    stageSecKey = key;
+    let idx = secs.findIndex(x=> x.page === state.currentIndex);
+    if(idx < 0){ idx = -1; secs.forEach((x, n)=>{ if(x.page < state.currentIndex) idx = n; }); }
+    stageSecIdx = Math.max(0, idx);
+  }
+  stageSecIdx = Math.min(stageSecIdx, Math.max(0, secs.length - 1));
+  const cur = secs[stageSecIdx], nxt = secs[stageSecIdx + 1];
+  const pg = `p.${state.currentIndex + 1}/${state.sheets.length}`;
+  document.getElementById("stCurBig").textContent = cur ? cur.label : "송폼 표시 없음";
+  document.getElementById("stCurSub").textContent = cur ? `${pg} · 섹션 ${stageSecIdx + 1}/${secs.length}` : pg;
+  document.getElementById("stNextBig").textContent = nxt ? nxt.label : (secs.length ? "끝 (곡 마지막)" : "—");
+  document.getElementById("stNextSub").textContent = nxt ? `p.${nxt.page + 1}` : "";
+  const sl = loadSetlist(), si = sl.findIndex(x=> x.id === currentProjectId);
+  document.getElementById("stTitle").textContent = (si >= 0 ? `${si + 1}/${sl.length} · ` : "") + (currentProjectName || "(제목 없음)") + (state.sheets[state.currentIndex] && state.sheets[state.currentIndex].songName ? " — " + state.sheets[state.currentIndex].songName : "");
+  document.getElementById("stBpm").textContent = state.bpm;
+  document.getElementById("stMeter").textContent = state.beatsPerBar + "/" + state.beatUnit;
+  const pl = document.getElementById("stPlay"); pl.textContent = isPlaying ? "■ 정지" : "▶ 시작"; pl.classList.toggle("on", isPlaying);
+  const lp = document.getElementById("stLoop"); lp.textContent = (loopStart != null && loopEnd != null) ? "A-B 반복 켜짐" : abStash ? "A-B 반복 (꺼짐)" : loopStart != null ? "A 지정됨…" : "A-B 반복";
+  lp.style.background = (loopStart != null && loopEnd != null) ? "#fff" : ""; lp.style.color = (loopStart != null && loopEnd != null) ? "#000" : "";
+}
+function openStage(){
+  closeConti(); closeSettings();
+  stageEl.hidden = false; stageSecKey = "";
+  stageSync(); clearInterval(stageTimer); stageTimer = setInterval(stageSync, 250);
+  if(midiAccess) midiBind();
+  try{ if(stageEl.requestFullscreen && !document.fullscreenElement && !window.claude) stageEl.requestFullscreen().catch(()=>{}); }catch(err){}
+}
+function closeStage(){
+  stageEl.hidden = true; clearInterval(stageTimer);
+  try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(err){}
+}
+function stageSongStep(d){
+  const sl = loadSetlist(), si = sl.findIndex(x=> x.id === currentProjectId);
+  if(si >= 0){
+    const n = sl[si + d]; if(!n){ showToast(d > 0 ? "셋리스트의 마지막 곡이에요" : "첫 곡이에요"); return; }
+    openProject(n.id).then(()=> stageSync()); return;
+  }
+  const groups = computeContiSongs(); if(!groups.length) return;
+  const g = groups.findIndex(x=> (x.pages || []).includes(state.currentIndex)), t = groups[g + d];
+  if(!t){ showToast(d > 0 ? "마지막 곡이에요" : "첫 곡이에요"); return; }
+  state.currentIndex = t.pages[0]; renderSheet(); scheduleSave(); stageSync();
+}
+document.getElementById("stageBtn").addEventListener("click", openStage);
+document.getElementById("stExit").addEventListener("click", closeStage);
+document.getElementById("stTap").addEventListener("click", ()=>{ document.getElementById("tapTempoBtn").click(); stageSync(); });
+document.getElementById("stPlay").addEventListener("click", playStopAll);
+document.getElementById("stLoop").addEventListener("click", toggleABLoop);
+document.getElementById("stPagePrev").addEventListener("click", ()=>{ goPrevPage(); stageSync(); });
+document.getElementById("stPageNext").addEventListener("click", ()=>{ goNextPage(); stageSync(); });
+document.getElementById("stSongPrev").addEventListener("click", ()=> stageSongStep(-1));
+document.getElementById("stSongNext").addEventListener("click", ()=> stageSongStep(1));
+document.getElementById("stNext").addEventListener("click", ()=>{ stageSecIdx++; stageSync(); });
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && stageOpen()) closeStage(); });
+
 /* ============ 버전 · 자동 업데이트 ============
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-1";
+const APP_BUILD = "2026.11.02-2";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

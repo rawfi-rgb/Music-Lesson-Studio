@@ -257,6 +257,7 @@
   .sheetViewport{flex:1; overflow:auto; display:flex; justify-content:flex-start; align-items:flex-start; padding:24px; position:relative; background:var(--bg); touch-action:pan-x pan-y; overscroll-behavior:contain;}
   .sheetStage{position:relative; width:100%; max-width:1200px; margin:0 auto; flex-shrink:0; background:var(--paper); color:var(--paper-ink); box-shadow:var(--shadow); height:fit-content; border-radius:4px; overflow:hidden;}
   .sheetStage.placing{cursor:crosshair;}
+  .sheetStage.laserMode, .sheetStage.laserMode canvas{cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='12' cy='12' r='6' fill='%23ff2020' stroke='white' stroke-width='2'/></svg>") 12 12, crosshair;}
   .sheetStage img{display:block; width:100%; height:auto; user-select:none; pointer-events:none;}
 
   /* height:auto — 캔버스가 이미지와 같은 비율을 유지 (스테이지 높이와 상관없이 필기가 늘어나거나 밀리지 않게) */
@@ -604,6 +605,25 @@
   .wfBar{display:flex; align-items:center; gap:4px; margin-top:4px; flex-wrap:wrap;}
   .wfBar button{padding:2px 8px;} .wfBar button.on{background:var(--accent,#c67139); color:#fff;}
   .wfHint{font-size:10px; color:var(--text-dim); flex:1; min-width:120px;}
+
+  .chordQuick{display:inline-flex; gap:3px; flex-wrap:wrap; margin-left:6px;}
+  .chordQuick button{padding:1px 7px; font-size:11px; border-radius:999px; font-weight:700;}
+  .vGuide{position:absolute; top:0; bottom:0; width:0; border-left:1.5px dashed rgba(40,110,220,.65); z-index:5; pointer-events:none; transform:translateX(-0.75px);}
+  .vGuide.hot{border-left-color:#e0245e; border-left-style:solid;}
+  .vGuide .gH{position:absolute; top:-2px; left:-9px; width:18px; height:18px; border-radius:9px; background:rgba(40,110,220,.9); color:#fff; font-size:10px; line-height:18px; text-align:center; cursor:ew-resize; pointer-events:auto; touch-action:none;}
+  .vGuide .gX{position:absolute; top:20px; left:-8px; width:16px; height:16px; border-radius:8px; background:#fff; color:#d33; font-size:10px; line-height:16px; text-align:center; cursor:pointer; pointer-events:auto; box-shadow:0 0 0 1px #aaa;}
+  #laserCv{position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:97;}
+  .chordSug{position:fixed; z-index:99; background:var(--panel,#fff); color:var(--text,#222); border:1px solid var(--border,#bbb); border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.25); padding:4px; display:flex; gap:4px; flex-wrap:wrap; max-width:320px;}
+  .chordSug button{padding:3px 9px; font-size:13px; font-weight:700; border-radius:8px;}
+  .layerPop{position:fixed; z-index:96; width:300px; max-width:94vw; background:var(--panel,#fff); color:var(--text,#222); border:1px solid var(--border,#bbb); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.3); padding:10px;}
+  .layerPop h4{margin:0 0 6px; font-size:13px;}
+  .layerPop .lpHead, .layerPop .lpRow{display:grid; grid-template-columns:1fr 34px 34px; align-items:center; gap:4px;}
+  .layerPop .lpHead{font-size:10px; color:var(--text-dim,#888); text-align:center; margin-bottom:2px;} .layerPop .lpHead span:first-child{text-align:left;}
+  .layerPop .lpRow{padding:3px 4px; border-radius:8px; border:1.5px solid transparent;} .layerPop .lpRow.active{border-color:var(--accent,#c67139); background:rgba(198,113,57,.10);}
+  .layerPop .lpName{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; cursor:pointer; min-width:0;}
+  .layerPop .lpDot{width:12px; height:12px; border-radius:50%; flex:none;} .layerPop .lpCnt{font-weight:400; font-size:10px; color:var(--text-dim,#888);}
+  .layerPop input[type=checkbox]{width:18px; height:18px; justify-self:center;}
+  .layerPop .lpHint{font-size:10px; color:var(--text-dim,#888); margin-top:6px; line-height:1.5;}
   .libTabs{display:flex; gap:6px; margin-bottom:16px; background:var(--panel-alt); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border);}
   .libTabs button{flex:1; border:none; background:transparent; border-radius:4px;}
   .libTabs button.active{background:var(--panel); color:var(--text); box-shadow:var(--shadow-sm);}
@@ -1130,6 +1150,9 @@
         <div class="row" id="colorSwatches" style="padding:0 4px;"></div>
         <input type="range" id="penWidth" min="1" max="12" value="3" style="width:50px;" title="굵기">
         <button class="icon" id="eraserTool" title="지우개">🧽</button>
+        <button class="icon" id="laserTool" title="레이저 포인터 — 누른 채 움직이면 반짝이는 빨간 점이 생기고 1초 뒤 사라져요">🔴</button>
+        <button class="icon" id="spotTool" title="스포트라이트 (레이저 도구와 함께 — 누르고 있는 곳만 밝게)">🔦</button>
+        <button class="icon" id="layerBtn" title="레이어 — 필기를 공통/악기별로 나누어 보이기·내보내기 관리">🗂 <span id="layerBtnLbl">공통</span></button>
         <button class="icon" id="undoBtn" title="실행취소">↺</button>
         <button class="icon" id="redoBtn" title="다시실행">↻</button>
         <button class="icon" id="clearBtn" title="전체지우기">🗑</button>
@@ -1137,6 +1160,7 @@
 
       <div class="toolbar-group">
         <button class="icon" id="textTool">🔤 텍스트</button>
+        <button class="icon" id="guideBtn" title="수직 가이드 라인 추가 — 텍스트 마킹을 같은 세로 위치에 맞춰요 (가까이 끌면 자석처럼 붙음)">┃ 가이드</button>
         <div class="row" id="textFontControls" style="display:none; padding-left:4px;">
           <select id="fontFamilySel" style="padding:2px 4px; font-size:11px;">
             <option value="inherit">기본</option>
@@ -1150,6 +1174,7 @@
           <button class="icon" id="fontSizeDown">A-</button>
           <span id="fontSizeLabel" style="font-size:11px; ">16</span>
           <button class="icon" id="fontSizeUp">A+</button>
+          <span class="chordQuick" id="chordQuick" title="커서 위치에 코드 꼬리 넣기"></span>
         </div>
       </div>
 
@@ -1731,7 +1756,7 @@ async function buildPagesData(){
       sheet._cloudImageCache = imageB64;
       sheet.dirtyImage = false;
     }
-    pagesData.push({index:i, image:imageB64, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null, songName:sheet.songName||null, chords:sheet.chords||null, key:sheet.key||null, transpose:sheet.transpose||0});
+    pagesData.push({index:i, image:imageB64, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], guides:sheet.guides||[], songColor:sheet.songColor||null, songName:sheet.songName||null, chords:sheet.chords||null, key:sheet.key||null, transpose:sheet.transpose||0});
   }
   return pagesData;
 }
@@ -1884,7 +1909,7 @@ async function loadProjectData(id){
     const blob = pd.image ? await dataUrlToBlob(pd.image) : null;
     sheets.push({
       id: uid(), blob, dirtyImage:false, _cloudImageCache: pd.image || null,
-      annotations: pd.annotations||[], markers: pd.markers||[], textBoxes: pd.textBoxes||[], songColor: pd.songColor||null, songName: pd.songName||null,
+      annotations: pd.annotations||[], markers: pd.markers||[], textBoxes: pd.textBoxes||[], guides: pd.guides||[], songColor: pd.songColor||null, songName: pd.songName||null,
       chords: pd.chords||null, key: pd.key||null, transpose: pd.transpose||0,
     });
   }
@@ -1914,7 +1939,7 @@ function hashStr(str){
 }
 function projectSignature(){
   return hashStr(JSON.stringify({
-    p: state.sheets.map(s=>[s.id, s.annotations||[], s.markers||[], s.textBoxes||[], s.songColor||null, s.songName||null, s.chords||null, s.key||null, s.transpose||0]),
+    p: state.sheets.map(s=>[s.id, s.annotations||[], s.markers||[], s.textBoxes||[], s.guides||[], s.songColor||null, s.songName||null, s.chords||null, s.key||null, s.transpose||0]),
     k: [state.songKey||null, state.transpose||0],
     n: state.notes || "", b: [state.bpm, state.beatsPerBar, state.beatUnit, state.beatPattern],
   }));
@@ -2226,7 +2251,7 @@ async function buildProjectFileData(name){
   for(const sheet of state.sheets){
     if(sheet.kind==="pdf" && !(sheet.blob instanceof Blob)) await ensurePageBlob(sheet);
     const image = sheet.blob instanceof Blob ? await compressBlobForLocalSave(sheet.blob) : null;
-    pages.push({image, srcW: sheet.blob instanceof Blob ? localSaveSrcW(sheet.blob) : null, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], songColor:sheet.songColor||null, songName:sheet.songName||null, chords:sheet.chords||null, textItems:sheet.textItems||null, key:sheet.key||null, transpose:sheet.transpose||0});
+    pages.push({image, srcW: sheet.blob instanceof Blob ? localSaveSrcW(sheet.blob) : null, annotations:sheet.annotations||[], markers:sheet.markers||[], textBoxes:sheet.textBoxes||[], guides:sheet.guides||[], songColor:sheet.songColor||null, songName:sheet.songName||null, chords:sheet.chords||null, textItems:sheet.textItems||null, key:sheet.key||null, transpose:sheet.transpose||0});
   }
   return {
     __type:"music-lesson-studio-project", version:1,
@@ -2436,7 +2461,7 @@ async function applyProjectFileData(data){
   let legacyShift = 0;
   for(const p of (data.pages||[])){
     const blob = p.image ? await dataUrlToBlob(p.image) : null;
-    const sh = {id:uid(), blob, dirtyImage:true, annotations:p.annotations||[], markers:p.markers||[], textBoxes:p.textBoxes||[], songColor:p.songColor||null, songName:p.songName||null, chords:p.chords||null, textItems:p.textItems||null, key:p.key||null, transpose:p.transpose||0};
+    const sh = {id:uid(), blob, dirtyImage:true, annotations:p.annotations||[], markers:p.markers||[], textBoxes:p.textBoxes||[], guides:p.guides||[], songColor:p.songColor||null, songName:p.songName||null, chords:p.chords||null, textItems:p.textItems||null, key:p.key||null, transpose:p.transpose||0};
     if(p.srcW) await fitAnnotationsToImage(sh, p.srcW);
     else if(blob && sh.annotations.length){
       // 예전 버전 파일: 2000px 넘는 원본을 줄여 저장하면서 필기 좌표는 그대로 둬서 어긋난다.
@@ -4423,14 +4448,7 @@ async function composePageCanvas(sheet, refWidth, opts){
   const ink = document.createElement("canvas");
   ink.width = W; ink.height = H;
   const ig = ink.getContext("2d");
-  (sheet.annotations||[]).forEach(stroke=>{
-    ig.globalCompositeOperation = stroke.mode==="erase" ? "destination-out" : "source-over";
-    ig.strokeStyle = stroke.color; ig.lineWidth = stroke.width;
-    ig.lineCap = "round"; ig.lineJoin = "round";
-    ig.beginPath();
-    (stroke.points||[]).forEach((p,i)=> i===0 ? ig.moveTo(p.x,p.y) : ig.lineTo(p.x,p.y));
-    ig.stroke();
-  });
+  paintStrokes(sheet.annotations||[], ig, W, H, (k)=> !layerPrefs.noExport[k]);   // 내보내기 체크가 꺼진 레이어는 제외
   g.drawImage(ink, 0, 0);
 
   const s = W / refWidth;
@@ -5982,6 +6000,9 @@ function renderFocusPen(){
   };
   mk("✏️", "펜", ()=>{ setTool("pen"); }, currentTool==="pen" ? "active" : "");
   mk("🧽", "지우개", ()=>{ setTool("eraser"); }, currentTool==="eraser" ? "active" : "");
+  mk("🔴", "레이저 포인터", ()=>{ setTool(currentTool === "laser" ? "pen" : "laser"); }, currentTool==="laser" ? "active" : "");
+  mk("🔦", "스포트라이트 켜기/끄기", ()=>{ toggleSpot(); }, laserSpot ? "active" : "");
+  mk("🗂", "레이어 (현재: " + layerLabel(layerPrefs.active) + ")", (ev)=>{ openLayerPop(ev.currentTarget); });
   body.appendChild(Object.assign(document.createElement("div"), {className:"fpSep"}));
   COLORS.forEach(c=>{
     const b = mk("", "펜 색", ()=>{ penColor = c; setTool("pen"); renderColorSwatches(); }, "fpSwatch" + (c===penColor && currentTool==="pen" ? " selected" : ""));
@@ -6084,22 +6105,37 @@ document.addEventListener("keydown", (e)=>{
   deletePage(state.currentIndex);
 });
 
+/* 레이어: 필기마다 stroke.layer ("all"=공통 또는 악기 key). 지우개는 자기 레이어의 필기만 지운다. */
+const COMMON_LAYER = {key:"all", label:"공통", color:"#201e1d"};
+function layerList(){ return [COMMON_LAYER].concat(allInstruments()); }
+let layerPrefs = {active:"all", hide:{}, noExport:{}};
+try{ const j = JSON.parse(localStorage.getItem("mls-layers") || "null"); if(j && typeof j === "object") layerPrefs = Object.assign(layerPrefs, j, {hide:j.hide || {}, noExport:j.noExport || {}}); }catch(err){}
+function saveLayerPrefs(){ try{ localStorage.setItem("mls-layers", JSON.stringify(layerPrefs)); }catch(err){} }
+const strokeLayer = (st)=> st.layer || "all";
+function paintStrokes(strokes, g, W, H, pred){
+  const groups = new Map();
+  strokes.forEach(st=>{ const k = strokeLayer(st); if(!pred(k)) return; if(!groups.has(k)) groups.set(k, []); groups.get(k).push(st); });
+  groups.forEach(list=>{
+    let tg = g, tc = null;
+    if(list.some(x=> x.mode === "erase")){ tc = document.createElement("canvas"); tc.width = W; tc.height = H; tg = tc.getContext("2d"); }   // 레이어별로 따로 그려야 지우개가 다른 레이어를 안 건드린다
+    list.forEach(stroke=>{
+      tg.globalCompositeOperation = stroke.mode==="erase" ? "destination-out" : "source-over";
+      tg.strokeStyle = stroke.color; tg.lineWidth = stroke.width; tg.lineCap = "round"; tg.lineJoin = "round";
+      tg.beginPath();
+      (stroke.points||[]).forEach((p,i)=> i===0 ? tg.moveTo(p.x,p.y) : tg.lineTo(p.x,p.y));
+      tg.stroke();
+    });
+    tg.globalCompositeOperation = "source-over";
+    if(tc) g.drawImage(tc, 0, 0);
+  });
+}
 function redrawAnnotations(){
   if(!ctx) return;
   ctx.clearRect(0,0,canvasEl.width, canvasEl.height);
   const sheet = currentSheet();
   if(!sheet) return;
-  sheet.annotations.forEach(stroke=>{
-    ctx.globalCompositeOperation = stroke.mode==="erase" ? "destination-out" : "source-over";
-    ctx.strokeStyle = stroke.color;
-    ctx.lineWidth = stroke.width;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    stroke.points.forEach((p,i)=> i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
-    ctx.stroke();
-  });
   ctx.globalCompositeOperation = "source-over";
+  paintStrokes(sheet.annotations, ctx, canvasEl.width, canvasEl.height, (k)=> !layerPrefs.hide[k]);
 }
 
 function canvasCoords(evt){
@@ -6134,9 +6170,12 @@ function onPointerDown(e){
   if(!sheet) return;
   e.preventDefault();
   try{ canvasEl.setPointerCapture(e.pointerId); }catch(err){}
+  if(currentTool === "laser"){ laserDown(e); return; }
   if(focusMode && e.pointerType==="pen" && !state.focusPenOpen){ state.focusPenOpen = true; renderFocusPen(); }
+  if(layerPrefs.hide[layerPrefs.active]){ delete layerPrefs.hide[layerPrefs.active]; saveLayerPrefs(); redrawAnnotations(); refreshLayerPop(); }   // 숨긴 레이어에 쓰면 자동으로 보이게
   const {x,y} = canvasCoords(e);
   strokeInProgress = {
+    layer: layerPrefs.active,
     color: currentTool==="eraser" ? "#000" : penColor,
     width: currentTool==="eraser" ? 22 : parseInt(document.getElementById("penWidth").value,10),
     mode: currentTool==="eraser" ? "erase" : "draw",
@@ -6145,6 +6184,7 @@ function onPointerDown(e){
 }
 
 function onPointerMove(e){
+  if(laserHeld){ laserMove(e); return; }
   if(!strokeInProgress) return;
   const {x,y} = canvasCoords(e);
   strokeInProgress.points.push({x,y});
@@ -6161,6 +6201,7 @@ function onPointerMove(e){
 }
 
 function onPointerUp(){
+  if(laserHeld){ laserUp(); return; }
   if(!strokeInProgress) return;
   if(strokeInProgress.points.length === 1){   // 한 번 찍기(점·지우개 톡)도 한 획으로 남겨 ⌘Z 가 되게
     const q = strokeInProgress.points[0];
@@ -6179,7 +6220,9 @@ function onPointerUp(){
     }
     scheduleSave();
   }
+  const wasErase = strokeInProgress.mode === "erase";
   strokeInProgress = null;
+  if(wasErase) redrawAnnotations();   // 지우개는 자기 레이어만 — 화면을 레이어별로 다시 그린다
 }
 
 function undoAnnotation(){
@@ -6248,6 +6291,8 @@ function setTool(tool){
   currentTool = tool;
   document.getElementById("penTool").classList.toggle("active", tool==="pen");
   document.getElementById("eraserTool").classList.toggle("active", tool==="eraser");
+  document.getElementById("laserTool").classList.toggle("active", tool==="laser");
+  document.getElementById("sheetStage").classList.toggle("laserMode", tool==="laser");
   if(focusMode) renderFocusPen();
 }
 document.getElementById("penWidth").addEventListener("input", ()=>{ if(focusMode) renderFocusPen(); });
@@ -6624,7 +6669,7 @@ function undockAll(){
   dockedNodes.clear();
 }
 
-const RAIL_ICONS = {penTool:"✏️", eraserTool:"🧽", textTool:"가", undoBtn:"↺", redoBtn:"↻", snapToggle:"🧲"};
+const RAIL_ICONS = {penTool:"✏️", eraserTool:"🧽", laserTool:"🔴", spotTool:"🔦", layerBtn:"🗂", guideBtn:"┃", textTool:"가", undoBtn:"↺", redoBtn:"↻", snapToggle:"🧲"};
 const railOriginalHTML = new Map();
 function enterLessonLayout(){
   const rail = document.getElementById("railSlot");
@@ -7412,6 +7457,7 @@ function renderTextBoxes(){
     });
     stage.appendChild(wrap);
   });
+  renderGuides();
 }
 
 window.addEventListener("pointermove", (e)=>{
@@ -7421,7 +7467,9 @@ window.addEventListener("pointermove", (e)=>{
   let yPct = ((e.clientY-rect.top)/rect.height)*100;
   xPct = Math.max(0,Math.min(100,xPct)); yPct = Math.max(0,Math.min(100,yPct));
   dragTextBox.tb.xPct = xPct; dragTextBox.tb.yPct = yPct;
+  snapTextToGuides(dragTextBox.tb);
   renderTextBoxes();
+  snapTextToGuides(dragTextBox.tb);   // 다시 그린 뒤 강조선 표시
 });
 window.addEventListener("pointerup", ()=>{ if(dragTextBox){ dragTextBox=null; scheduleSave(); } });
 
@@ -8086,11 +8134,209 @@ wfTick();
 document.getElementById("audioSeek").addEventListener("input", ()=> wfDraw());
 window.addEventListener("resize", wfDraw);
 
+
+/* ============ 레이어 스위처 · 레이저/스포트라이트 · 텍스트 코드 단축 · 수직 가이드 ============ */
+function layerLabel(k){ const l = layerList().find(x=> x.key === k); return l ? l.label : "공통"; }
+function updateLayerBtn(){
+  const l = layerList().find(x=> x.key === layerPrefs.active) || COMMON_LAYER;
+  const b = document.getElementById("layerBtnLbl"); if(b) b.textContent = l.label;
+  const btn = document.getElementById("layerBtn"); if(btn){ btn.style.boxShadow = layerPrefs.active === "all" ? "" : `inset 0 -3px 0 ${l.color}`; }
+}
+function setActiveLayer(k){
+  layerPrefs.active = k; saveLayerPrefs();
+  const l = layerList().find(x=> x.key === k);
+  if(l && k !== "all"){ penColor = l.color; if(currentTool === "laser") setTool("pen"); try{ renderColorSwatches(); }catch(err){} }
+  updateLayerBtn(); refreshLayerPop(); if(focusMode) renderFocusPen();
+}
+function layerCounts(){
+  const c = {}; const sh = currentSheet();
+  (sh ? sh.annotations : []).forEach(st=>{ if(st.mode !== "erase"){ const k = strokeLayer(st); c[k] = (c[k] || 0) + 1; } });
+  return c;
+}
+function refreshLayerPop(){
+  const p = document.getElementById("layerPop"); if(!p) return;
+  const cnt = layerCounts(), list = layerList();
+  const body = p.querySelector(".lpBody"); body.innerHTML = "";
+  list.forEach(l=>{
+    const row = document.createElement("div"); row.className = "lpRow" + (layerPrefs.active === l.key ? " active" : "");
+    const name = document.createElement("div"); name.className = "lpName"; name.title = "이 레이어에 필기하기";
+    name.innerHTML = `<span class="lpDot" style="background:${l.color}"></span><span>${escapeHtml(l.label)}</span><span class="lpCnt">${cnt[l.key] ? cnt[l.key] + "획" : ""}</span>`;
+    name.addEventListener("click", ()=> setActiveLayer(l.key));
+    const mkChk = (checked, title, fn)=>{ const c = document.createElement("input"); c.type = "checkbox"; c.checked = checked; c.title = title; c.addEventListener("change", ()=> fn(c.checked)); return c; };
+    row.appendChild(name);
+    row.appendChild(mkChk(!layerPrefs.hide[l.key], "화면에 보이기", (v)=>{ if(v) delete layerPrefs.hide[l.key]; else layerPrefs.hide[l.key] = true; saveLayerPrefs(); redrawAnnotations(); }));
+    row.appendChild(mkChk(!layerPrefs.noExport[l.key], "내보내기(PNG·PDF)에 포함", (v)=>{ if(v) delete layerPrefs.noExport[l.key]; else layerPrefs.noExport[l.key] = true; saveLayerPrefs(); }));
+    body.appendChild(row);
+  });
+}
+function closeLayerPop(){ const p = document.getElementById("layerPop"); if(p) p.remove(); }
+function openLayerPop(anchor){
+  if(document.getElementById("layerPop")){ closeLayerPop(); return; }
+  const p = document.createElement("div"); p.className = "layerPop"; p.id = "layerPop";
+  p.innerHTML = `<h4>🗂 필기 레이어</h4><div class="lpHead"><span>이름을 눌러 그 레이어에 필기</span><span>👁 보기</span><span>📤 내보내기</span></div><div class="lpBody"></div>
+    <div class="lpHint">‘공통’은 모두가 보는 필기, 악기 레이어는 파트별 메모예요. 악기 레이어를 고르면 펜 색이 그 악기 색으로 바뀌고, 지우개는 고른 레이어의 필기만 지워요. 내보내기 체크를 끄면 PNG·PDF에서 빠집니다.</div>`;
+  document.body.appendChild(p); refreshLayerPop();
+  const r = anchor.getBoundingClientRect();
+  p.style.left = Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.left)) + "px";
+  const below = r.bottom + 8 + p.offsetHeight < window.innerHeight;
+  p.style.top = (below ? r.bottom + 8 : Math.max(8, window.innerHeight - p.offsetHeight - 8)) + "px";
+  setTimeout(()=> document.addEventListener("pointerdown", function off(ev){
+    if(!ev.target.closest("#layerPop") && !ev.target.closest("#layerBtn")){ closeLayerPop(); document.removeEventListener("pointerdown", off, true); }
+  }, true), 0);
+}
+document.getElementById("layerBtn").addEventListener("click", (e)=> openLayerPop(e.currentTarget));
+updateLayerBtn();
+
+/* ---- 레이저 포인터 / 스포트라이트 ---- */
+const laserCv = document.createElement("canvas"); laserCv.id = "laserCv"; document.body.appendChild(laserCv);
+let laserPts = [], laserHeld = false, laserLast = null, laserRel = 0, laserSpot = false, laserRaf = 0;
+function toggleSpot(){
+  laserSpot = !laserSpot;
+  document.getElementById("spotTool").classList.toggle("active", laserSpot);
+  if(laserSpot && currentTool !== "laser") setTool("laser");
+  if(focusMode) renderFocusPen();
+  showToast(laserSpot ? "스포트라이트 켜짐 — 누르고 있는 곳만 밝아져요" : "스포트라이트 꺼짐", {ms:1600});
+}
+function laserDown(e){ laserHeld = true; laserPush(e); }
+function laserMove(e){ laserPush(e); }
+function laserUp(){ laserHeld = false; laserRel = performance.now(); laserLoop(); }
+function laserPush(e){ const t = performance.now(); laserLast = {x:e.clientX, y:e.clientY, t}; laserPts.push(laserLast); if(laserPts.length > 400) laserPts.shift(); laserLoop(); }
+function laserLoop(){
+  if(laserRaf) return;
+  laserRaf = requestAnimationFrame(function f(){
+    laserRaf = 0; laserDraw();
+    if(laserHeld || laserPts.length || (laserSpot && performance.now() - laserRel < 1000)) laserLoop();
+  });
+}
+function laserDraw(){
+  const dpr = window.devicePixelRatio || 1, W = window.innerWidth, H = window.innerHeight;
+  if(laserCv.width !== Math.round(W * dpr) || laserCv.height !== Math.round(H * dpr)){ laserCv.width = Math.round(W * dpr); laserCv.height = Math.round(H * dpr); }
+  const g = laserCv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const now = performance.now();
+  laserPts = laserPts.filter(p=> now - p.t < 1000);
+  if(laserSpot && laserLast){
+    const k = laserHeld ? 1 : Math.max(0, 1 - (now - laserRel) / 1000);
+    if(k > 0){
+      g.fillStyle = `rgba(0,0,0,${0.58 * k})`; g.fillRect(0, 0, W, H);
+      g.globalCompositeOperation = "destination-out";
+      const gr = g.createRadialGradient(laserLast.x, laserLast.y, 40, laserLast.x, laserLast.y, 120); gr.addColorStop(0, `rgba(0,0,0,${k})`); gr.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = gr; g.beginPath(); g.arc(laserLast.x, laserLast.y, 120, 0, 7); g.fill();
+      g.globalCompositeOperation = "source-over";
+    }
+  }
+  laserPts.forEach((p, i)=>{
+    const age = (now - p.t) / 1000, a = (1 - age) * (0.7 + 0.3 * Math.sin(now / 45 + i)), r = 6 + 10 * (1 - age);
+    const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.2);
+    gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(0.25, `rgba(255,40,40,${a})`); gr.addColorStop(1, "rgba(255,0,0,0)");
+    g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, r * 2.2, 0, 7); g.fill();
+  });
+  if(laserHeld && laserLast){   // 머리 점은 또렷하게
+    g.fillStyle = "#ff1f1f"; g.shadowColor = "#ff1f1f"; g.shadowBlur = 18; g.beginPath(); g.arc(laserLast.x, laserLast.y, 7, 0, 7); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(laserLast.x - 1.5, laserLast.y - 1.5, 2.5, 0, 7); g.fill();
+  }
+}
+document.getElementById("laserTool").addEventListener("click", ()=> setTool(currentTool === "laser" ? "pen" : "laser"));
+document.getElementById("spotTool").addEventListener("click", toggleSpot);
+
+/* ---- 텍스트 마킹: 코드 꼬리 단축 버튼 + 입력 중 자동 완성 ---- */
+const CHORD_QUICK = ["Maj7","m7","m7b5","dim","add9","7","sus4"];
+const CHORD_SUFFIXES = ["Maj7","m7","m7b5","dim","dim7","add9","7","9","m9","6","m6","sus4","sus2","7sus4","aug","7b9","7#9","M7","m(maj7)","11","13"];
+function selectedTextEl(){ return document.querySelector(".textBoxWrap.selected .textBoxEl") || document.querySelector(".textBoxWrap .textBoxEl:focus"); }
+function insertChordText(txt){
+  const el = selectedTextEl(); if(!el){ showToast("텍스트 상자를 먼저 눌러 선택하세요"); return; }
+  el.focus();
+  if(!document.execCommand("insertText", false, txt)){ el.textContent += txt; el.dispatchEvent(new Event("input", {bubbles:true})); }
+  hideChordSug();
+}
+(function(){
+  const q = document.getElementById("chordQuick");
+  CHORD_QUICK.forEach(t=>{
+    const b = document.createElement("button"); b.type = "button"; b.className = "icon"; b.textContent = t; b.title = "커서 위치에 " + t + " 넣기";
+    b.addEventListener("pointerdown", (e)=> e.preventDefault());      // 입력 칸의 커서/포커스를 유지
+    b.addEventListener("mousedown", (e)=> e.preventDefault());
+    b.addEventListener("click", ()=> insertChordText(t));
+    q.appendChild(b);
+  });
+})();
+let chordSugEl = null;
+function hideChordSug(){ if(chordSugEl){ chordSugEl.remove(); chordSugEl = null; } }
+function showChordSug(el){
+  const sel = window.getSelection(); if(!sel.rangeCount || !el.contains(sel.anchorNode)) return hideChordSug();
+  const before = (sel.anchorNode.textContent || "").slice(0, sel.anchorOffset);
+  const m = before.match(/(^|[\s|/(])([A-G][#b♯♭]?)([A-Za-z0-9#♭♯()]*)$/);
+  if(!m) return hideChordSug();
+  const typed = m[3], root = m[2];
+  let cands = CHORD_SUFFIXES.filter(sf=> sf.startsWith(typed) && sf !== typed);   // m(마이너) 과 M(메이저) 구분
+  if(!cands.length) cands = CHORD_SUFFIXES.filter(sf=> sf.toLowerCase().startsWith(typed.toLowerCase()) && sf !== typed);
+  cands = cands.slice(0, 8);
+  if(!cands.length || (!typed && before.length - root.length > 0 && /[A-Za-z]/.test(before.slice(-root.length - 1, -root.length)))) return hideChordSug();
+  hideChordSug();
+  chordSugEl = document.createElement("div"); chordSugEl.className = "chordSug";
+  cands.forEach((sf, i)=>{
+    const b = document.createElement("button"); b.type = "button"; b.textContent = root + sf; b.title = i === 0 ? "Tab 으로 첫 번째 선택" : "";
+    b.addEventListener("pointerdown", (e)=> e.preventDefault());
+    b.addEventListener("click", ()=>{
+      el.focus();
+      for(let k = 0; k < typed.length; k++) document.execCommand("delete");
+      document.execCommand("insertText", false, sf);
+      hideChordSug();
+    });
+    chordSugEl.appendChild(b);
+  });
+  document.body.appendChild(chordSugEl);
+  const r = el.getBoundingClientRect();
+  chordSugEl.style.left = Math.max(8, Math.min(window.innerWidth - chordSugEl.offsetWidth - 8, r.left)) + "px";
+  chordSugEl.style.top = (r.bottom + 6 + chordSugEl.offsetHeight < window.innerHeight ? r.bottom + 6 : Math.max(8, r.top - chordSugEl.offsetHeight - 6)) + "px";
+}
+document.addEventListener("input", (e)=>{ if(e.target.classList && e.target.classList.contains("textBoxEl")) showChordSug(e.target); }, true);
+document.addEventListener("keydown", (e)=>{
+  if(!chordSugEl) return;
+  if(e.key === "Tab" && !e.shiftKey){ e.preventDefault(); const b = chordSugEl.querySelector("button"); if(b) b.click(); }
+  else if(e.key === "Escape" || e.key === "Enter") hideChordSug();
+}, true);
+document.addEventListener("pointerdown", (e)=>{ if(chordSugEl && !e.target.closest(".chordSug")) hideChordSug(); }, true);
+
+/* ---- 수직 가이드 라인 ---- */
+function renderGuides(){
+  document.querySelectorAll(".vGuide").forEach(el=> el.remove());
+  const sheet = currentSheet(); if(!sheet || !(sheet.guides || []).length) return;
+  const stage = document.getElementById("sheetStage");
+  sheet.guides.forEach((x, i)=>{
+    const g = document.createElement("div"); g.className = "vGuide"; g.dataset.i = i; g.style.left = x + "%";
+    const h = document.createElement("div"); h.className = "gH"; h.textContent = "↔"; h.title = "끌어서 옮기기";
+    const del = document.createElement("div"); del.className = "gX"; del.textContent = "✕"; del.title = "가이드 지우기";
+    del.addEventListener("pointerdown", (ev)=>{ ev.stopPropagation(); ev.preventDefault(); sheet.guides.splice(i, 1); renderGuides(); scheduleSave(); });
+    h.addEventListener("pointerdown", (ev)=>{
+      ev.stopPropagation(); ev.preventDefault(); try{ h.setPointerCapture(ev.pointerId); }catch(err){}
+      const rect = stage.getBoundingClientRect();
+      const mv = (e2)=>{ sheet.guides[i] = Math.max(0, Math.min(100, (e2.clientX - rect.left) / rect.width * 100)); g.style.left = sheet.guides[i] + "%"; };
+      const up = ()=>{ h.removeEventListener("pointermove", mv); h.removeEventListener("pointerup", up); h.removeEventListener("pointercancel", up); scheduleSave(); };
+      h.addEventListener("pointermove", mv); h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
+    });
+    g.appendChild(h); g.appendChild(del); stage.appendChild(g);
+  });
+}
+function snapTextToGuides(tb){
+  const sheet = currentSheet(); if(!sheet || !(sheet.guides || []).length) return;
+  let best = null, bd = 1.3;
+  sheet.guides.forEach((x, i)=>{ const d = Math.abs(x - tb.xPct); if(d < bd){ bd = d; best = i; } });
+  document.querySelectorAll(".vGuide").forEach(el=> el.classList.toggle("hot", best != null && +el.dataset.i === best));
+  if(best != null) tb.xPct = sheet.guides[best];
+}
+document.getElementById("guideBtn").addEventListener("click", ()=>{
+  const sheet = currentSheet(); if(!sheet) return;
+  if(!Array.isArray(sheet.guides)) sheet.guides = [];
+  sheet.guides.push(sheet.guides.length ? Math.min(98, sheet.guides[sheet.guides.length - 1] + 12) : 50);
+  renderGuides(); scheduleSave();
+  showToast("세로 가이드를 추가했어요 — 위쪽 ↔ 를 끌어 위치를 맞추고, 텍스트 상자를 가까이 끌면 자석처럼 붙어요", {ms:4200});
+});
+window.addEventListener("pointerup", ()=> document.querySelectorAll(".vGuide.hot").forEach(el=> el.classList.remove("hot")));
+
 /* ============ 버전 · 자동 업데이트 ============
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-3";
+const APP_BUILD = "2026.11.02-4";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

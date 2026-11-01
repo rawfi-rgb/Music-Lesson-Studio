@@ -598,6 +598,12 @@
   .stNav button{flex:1; padding:12px 6px; font-size:clamp(16px,2.8vw,28px);}
   .stBorder{position:absolute; inset:0; pointer-events:none; border:0 solid #fff; transition:border-width .08s;} .stBorder.on{border-width:10px; transition:none;}
   @media (max-width:640px){ #stageView{overflow-y:auto;} .stSecs{grid-template-columns:1fr; flex:none;} .stCard{padding:8px 14px; overflow:visible;} .stBottom{flex-direction:column; flex:none;} .stFlash{display:none;} .stBpm b{font-size:clamp(60px,26vw,140px);} .stBtns{flex:none;} .stBtns .stTap{grid-row:auto; padding:18px 0;} .stBtns button{padding:12px 6px;} .stNav{flex-wrap:wrap;} .stNav button{flex:1 1 44%;} }
+
+  .wfBox{margin:0 0 10px;}
+  #wfCanvas{width:100%; height:96px; display:block; border-radius:8px; background:var(--panel-alt); border:1px solid var(--border); touch-action:none; cursor:crosshair;}
+  .wfBar{display:flex; align-items:center; gap:4px; margin-top:4px; flex-wrap:wrap;}
+  .wfBar button{padding:2px 8px;} .wfBar button.on{background:var(--accent,#c67139); color:#fff;}
+  .wfHint{font-size:10px; color:var(--text-dim); flex:1; min-width:120px;}
   .libTabs{display:flex; gap:6px; margin-bottom:16px; background:var(--panel-alt); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border);}
   .libTabs button{flex:1; border:none; background:transparent; border-radius:4px;}
   .libTabs button.active{background:var(--panel); color:var(--text); box-shadow:var(--shadow-sm);}
@@ -1047,13 +1053,26 @@
           <input type="range" id="audioSeek" min="0" max="100" value="0" step="0.1" style="flex:1;">
         </div>
         <div class="hint" id="audioTimeLabel" style="padding:0 0 8px; ">0:00 / 0:00</div>
+        <div class="wfBox">
+          <canvas id="wfCanvas" height="96"></canvas>
+          <div class="wfBar">
+            <button class="icon" id="wfZoomOut" title="축소">－</button><button class="icon" id="wfZoomIn" title="확대">＋</button><button class="icon" id="wfZoomAll" title="전체 보기">⤢</button>
+            <button class="icon" id="wfLoopTgl" title="구간 반복 켜기/끄기">🔁</button>
+            <span class="wfHint" id="wfHint">파형을 드래그해 A-B 구간 지정 · 눌러서 이동</span>
+          </div>
+          <input type="range" id="wfScroll" min="0" max="1000" value="0" style="display:none; width:100%;">
+        </div>
 
         <label>재생 속도: <span id="audioRateLabel">100%</span></label>
         <input type="range" id="audioRateSlider" min="0.5" max="1.5" step="0.05" value="1">
         <div class="row" style="margin:6px 0 10px;">
           <input type="checkbox" id="preservePitchChk" checked style="width:auto;">
-          <label for="preservePitchChk" style="margin:0;">음정 유지</label>
+          <label for="preservePitchChk" style="margin:0;">음정 유지 (타임 스트레치)</label>
         </div>
+
+        <label>피치(키): <span id="pitchLabel">0</span> 반음</label>
+        <input type="range" id="pitchSlider" min="-6" max="6" step="1" value="0">
+        <div class="row" style="margin:6px 0 10px;"><button class="icon" id="pitchDown">♭ −1</button><button class="icon" id="pitchUp">♯ +1</button><button class="icon" id="pitchReset" style="flex:1;">원음</button></div>
 
         <label>재생 볼륨</label>
         <input type="range" id="audioVolumeSlider" min="0" max="1" step="0.01" value="0.8">
@@ -3967,6 +3986,7 @@ function stepKey(d){
   scopeSheets(state.keyScope || "page").forEach(s=>{ if((s.chords||[]).length) s.transpose = t; });
   if(t !== 0) state.showChordBoxes = false;
   renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave();
+  if(typeof syncAudioPitchFromKey === "function") syncAudioPitchFromKey(true);
 }
 
 function renderKeyControls(){
@@ -4241,6 +4261,8 @@ function openKeyPop(anchor){
     <label class="kpLabel">표기 <select id="kpSpell"><option value="auto">자동 (구간마다 흐름에 맞게)</option><option value="sharp">♯ 위주 (C♯ D♯ F♯ G♯ A♯)</option><option value="flat">♭ 위주 (D♭ E♭ G♭ A♭ B♭)</option></select></label>
     <div class="kpRow"><button id="kpReset">원래대로 (0)</button><button id="kpAdd" title="인식이 놓친 코드를 직접">＋ 코드 추가</button></div>
     <label class="settingsRow"><input type="checkbox" id="kpBoxes"><span>인식된 코드 확인·고치기 (테두리 표시, 눌러서 수정)</span></label>
+    <label class="kpLabel">오디오 피치 <select id="kpPitch"><option value="">물어보기</option><option value="on">키를 바꾸면 오디오도 같이 이동</option><option value="off">동기화 안 함</option></select></label>
+    <div class="kpRow"><button id="kpPitchNow" title="지금 키 이동량(±6 한도)을 오디오 피치에 적용">🎧 지금 오디오 키 맞추기</button></div>
     <div class="zpHint">키와 상관없이 모든 코드가 반음씩 움직여요 (곡 중간 전조도 그대로). 범위를 고르면 그 페이지들에만 적용돼요. 오선 위 음표는 그대로예요.</div>`;
   p.querySelectorAll(".kpScope button").forEach(b=> b.addEventListener("click", ()=>{ state.keyScope = b.dataset.scope; updateKeyPop(); scheduleSave(); }));
   p.querySelector("#kpRecog").addEventListener("click", ()=> recognizeChords(false));
@@ -4251,8 +4273,14 @@ function openKeyPop(anchor){
   p.querySelector("#kpSpell").addEventListener("change", (e)=>{ state.chordSpelling = e.target.value; renderChords(); renderKeyControls(); scheduleSave(); });
   p.querySelector("#kpDown").addEventListener("click", ()=> stepKey(-1));
   p.querySelector("#kpUp").addEventListener("click", ()=> stepKey(1));
-  p.querySelector("#kpReset").addEventListener("click", ()=>{ scopeSheets(state.keyScope || "page").forEach(s=>{ s.transpose = 0; }); renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave(); });
+  p.querySelector("#kpReset").addEventListener("click", ()=>{ scopeSheets(state.keyScope || "page").forEach(s=>{ s.transpose = 0; }); renderChords(); renderKeyControls(); updateKeyPop(); scheduleSave(); syncAudioPitchFromKey(false); });
   p.querySelector("#kpAdd").addEventListener("click", ()=>{ closeKeyPop(); setAddingChord(!addingChord); });
+  const kpp = p.querySelector("#kpPitch"); kpp.value = pitchSyncPref();
+  kpp.addEventListener("change", ()=>{ setPitchSyncPref(kpp.value); if(kpp.value === "on") syncAudioPitchFromKey(false); });
+  p.querySelector("#kpPitchNow").addEventListener("click", ()=>{
+    if(!audioEl){ showToast("오디오를 먼저 불러와 주세요"); return; }
+    const cur = currentSheet(); setPitch(wrapSemis(cur && cur.transpose || 0)); showToast("오디오 피치 " + (pitchSemis > 0 ? "+" : "") + pitchSemis + " 반음");
+  });
   p.querySelector("#kpBoxes").addEventListener("change", (e)=>{ state.showChordBoxes = e.target.checked; renderChords(); scheduleSave(); });
   document.body.appendChild(p);
   updateKeyPop();
@@ -4837,6 +4865,7 @@ function flashBeat(beat){
 let audioEl = null;
 let audioGainNode = null;
 let loopStart = null, loopEnd = null;
+let audioSource = null;
 
 function fmtTime(s){
   s = Math.max(0, Math.floor(s||0));
@@ -4858,9 +4887,12 @@ function loadAudioFile(file){
   audioEl = new Audio(url);
   audioEl.preload = "auto";
   const source = audioCtx.createMediaElementSource(audioEl);
+  audioSource = source;
   audioGainNode = audioCtx.createGain();
   audioGainNode.gain.value = parseFloat(document.getElementById("audioVolumeSlider").value);
-  source.connect(audioGainNode).connect(audioCtx.destination);
+  audioGainNode.connect(audioCtx.destination);
+  routeAudio();
+  wfLoad(file);
 
   const rate = parseFloat(document.getElementById("audioRateSlider").value);
   audioEl.playbackRate = rate;
@@ -6521,7 +6553,11 @@ document.addEventListener("keydown", (e)=>{
 })();
 
 function goPrevPage(){ if(state.currentIndex>0){ state.currentIndex--; renderSheet(); scheduleSave(); } }
-function goNextPage(){ if(state.currentIndex < state.sheets.length-1){ state.currentIndex++; renderSheet(); scheduleSave(); } }
+// 마지막 페이지에서 한 번 더 누르면 첫 페이지로 (꾹 눌러 자동 반복될 때는 돌지 않고 마지막에서 멈춘다)
+function goNextPage(noWrap){
+  if(state.currentIndex < state.sheets.length-1){ state.currentIndex++; renderSheet(); scheduleSave(); }
+  else if(noWrap !== true && state.sheets.length > 1){ state.currentIndex = 0; renderSheet(); scheduleSave(); }
+}
 document.getElementById("prevPage").addEventListener("click", goPrevPage);
 document.getElementById("nextPage").addEventListener("click", goNextPage);
 document.getElementById("navEdgeLeft").addEventListener("click", goPrevPage);
@@ -6849,8 +6885,9 @@ window.addEventListener("keydown", (e)=>{
   if(t && t.tagName === "SELECT") return;
   e.preventDefault();
   if(typing) t.blur();
-  if(e.repeat) return;
-  if(dir > 0) goNextPage(); else goPrevPage();
+  const holdKey = e.key === "ArrowRight" || e.key === "ArrowLeft";   // 방향키는 꾹 누르면 쭉 넘어간다 (페달·다른 키는 한 번에 한 장)
+  if(e.repeat && !holdKey) return;
+  if(dir > 0) goNextPage(e.repeat); else goPrevPage();
 }, true);
 // 일부 터너·기기는 keydown 없이 keyup 만 보낸다 — keydown 이 처리하지 않은 신호만 여기서 처리 (중복 방지)
 window.addEventListener("keyup", (e)=>{
@@ -7842,11 +7879,218 @@ document.getElementById("stSongNext").addEventListener("click", ()=> stageSongSt
 document.getElementById("stNext").addEventListener("click", ()=>{ stageSecIdx++; stageSync(); });
 document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && stageOpen()) closeStage(); });
 
+
+/* ============ 오디오 엔진 확장: 피치 시프트(-6~+6) · 파형 A-B 루퍼 · 악보 키 연동 ============
+ * 타임 스트레치: <audio> 의 playbackRate + preservesPitch (음높이 고정 템포 조절).
+ * 피치 시프트: AudioWorklet 의 지연선 2탭 크로스페이드 방식 — 템포는 그대로, 음높이만 반음 단위로 이동. */
+let pitchSemis = 0, pitchNode = null, pitchModuleP = null;
+const PITCH_WORKLET = `
+class MlsPitch extends AudioWorkletProcessor{
+  static get parameterDescriptors(){ return [{name:"ratio", defaultValue:1, minValue:0.25, maxValue:4, automationRate:"k-rate"}]; }
+  constructor(){ super(); this.W = Math.round(sampleRate*0.07); this.L = 1<<15; this.buf = [new Float32Array(this.L), new Float32Array(this.L)]; this.w = 0; this.p = 0; }
+  process(inputs, outputs, params){
+    const i = inputs[0], o = outputs[0]; if(!i || !i.length || !o || !o.length) return true;
+    const r = params.ratio[0], n = o[0].length, L = this.L, mask = L - 1, W = this.W, TP = 2*Math.PI;
+    for(let k = 0; k < n; k++){
+      const p1 = this.p, p2 = (p1 + 0.5) % 1;
+      const d1 = p1*W + 2, d2 = p2*W + 2;
+      const g1 = 0.5 - 0.5*Math.cos(TP*p1), g2 = 0.5 - 0.5*Math.cos(TP*p2);
+      for(let c = 0; c < o.length; c++){
+        const b = this.buf[c] || this.buf[0], src = i[c] || i[0];
+        b[this.w] = src[k];
+        const a1 = this.w - d1, a2 = this.w - d2;
+        const f1 = Math.floor(a1), f2 = Math.floor(a2);
+        const v1 = b[f1 & mask]*(1 - (a1 - f1)) + b[(f1 + 1) & mask]*(a1 - f1);
+        const v2 = b[f2 & mask]*(1 - (a2 - f2)) + b[(f2 + 1) & mask]*(a2 - f2);
+        o[c][k] = v1*g1 + v2*g2;
+      }
+      this.w = (this.w + 1) & mask;
+      this.p += (1 - r)/W; if(this.p < 0) this.p += 1; else if(this.p >= 1) this.p -= 1;
+    }
+    return true;
+  }
+}
+registerProcessor("mls-pitch", MlsPitch);`;
+async function ensurePitchNode(){
+  if(pitchNode) return pitchNode;
+  if(!audioCtx || !audioCtx.audioWorklet || typeof AudioWorkletNode === "undefined") return null;
+  try{
+    if(!pitchModuleP) pitchModuleP = audioCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([PITCH_WORKLET], {type:"application/javascript"})));
+    await pitchModuleP;
+    pitchNode = new AudioWorkletNode(audioCtx, "mls-pitch", {numberOfInputs:1, numberOfOutputs:1, outputChannelCount:[2], channelCount:2, channelCountMode:"explicit"});
+    return pitchNode;
+  }catch(err){ pitchModuleP = null; return null; }
+}
+function routeAudio(){
+  if(!audioSource || !audioGainNode) return;
+  try{ audioSource.disconnect(); }catch(err){}
+  if(pitchNode){ try{ pitchNode.disconnect(); }catch(err){} }
+  if(pitchSemis !== 0 && pitchNode){
+    pitchNode.parameters.get("ratio").value = Math.pow(2, pitchSemis/12);
+    audioSource.connect(pitchNode); pitchNode.connect(audioGainNode);
+  } else audioSource.connect(audioGainNode);
+}
+async function setPitch(v, quiet){
+  v = Math.max(-6, Math.min(6, Math.round(v)));
+  pitchSemis = v;
+  document.getElementById("pitchSlider").value = v;
+  document.getElementById("pitchLabel").textContent = (v > 0 ? "+" : "") + v;
+  if(v !== 0 && !pitchNode){
+    ensureAudio();
+    const n = await ensurePitchNode();
+    if(!n){ pitchSemis = 0; document.getElementById("pitchSlider").value = 0; document.getElementById("pitchLabel").textContent = "0"; showToast("이 브라우저는 피치 시프트(AudioWorklet)를 지원하지 않아요"); return; }
+  }
+  routeAudio();
+  if(!quiet) refreshPracticeReadouts();
+}
+document.getElementById("pitchSlider").addEventListener("input", (e)=> setPitch(parseFloat(e.target.value)));
+document.getElementById("pitchDown").addEventListener("click", ()=> setPitch(pitchSemis - 1));
+document.getElementById("pitchUp").addEventListener("click", ()=> setPitch(pitchSemis + 1));
+document.getElementById("pitchReset").addEventListener("click", ()=> setPitch(0));
+
+/* ---- 악보 Transpose ↔ 오디오 피치 연동 ---- */
+const pitchSyncPref = ()=>{ try{ return localStorage.getItem("mls-pitchsync") || ""; }catch(err){ return ""; } };
+const setPitchSyncPref = (v)=>{ try{ localStorage.setItem("mls-pitchsync", v); }catch(err){} };
+const wrapSemis = (t)=> ((t + 6) % 12 + 12) % 12 - 6;      // -6..+5 로 접기 (12 반음 = 한 옥타브는 같은 음이름)
+function syncAudioPitchFromKey(askIfUnset){
+  const cur = currentSheet(); if(!cur || !(cur.chords || []).length) return;
+  const t = cur.transpose || 0;
+  if(!audioEl) return;
+  const pref = pitchSyncPref();
+  if(pref === "on"){ setPitch(wrapSemis(t), true); return; }
+  if(pref === "off" || !askIfUnset) return;
+  showToast(`오디오도 키를 ${t > 0 ? "+" : ""}${t} 맞출까요?`, {ms:9000, actions:[
+    {label:"같이 이동 (항상)", fn:()=>{ setPitchSyncPref("on"); setPitch(wrapSemis(cur.transpose || 0), true); }},
+    {label:"이번만", fn:()=> setPitch(wrapSemis(cur.transpose || 0), true)},
+    {label:"안 함", fn:()=> setPitchSyncPref("off")}]});
+}
+
+/* ---- 파형 A-B 루퍼 ---- */
+const wfCv = document.getElementById("wfCanvas");
+const wfPos = (e)=> e.clientX - wfCv.getBoundingClientRect().left;
+let wfPeaks = null, wfDur = 0, wfVs = 0, wfVe = 0, wfDrag = null, wfRaf = 0, wfToken = 0;
+async function wfLoad(file){
+  const tok = ++wfToken; wfPeaks = null; wfDur = 0; wfDraw();
+  try{
+    const buf = await file.arrayBuffer();
+    const dec = await audioCtx.decodeAudioData(buf.slice(0));
+    if(tok !== wfToken) return;
+    const N = Math.min(60000, Math.max(2000, Math.ceil(dec.duration * 100)));
+    const mx = new Float32Array(N), mn = new Float32Array(N), per = dec.length / N, chs = [];
+    for(let c = 0; c < dec.numberOfChannels; c++) chs.push(dec.getChannelData(c));
+    for(let i = 0; i < N; i++){
+      const a = Math.floor(i * per), b = Math.min(dec.length, Math.max(a + 1, Math.floor((i + 1) * per)));
+      let hi = 0, lo = 0;
+      for(const d of chs){ const step = Math.max(1, ((b - a) / 24) | 0); for(let k = a; k < b; k += step){ const v = d[k]; if(v > hi) hi = v; if(v < lo) lo = v; } }
+      mx[i] = hi; mn[i] = lo;
+    }
+    wfPeaks = {mx, mn, N}; wfDur = dec.duration; wfVs = 0; wfVe = wfDur; wfDraw();
+  }catch(err){ if(tok === wfToken) document.getElementById("wfHint").textContent = "파형을 만들지 못했어요 (재생·구간 버튼은 그대로 쓸 수 있어요)"; }
+}
+const wfT2X = (t)=> (t - wfVs) / Math.max(1e-6, wfVe - wfVs) * wfCv.clientWidth;
+const wfX2T = (x)=> Math.max(0, Math.min(wfDur, wfVs + x / Math.max(1, wfCv.clientWidth) * (wfVe - wfVs)));
+function wfDraw(){
+  const dpr = window.devicePixelRatio || 1, W = wfCv.clientWidth, H = 96;
+  if(!W) return;
+  if(wfCv.width !== Math.round(W * dpr)){ wfCv.width = Math.round(W * dpr); wfCv.height = Math.round(H * dpr); }
+  const g = wfCv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const cs = getComputedStyle(document.documentElement), ink = cs.getPropertyValue("--text-dim").trim() || "#888", acc = cs.getPropertyValue("--accent").trim() || "#c67139";
+  if(!wfPeaks){ g.fillStyle = ink; g.font = "11px sans-serif"; g.fillText(audioEl ? "파형 분석 중…" : "", 8, 52); return; }
+  const mid = H / 2, amp = H / 2 - 3, {mx, mn, N} = wfPeaks, per = wfDur / N;
+  // 구간 음영 (파형 아래)
+  const hasLoop = loopStart != null && loopEnd != null;
+  if(loopStart != null || loopEnd != null){
+    const a = loopStart != null ? wfT2X(loopStart) : 0, b = loopEnd != null ? wfT2X(loopEnd) : W;
+    g.fillStyle = acc; g.globalAlpha = hasLoop ? 0.22 : 0.12; g.fillRect(Math.max(0, a), 0, Math.max(2, Math.min(W, b) - Math.max(0, a)), H); g.globalAlpha = 1;
+  }
+  g.fillStyle = ink;
+  for(let x = 0; x < W; x++){
+    const t0 = wfVs + x / W * (wfVe - wfVs), t1 = wfVs + (x + 1) / W * (wfVe - wfVs);
+    const i0 = Math.max(0, Math.floor(t0 / per)), i1 = Math.min(N - 1, Math.max(i0, Math.floor(t1 / per)));
+    let hi = 0, lo = 0; for(let i = i0; i <= i1; i++){ if(mx[i] > hi) hi = mx[i]; if(mn[i] < lo) lo = mn[i]; }
+    g.fillRect(x, mid - hi * amp, 1, Math.max(1, (hi - lo) * amp));
+  }
+  // A / B 핸들
+  const handle = (t, label)=>{ if(t == null) return; const x = wfT2X(t); if(x < -4 || x > W + 4) return; g.fillStyle = acc; g.fillRect(x - 1, 0, 2, H); g.fillRect(x - (label === "A" ? 0 : 14), 0, 14, 14); g.fillStyle = "#fff"; g.font = "bold 10px sans-serif"; g.fillText(label, x + (label === "A" ? 3 : -11), 11); };
+  handle(loopStart, "A"); handle(loopEnd, "B");
+  if(audioEl){ const x = wfT2X(audioEl.currentTime); if(x >= 0 && x <= W){ g.fillStyle = "#e33"; g.fillRect(x - 0.5, 0, 1.5, H); } }
+  // 확대 시 스크롤 바
+  const sc = document.getElementById("wfScroll"), zoomed = (wfVe - wfVs) < wfDur - 0.01;
+  sc.style.display = zoomed ? "block" : "none";
+  if(zoomed && wfDrag == null){ sc.value = Math.round(wfVs / Math.max(1e-6, wfDur - (wfVe - wfVs)) * 1000); }
+  document.getElementById("wfLoopTgl").classList.toggle("on", hasLoop);
+}
+function wfZoom(f, center){
+  if(!wfDur) return;
+  const span = wfVe - wfVs, c = center != null ? center : (audioEl ? audioEl.currentTime : (wfVs + wfVe) / 2);
+  let ns = Math.max(0.5, Math.min(wfDur, span * f));
+  let s0 = c - (c - wfVs) / span * ns; s0 = Math.max(0, Math.min(wfDur - ns, s0));
+  wfVs = s0; wfVe = s0 + ns; wfDraw();
+}
+document.getElementById("wfZoomIn").addEventListener("click", ()=> wfZoom(0.5));
+document.getElementById("wfZoomOut").addEventListener("click", ()=> wfZoom(2));
+document.getElementById("wfZoomAll").addEventListener("click", ()=>{ wfVs = 0; wfVe = wfDur; wfDraw(); });
+document.getElementById("wfScroll").addEventListener("input", (e)=>{ const span = wfVe - wfVs; wfVs = parseFloat(e.target.value) / 1000 * (wfDur - span); wfVe = wfVs + span; wfDrag = wfDrag; wfDraw(); });
+document.getElementById("wfLoopTgl").addEventListener("click", ()=>{
+  if(loopStart != null && loopEnd != null){ abStash = {a:loopStart, b:loopEnd}; loopStart = loopEnd = null; }
+  else if(abStash){ loopStart = abStash.a; loopEnd = abStash.b; abStash = null; }
+  else if(audioEl && wfDur){ loopStart = audioEl.currentTime; loopEnd = Math.min(wfDur, loopStart + 8); }
+  updateLoopHint(); wfDraw();
+});
+wfCv.addEventListener("wheel", (e)=>{
+  if(!wfDur) return; e.preventDefault();
+  if(e.ctrlKey || e.metaKey || Math.abs(e.deltaY) > Math.abs(e.deltaX)) wfZoom(e.deltaY > 0 ? 1.25 : 0.8, wfX2T(wfPos(e)));
+  else { const span = wfVe - wfVs, d = e.deltaX / wfCv.clientWidth * span; wfVs = Math.max(0, Math.min(wfDur - span, wfVs + d)); wfVe = wfVs + span; wfDraw(); }
+}, {passive:false});
+wfCv.addEventListener("pointerdown", (e)=>{
+  if(!wfDur || !audioEl) return;
+  const x = wfPos(e), t = wfX2T(x), near = (tt)=> tt != null && Math.abs(wfT2X(tt) - x) <= 9;
+  try{ wfCv.setPointerCapture(e.pointerId); }catch(err){}
+  if(near(loopStart)) wfDrag = {kind:"A"};
+  else if(near(loopEnd)) wfDrag = {kind:"B"};
+  else wfDrag = {kind:"new", t0:t, x0:x, moved:false};
+});
+wfCv.addEventListener("pointermove", (e)=>{
+  if(!wfDur) return;
+  if(!wfDrag){ const x = wfPos(e); wfCv.style.cursor = ([loopStart, loopEnd].some(tt=> tt != null && Math.abs(wfT2X(tt) - x) <= 9)) ? "ew-resize" : "crosshair"; return; }
+  const t = wfX2T(wfPos(e));
+  if(wfDrag.kind === "A"){ loopStart = loopEnd != null ? Math.min(t, loopEnd - 0.05) : t; }
+  else if(wfDrag.kind === "B"){ loopEnd = loopStart != null ? Math.max(t, loopStart + 0.05) : t; }
+  else {
+    if(!wfDrag.moved && Math.abs(wfPos(e) - wfDrag.x0) < 4) return;
+    wfDrag.moved = true; loopStart = Math.min(wfDrag.t0, t); loopEnd = Math.max(wfDrag.t0, t);
+    if(loopEnd - loopStart < 0.05) loopEnd = loopStart + 0.05;
+  }
+  updateLoopHint(); wfDraw();
+});
+function wfRelease(e){
+  if(!wfDrag) return;
+  const d = wfDrag; wfDrag = null;
+  if(d.kind === "new" && !d.moved && audioEl){ audioEl.currentTime = wfX2T(wfPos(e)); }
+  else if(audioEl && loopStart != null && loopEnd != null && (audioEl.currentTime < loopStart || audioEl.currentTime > loopEnd)) { /* 구간 밖이면 다음 재생 때 A 로 돌아간다 */ }
+  updateLoopHint(); wfDraw();
+}
+wfCv.addEventListener("pointerup", wfRelease);
+wfCv.addEventListener("pointercancel", ()=>{ wfDrag = null; });
+// 재생 중 부드러운 재생 헤드 + 정밀한 루프 (timeupdate 는 0.25초 간격이라 A-B 가 어긋남)
+function wfTick(){
+  if(audioEl && !audioEl.paused){
+    if(loopStart != null && loopEnd != null && audioEl.currentTime >= loopEnd) audioEl.currentTime = loopStart;
+    if(wfPeaks && (wfVe - wfVs) < wfDur - 0.01 && !wfDrag){ const t = audioEl.currentTime; if(t > wfVe || t < wfVs){ const span = wfVe - wfVs; wfVs = Math.max(0, Math.min(wfDur - span, t - span * 0.1)); wfVe = wfVs + span; } }
+    wfDraw();
+  }
+  wfRaf = requestAnimationFrame(wfTick);
+}
+wfTick();
+["setLoopStartBtn","setLoopEndBtn","clearLoopBtn","audioSeek"].forEach(id=> document.getElementById(id).addEventListener("click", ()=> setTimeout(wfDraw, 0)));
+document.getElementById("audioSeek").addEventListener("input", ()=> wfDraw());
+window.addEventListener("resize", wfDraw);
+
 /* ============ 버전 · 자동 업데이트 ============
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-2";
+const APP_BUILD = "2026.11.02-3";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

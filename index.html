@@ -5928,7 +5928,7 @@ document.getElementById("focusPenTab").addEventListener("click", ()=>{
  * 악보 가져오기·삭제·순서 바꾸기는 ⌘Z(Ctrl+Z)로 되돌리고, ⇧⌘Z 로 다시 실행한다. 필기 되돌리기와는 시간 순서로 이어진다. */
 const pageUndo = [], pageRedo = [];
 let lastAnnotAt = 0;
-function pageSnap(){ return {sheets: state.sheets.slice(), index: state.currentIndex, meta: state.sheets.map(sh=> [sh.songColor || null, sh.songName || null])}; }
+function pageSnap(withInk){ const o = {sheets: state.sheets.slice(), index: state.currentIndex, meta: state.sheets.map(sh=> [sh.songColor || null, sh.songName || null])}; if(withInk) o.ink = state.sheets.map(sh=> (sh.annotations || []).slice()); return o; }
 function pushPageUndo(label, before){
   pageUndo.push({label, before, at: Date.now()});
   if(pageUndo.length > 30) pageUndo.shift();
@@ -5937,20 +5937,21 @@ function pushPageUndo(label, before){
 function restorePageSnap(snap){
   state.sheets = snap.sheets.slice();
   state.sheets.forEach((sh, i)=>{ const m = snap.meta && snap.meta[i]; if(m){ sh.songColor = m[0]; sh.songName = m[1]; } });   // 곡 색·이름도 그때 값으로
+  if(snap.ink) state.sheets.forEach((sh, i)=>{ if(snap.ink[i]) sh.annotations = snap.ink[i].slice(); });   // 필기 초기화 되돌리기
   state.currentIndex = Math.max(0, Math.min(snap.index, state.sheets.length - 1));
   closeConti();
   renderSheet(); scheduleSave();
 }
 function undoPageOp(){
   const e = pageUndo.pop(); if(!e) return false;
-  pageRedo.push({label:e.label, after:pageSnap()});
+  pageRedo.push({label:e.label, after:pageSnap(!!e.before.ink)});
   restorePageSnap(e.before);
   showToast("되돌렸어요 · " + e.label, {actions:[{label:"다시 실행", fn:redoPageOp}]});
   return true;
 }
 function redoPageOp(){
   const e = pageRedo.pop(); if(!e) return false;
-  pageUndo.push({label:e.label, before:pageSnap(), at:Date.now()});
+  pageUndo.push({label:e.label, before:pageSnap(!!e.after.ink), at:Date.now()});
   restorePageSnap(e.after);
   showToast("다시 실행 · " + e.label);
   return true;
@@ -6070,6 +6071,14 @@ function onPointerMove(e){
 
 function onPointerUp(){
   if(!strokeInProgress) return;
+  if(strokeInProgress.points.length === 1){   // 한 번 찍기(점·지우개 톡)도 한 획으로 남겨 ⌘Z 가 되게
+    const q = strokeInProgress.points[0];
+    strokeInProgress.points.push({x:q.x + 0.01, y:q.y});
+    ctx.globalCompositeOperation = strokeInProgress.mode==="erase" ? "destination-out" : "source-over";
+    ctx.strokeStyle = strokeInProgress.color; ctx.lineWidth = strokeInProgress.width; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x + 0.01, q.y); ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+  }
   if(strokeInProgress.points.length > 1){
     const sheet = currentSheet();
     if(sheet){
@@ -6104,13 +6113,21 @@ document.getElementById("redoBtn").addEventListener("click", redoAnnotation);
 document.getElementById("clearBtn").addEventListener("click", ()=>{
   const sheet = currentSheet();
   if(!sheet) return;
-  if(!confirm("이 페이지 필기를 초기화할까요?")) return;
+  if(!sheet.annotations.length) return;
+  if(!confirm("이 페이지 필기를 초기화할까요? (⌘Z 로 되돌릴 수 있어요)")) return;
+  pushPageUndo("필기 초기화", pageSnap(true)); lastAnnotAt = 0;
   sheet.annotations = []; sheet.redoStack = [];
   redrawAnnotations(); scheduleSave();
 });
 
+// 굵기 슬라이더·체크박스에 포커스가 남아 있어도 ⌘Z 는 먹어야 한다 (글자 입력칸일 때만 막는다)
+function isTextEntry(el){
+  if(!el) return false;
+  if(el.tagName === "INPUT") return !/^(range|checkbox|radio|button|color|file)$/i.test(el.type || "text");
+  return isTypingTarget(el);
+}
 document.addEventListener("keydown", (e)=>{
-  if(isTypingTarget(document.activeElement)) return;
+  if(isTextEntry(document.activeElement)) return;
   const mod = e.metaKey || e.ctrlKey;
   if(!mod) return;
   const key = e.key.toLowerCase();
@@ -7573,7 +7590,7 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.10.31-4";
+const APP_BUILD = "2026.11.02-1";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

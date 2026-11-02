@@ -139,15 +139,16 @@
   .edgeTab.right:not([hidden]){animation-name:edgeInR;} @keyframes edgeInR{from{opacity:0; transform:translateX(14px);} to{opacity:1; transform:none;}}
   .panelCollapseBtn svg{width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; vertical-align:-2px;}
 
-  @media (max-width: 900px){
+  @media (max-width: 1024px){ .sidebar-left, .sidebar-right{width:260px;} }
+  @media (max-width: 640px){
     .app-layout{ position:relative; }
     aside.sidebar-left, aside.sidebar-right{
       position:absolute; top:12px; bottom:16px; z-index:40; box-shadow:var(--shadow);
     }
     aside.sidebar-left{ left:16px; }
     aside.sidebar-right{ right:16px; }
-    aside.sidebar-left.collapsed{ width:300px !important; padding:16px !important; margin:0; transform:translateX(calc(-100% - 24px)); }
-    aside.sidebar-right.collapsed{ width:300px !important; padding:16px !important; margin:0; transform:translateX(calc(100% + 24px)); }
+    aside.sidebar-left.collapsed{ width:260px !important; padding:16px !important; margin:0; transform:translateX(calc(-100% - 24px)); }
+    aside.sidebar-right.collapsed{ width:260px !important; padding:16px !important; margin:0; transform:translateX(calc(100% + 24px)); }
     main.sheet-panel{ width:100%; }
   }
 
@@ -753,10 +754,19 @@
   #songHL .hlForm{display:flex; align-items:center; gap:4px; overflow:hidden; font-size:12px; font-weight:700; flex:0 1 auto; min-width:0;}
   #songHL .hlForm i{font-style:normal; padding:2px 8px; border-radius:6px; background:color-mix(in srgb, var(--c) 28%, transparent); color:var(--text); border:1px solid color-mix(in srgb, var(--c) 60%, transparent);}
   #songHL .hlForm b{color:var(--text-muted); font-weight:600;}
-  #contiPanel.setlistDrawer{position:fixed; left:12px; right:auto; top:64px; bottom:12px; transform:none; width:min(370px, 94vw); max-height:none; z-index:60; display:flex; flex-direction:column; padding:0; overflow:hidden;
+  #contiPanel.setlistDrawer{position:relative; left:auto; top:auto; bottom:auto; transform:none; flex:none; align-self:stretch; width:344px; min-width:0; max-height:none; margin:0; z-index:5; display:flex; flex-direction:column; padding:0; overflow:hidden;
     background:color-mix(in srgb, var(--panel) 90%, transparent); -webkit-backdrop-filter:blur(12px) saturate(1.2); backdrop-filter:blur(12px) saturate(1.2); border:1px solid var(--glass-border, var(--border)); border-radius:var(--r-panel, 14px); box-shadow:var(--shadow);
-    animation:drawerIn .42s cubic-bezier(.16,1,.3,1) backwards;}
-  @keyframes drawerIn{from{opacity:0; transform:translateX(-28px);} to{opacity:1; transform:none;}}
+    animation:drawerPush .42s cubic-bezier(.16,1,.3,1) backwards;}
+  @keyframes drawerPush{from{width:0; opacity:0; margin-right:-10px;} to{width:344px; opacity:1; margin-right:0;}}
+  #contiPanel.setlistDrawer.closing, #contiPanelOld.setlistDrawer{animation:drawerPull .3s cubic-bezier(.16,1,.3,1) forwards; pointer-events:none;}
+  @keyframes drawerPull{from{width:344px; opacity:1; margin-right:0;} to{width:0; opacity:0; margin-right:-10px; border-width:0;}}
+  @media (max-width:1024px){ #contiPanel.setlistDrawer{width:300px;} @keyframes drawerPush{from{width:0; opacity:0; margin-right:-10px;} to{width:300px; opacity:1; margin-right:0;}} @keyframes drawerPull{from{width:300px; opacity:1;} to{width:0; opacity:0; margin-right:-10px;}} }
+  @media (max-width:640px){ #contiPanel.setlistDrawer{position:absolute; left:12px; top:12px; bottom:12px; z-index:40; width:min(320px, 92vw);} }
+  .app-layout.focusMode #contiPanel.setlistDrawer{position:absolute; left:12px; top:64px; bottom:12px; z-index:60;}
+  /* 하단 Dock: 툴바 · 미니 컨트롤러가 차지하는 만큼 악보 스크롤 영역을 비운다 (JS 가 --dock-space 계산) */
+  .sheetViewport{padding-bottom:calc(10px + var(--dock-space, 0px)) !important;}
+  .app-layout.focusMode .sheetViewport{padding-bottom:calc(8px + var(--dock-space, 0px)) !important;}
+
   .slHead{display:flex; align-items:center; gap:8px; padding:12px 12px 10px 16px;}
   .slHead b{font-size:15px; font-weight:800;} .slCount{font-size:11px; color:var(--text-muted); flex:1;}
   .slEdit{padding:5px 12px; font-size:12px;} .slEdit.on{background:var(--accent); color:var(--on-accent); border-color:transparent; box-shadow:var(--glow);}
@@ -6236,7 +6246,12 @@ function updateSongHL(){
 (function(){ const rs = renderSheet; renderSheet = function(){ const r = rs.apply(this, arguments); updateSongHL(); return r; }; })();
 
 let contiEdit = false;
-function closeConti(){ const p = document.getElementById("contiPanel"); if(p) p.remove(); }
+function closeConti(){
+  const p = document.getElementById("contiPanel"); if(!p) return;
+  p.id = "contiPanelOld"; p.classList.add("closing");               // 닫히는 동안은 다른 패널이 새로 열릴 수 있게 id 를 비운다
+  setTimeout(()=>{ p.remove(); if(typeof scheduleDock === "function") scheduleDock(); }, 320);
+}
+const isNarrow = ()=> window.innerWidth <= 1024;
 function reorderSongs(songs, from, to){
   if(from === to || from < 0 || to < 0 || from >= songs.length || to >= songs.length) return;
   const before = pageSnap(), cur = state.sheets[state.currentIndex];
@@ -6340,8 +6355,10 @@ function openConti(){
   if(document.getElementById("contiPanel")){ closeConti(); return; }
   const p = document.createElement("div");
   p.id = "contiPanel"; p.className = "contiPanel setlistDrawer";
+  if(isNarrow() && (state.leftPanelOpen || state.rightPanelOpen)){ state.leftPanelOpen = false; state.rightPanelOpen = false; applyPanelUI(); }   // 좁은 화면: 한 번에 하나만
   p.innerHTML = `<div class="slHead"><b>콘티</b><span class="slCount"></span><button type="button" id="slEditBtn" class="slEdit">콘티 편집</button><button type="button" class="icon" id="slClose" title="닫기">✕</button></div><div class="contiBody"></div>`;
-  document.body.appendChild(p);
+  const host = document.querySelector(".app-layout"), mainEl = document.querySelector("main.sheet-panel");
+  host.insertBefore(p, mainEl);                                      // 레이아웃 안에 끼워 넣어 악보 영역을 옆으로 민다 (Push)
   p.querySelector("#slClose").addEventListener("click", closeConti);
   p.querySelector("#slEditBtn").addEventListener("click", ()=>{ contiEdit = !contiEdit; renderContiBody(); });
   renderContiBody();
@@ -8116,6 +8133,20 @@ function applyPanelUI(){
   document.getElementById("edgeTabLeft").hidden = state.leftPanelOpen;
   document.getElementById("edgeTabRight").hidden = state.rightPanelOpen;
 }
+{ /* 1024px 이하: 콘티 · 메트로놈 · 노트 중 하나만 열린다 */
+  let prev = {L:state.leftPanelOpen, R:state.rightPanelOpen};
+  const orig = applyPanelUI;
+  applyPanelUI = function(){
+    if(window.innerWidth <= 1024){
+      const newL = state.leftPanelOpen && !prev.L, newR = state.rightPanelOpen && !prev.R;
+      if(newL){ state.rightPanelOpen = false; if(document.getElementById("contiPanel")) closeConti(); }
+      else if(newR){ state.leftPanelOpen = false; if(document.getElementById("contiPanel")) closeConti(); }
+      else if(state.leftPanelOpen && state.rightPanelOpen){ state.rightPanelOpen = false; }
+    }
+    orig();
+    prev = {L:state.leftPanelOpen, R:state.rightPanelOpen};
+  };
+}
 document.getElementById("collapseLeftBtn").addEventListener("click", ()=>{ state.leftPanelOpen = false; applyPanelUI(); scheduleSave(); });
 document.getElementById("collapseRightBtn").addEventListener("click", ()=>{ state.rightPanelOpen = false; applyPanelUI(); scheduleSave(); });
 document.getElementById("edgeTabLeft").addEventListener("click", ()=>{ state.leftPanelOpen = true; applyPanelUI(); scheduleSave(); });
@@ -9180,11 +9211,47 @@ function buildChipPop(){
 document.getElementById("chipAdd").addEventListener("click", (e)=>{ e.stopPropagation(); toggleChipPop(); });
 document.addEventListener("pointerdown", (e)=>{ if(chipPop.classList.contains("open") && !e.target.closest("#chipPop") && !e.target.closest("#chipAdd")) closeChipPop(); }, true);
 renderChipBar();
+
+/* ============ 하단 Dock: 스튜디오 툴바 · 팝오버 · 미니 컨트롤러가 서로 안 가리게 쌓기 ============ */
+function layoutBottomDock(){
+  const main = document.querySelector("main.sheet-panel"), tools = document.getElementById("floatTools"), pop = document.getElementById("floatPop"), mini = document.getElementById("miniCtl"), vp = document.getElementById("sheetViewport");
+  if(!main || !vp) return;
+  const zen = document.body.classList.contains("zen");
+  const toolsOn = !!tools && tools.offsetParent !== null && !zen;
+  const BASE = 18, GAP = 10;
+  const toolsH = toolsOn ? tools.offsetHeight : 0;
+  let top = toolsOn ? BASE + toolsH : 0;                              // 툴바 윗면 (main 바닥 기준)
+  if(pop){ pop.style.bottom = (toolsOn ? top + GAP : BASE) + "px"; }
+  const popOpen = !!pop && pop.classList.contains("open") && pop.offsetParent !== null;
+  let stack = top + (popOpen ? pop.offsetHeight + GAP + 2 : 0);
+  const miniOpen = !!mini && mini.classList.contains("open");
+  const mainGap = Math.max(0, window.innerHeight - main.getBoundingClientRect().bottom);
+  let miniH = 0;
+  if(mini){
+    mini.style.bottom = (mainGap + (stack || BASE) + GAP) + "px";
+    if(miniOpen) miniH = mini.offsetHeight + GAP;
+  }
+  const space = (toolsOn ? BASE + toolsH : 0) + miniH;               // 악보가 스크롤로 빠져나올 수 있는 높이
+  const prev = parseFloat(vp.style.getPropertyValue("--dock-space")) || 0;
+  if(Math.abs(prev - space) > 1){ vp.style.setProperty("--dock-space", space + "px"); applyZoom(); }
+}
+let dockT = 0;
+function scheduleDock(){ clearTimeout(dockT); dockT = setTimeout(layoutBottomDock, 0); }
+(function(){
+  const watch = (el, opts)=>{ if(el) new MutationObserver(scheduleDock).observe(el, opts); };
+  watch(document.getElementById("floatPop"), {attributes:true, attributeFilter:["class"]});
+  watch(document.getElementById("miniCtl"), {attributes:true, attributeFilter:["class"]});
+  watch(document.body, {attributes:true, attributeFilter:["class"]});
+  watch(document.querySelector(".app-layout"), {attributes:true, attributeFilter:["class"]});
+  if(window.ResizeObserver){ const ro = new ResizeObserver(scheduleDock); ["floatTools","floatPop","miniCtl"].forEach(id=>{ const e = document.getElementById(id); if(e) ro.observe(e); }); ro.observe(document.querySelector("main.sheet-panel")); }
+  window.addEventListener("resize", scheduleDock);
+  scheduleDock(); setTimeout(scheduleDock, 600);
+})();
 /* ============ 버전 · 자동 업데이트 ============
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-11";
+const APP_BUILD = "2026.11.02-12";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

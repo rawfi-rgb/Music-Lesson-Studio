@@ -684,7 +684,7 @@
     position:absolute; left:50%; bottom:18px; transform:translateX(-50%); z-index:30; gap:4px; padding:6px;
     background:color-mix(in srgb, var(--panel) 74%, transparent); -webkit-backdrop-filter:blur(12px) saturate(1.2); backdrop-filter:blur(12px) saturate(1.2);
     border:1px solid var(--glass-border, var(--border)); border-radius:var(--r-panel, 14px); box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,.05);
-    animation:ftIn .5s cubic-bezier(.16,1,.3,1) both;
+    animation:ftIn .5s cubic-bezier(.16,1,.3,1) backwards;
   }
   @keyframes ftIn{from{opacity:0; transform:translate(-50%, 18px);} to{opacity:1; transform:translate(-50%, 0);}}
   #floatTools .ftSep{width:1px; background:var(--glass-border, var(--border)); margin:6px 3px;}
@@ -751,6 +751,28 @@
   .wfSnapRow{display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap;}
   .wfSnapRow button{padding:3px 8px; font-size:11px;} .wfSnapRow button.on{background:var(--accent); color:var(--on-accent); border-color:transparent; box-shadow:var(--glow);}
   .wfSnapRow select{width:auto; padding:3px 22px 3px 8px; font-size:11px;}
+
+  /* ---- Zen / Full-Sheet 모드 · 제스처 잠금 · 미니 컨트롤러 ---- */
+  header{transition:height .38s cubic-bezier(.16,1,.3,1), margin .38s cubic-bezier(.16,1,.3,1), padding .38s cubic-bezier(.16,1,.3,1), opacity .25s ease, transform .38s cubic-bezier(.16,1,.3,1);}
+  body.zen > header{height:0 !important; margin-top:0 !important; margin-bottom:0 !important; padding-top:0 !important; padding-bottom:0 !important; opacity:0; overflow:hidden; border-width:0; transform:translateY(-24px); pointer-events:none;}
+  body.zen .app-layout{padding-top:8px;}
+  #floatTools{transition:transform .42s cubic-bezier(.16,1,.3,1), opacity .3s ease;}
+  body.zen #floatTools{transform:translate(-50%, 130px) !important; opacity:0; pointer-events:none;}
+  body.zen #floatPop{opacity:0 !important; pointer-events:none !important;}
+  #floatTools .ftLockBtn.locked{background:var(--danger); color:#fff; box-shadow:0 0 14px color-mix(in srgb, var(--danger) 55%, transparent);}
+  .glockBtn.locked{background:var(--danger) !important; color:#fff !important; border-color:transparent !important;}
+  #glockBadge{position:fixed; top:max(8px, env(safe-area-inset-top)); left:12px; z-index:97; background:var(--danger); color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:var(--r-control, 10px); box-shadow:0 4px 14px rgba(0,0,0,.35); pointer-events:none; opacity:0; transform:translateY(-8px); transition:opacity .25s, transform .3s cubic-bezier(.16,1,.3,1);}
+  #glockBadge.show{opacity:1; transform:none;}
+  #miniCtl{position:fixed; left:50%; bottom:92px; z-index:96; width:min(360px, 94vw); padding:12px; display:flex; flex-direction:column; gap:10px;
+    background:color-mix(in srgb, var(--panel) 82%, transparent); -webkit-backdrop-filter:blur(12px) saturate(1.2); backdrop-filter:blur(12px) saturate(1.2);
+    border:1px solid var(--glass-border, var(--border)); border-radius:var(--r-panel, 14px); box-shadow:var(--shadow); color:var(--text);
+    opacity:0; pointer-events:none; transform:translate(-50%, 26px) scale(.96); transition:opacity .22s ease, transform .42s cubic-bezier(.16,1,.3,1);}
+  #miniCtl.open{opacity:1; pointer-events:auto; transform:translate(-50%, 0) scale(1);}
+  #miniCtl .mcRow{display:flex; align-items:center; gap:6px;} #miniCtl .mcRow button{flex:1; padding:9px 0; font-size:14px;}
+  #miniCtl .mcBpm{font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; min-width:70px; text-align:center;}
+  #miniCtl .mcLbl{font-size:10px; font-weight:800; letter-spacing:.1em; color:var(--text-muted);}
+  #miniCtl button.on{background:var(--accent); color:var(--on-accent); border-color:transparent; box-shadow:var(--glow);}
+  #miniCtl .mcLed{width:12px; height:12px; border-radius:50%; background:color-mix(in srgb, var(--text-muted) 35%, transparent); flex:none;} #miniCtl .mcLed.on{background:var(--beat-accent); box-shadow:0 0 10px var(--beat-accent);}
   .libTabs{display:flex; gap:6px; margin-bottom:16px; background:var(--panel-alt); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border);}
   .libTabs button{flex:1; border:none; background:transparent; border-radius:4px;}
   .libTabs button.active{background:var(--panel); color:var(--text); box-shadow:var(--shadow-sm);}
@@ -1463,6 +1485,7 @@
         <div class="zoomCtl" data-zoom-ctl data-btn-class="icon" title="악보 크기 (％를 좌우로 끌어도 돼요)"></div>
         <button class="icon" id="focusFitBtn" title="폭 맞춤 ↔ 한 장 전체 보기 (악보를 두 번 탭해도 바뀌어요)">↔ 폭맞춤</button>
         <button class="icon" id="focusContiBtn" title="전체 곡 콘티(순서) 보기">🎼 콘티</button>
+        <button class="icon glockBtn" id="focusLockBtn" title="제스처 잠금 — 스와이프로 페이지·곡이 넘어가지 않게 (페달·키보드는 그대로)">🔓</button>
         <button class="icon" id="focusExitBtn">✕ 나가기</button>
       </div>
 
@@ -1552,6 +1575,13 @@
 
 </div>
 
+<div id="glockBadge">🔒 제스처 잠금</div>
+<div id="miniCtl" aria-label="미니 컨트롤러">
+  <div class="mcRow"><span class="mcLbl" style="flex:1">METRONOME</span><span class="mcLed" id="mcLed"></span><button class="icon" id="mcClose" style="flex:none; padding:4px 10px;">✕</button></div>
+  <div class="mcRow"><button class="icon" id="mcDown">−5</button><span class="mcBpm" id="mcBpm">100</span><button class="icon" id="mcUp">+5</button><button class="icon" id="mcTap">TAP</button><button class="icon" id="mcPlay">▶ 시작</button></div>
+  <div class="mcRow"><span class="mcLbl" style="flex:1">AUDIO <span id="mcTime" style="font-weight:600; letter-spacing:0;"></span></span></div>
+  <div class="mcRow"><button class="icon" id="mcBack">⏪ 5</button><button class="icon" id="mcAPlay">▶</button><button class="icon" id="mcFwd">5 ⏩</button><button class="icon" id="mcLoop">🔁 A-B</button></div>
+</div>
 <div id="stageView" hidden>
   <div class="stBorder" id="stBorder"></div>
   <div class="stTop"><div class="stTitle" id="stTitle"></div><button id="stMidiLbl" style="display:none; font-size:14px; padding:4px 10px;"></button><button id="stExit">✕ 종료</button></div>
@@ -6705,6 +6735,9 @@ document.addEventListener("keydown", (e)=>{
  * 펜(Apple Pencil)·마우스 = 필기만, 손가락 = 스와이프·핀치·팬 제스처만.
  * 펜이 화면에 가까워지거나 닿아 있는 동안과 직후(PEN_LOCK_MS)에는 손가락 제스처를 잠가서,
  * 손바닥이 닿아도 페이지가 넘어가거나 확대·이동되지 않게 한다. 접촉 면적이 큰 터치는 손바닥으로 보고 무시한다. */
+const EDGE_DEAD = 40;                                   // 화면 위·아래 40px: iPadOS 제어센터/홈 바와 겹치는 구역은 제스처 감지에서 제외
+const inEdgeDead = (y)=> y < EDGE_DEAD || y > window.innerHeight - EDGE_DEAD;
+let gestureLock = false; try{ gestureLock = localStorage.getItem("mls-glock") === "1"; }catch(err){}
 const PEN_LOCK_MS = 650, PALM_LOCK_MS = 900;
 let penNearAt = 0, penIsDown = false, palmAt = 0;
 const penLocked = ()=> penIsDown || performance.now() - penNearAt < PEN_LOCK_MS;
@@ -6836,38 +6869,77 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
   let lastPointerType = "";
   viewport.addEventListener("pointerdown", (e)=>{ lastPointerType = e.pointerType; }, true);
 
+  /* 손가락을 따라 악보가 움직이다가(finger-follow) 80px 를 넘기면 넘어간다. 첫/마지막 페이지에서는 고무줄처럼 튕긴다.
+   * 화면 위·아래 40px 는 iPadOS 시스템 제스처(제어센터·홈 바)와 겹쳐 감지하지 않는다 (Dead-Zone). */
+  const SWIPE_THRESHOLD = 80;
+  const stageEl2 = ()=> document.getElementById("sheetStage");
+  const canSlide = ()=> viewport.scrollWidth <= viewport.clientWidth + 2;           // 가로로 스크롤할 내용이 없을 때만 따라오기
+  const hasPage = (dir)=> dir > 0 ? state.currentIndex < state.sheets.length - 1 : state.currentIndex > 0;
+  const rubber = (dx)=> Math.sign(dx) * 72 * (1 - Math.exp(-Math.abs(dx) / 110));
+  function settleStage(){
+    const el = stageEl2(); if(!el) return;
+    el.style.transition = "transform .5s cubic-bezier(.34,1.56,.64,1), opacity .3s"; el.style.transform = "translateX(0)"; el.style.opacity = "1";
+    clearTimeout(settleStage.t); settleStage.t = setTimeout(()=>{ el.style.transition = ""; el.style.transform = ""; el.style.opacity = ""; }, 520);
+  }
+  function turnWithSlide(dir){
+    const el = stageEl2();
+    if(!el){ if(dir > 0) goNextPage(true); else goPrevPage(); return; }
+    el.style.transition = "transform .12s ease-in, opacity .12s"; el.style.transform = `translateX(${-dir * 70}px)`; el.style.opacity = ".15";
+    setTimeout(()=>{
+      if(dir > 0) goNextPage(true); else goPrevPage();                 // 페이지가 바뀌는 순간 haptic
+      el.style.transition = "none"; el.style.transform = `translateX(${dir * 70}px)`; el.style.opacity = ".15"; void el.offsetWidth;
+      el.style.transition = "transform .28s cubic-bezier(.16,1,.3,1), opacity .22s"; el.style.transform = "translateX(0)"; el.style.opacity = "1";
+      setTimeout(()=>{ el.style.transition = ""; el.style.transform = ""; el.style.opacity = ""; }, 320);
+    }, 120);
+  }
   viewport.addEventListener("touchstart", (e)=>{
     if(e.touches.length !== 1){ sw = null; return; }
     const t = e.touches[0];
     if(t.touchType === "stylus" || lastPointerType === "pen" || e.target.closest(IGNORE) || placingType || placingText){ sw = null; return; }
+    if(t.clientY < EDGE_DEAD || t.clientY > window.innerHeight - EDGE_DEAD){ sw = null; return; }          // Edge Dead-Zone
     sw = {x:t.clientX, y:t.clientY, time:Date.now(), scrollLeft:viewport.scrollLeft, scrollTop:viewport.scrollTop,
-          fromTop: focusMode && t.clientY < window.innerHeight * 0.25, done:false};
+          fromTop: focusMode && t.clientY < window.innerHeight * 0.25, done:false, h:null, slid:false};
+    clearTimeout(settleStage.t);
   }, {passive:true});
 
   viewport.addEventListener("touchmove", (e)=>{
     if(!sw || sw.done) return;
-    if(e.touches.length !== 1){ sw = null; return; }
+    if(e.touches.length !== 1){ if(sw.slid) settleStage(); sw = null; return; }
     const t = e.touches[0];
     const dx = t.clientX - sw.x, dy = t.clientY - sw.y;
     // 전체화면: 위쪽에서 아래로 혹은 대각선으로 크게 끌면 종료 (악보가 맨 위일 때만, 내용 스크롤과 겹치지 않게)
     if(sw.fromTop && dy > exitThreshold() && dy >= Math.abs(dx) * 0.6 && viewport.scrollTop <= 2){
       sw.done = true;
-      setFocusMode(false);
+      setFocusMode(false); return;
+    }
+    if(gestureLock) return;
+    if(sw.h === null){
+      if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) sw.h = true;
+      else if(Math.abs(dy) > 14) sw.h = false;
+    }
+    if(sw.h && canSlide()){
+      const dir = dx < 0 ? 1 : -1, x = hasPage(dir) ? Math.max(-150, Math.min(150, dx * 0.5)) : rubber(dx);
+      const el = stageEl2(); if(!el) return;
+      el.style.transition = "none"; el.style.transform = `translateX(${x.toFixed(1)}px)`;
+      el.style.opacity = hasPage(dir) && Math.abs(dx) >= SWIPE_THRESHOLD ? "0.9" : "1";
+      sw.slid = true;
     }
   }, {passive:true});
 
   viewport.addEventListener("touchend", (e)=>{
     if(!sw || sw.done){ sw = null; return; }
     const t = e.changedTouches[0];
-    const dx = t.clientX - sw.x, dy = t.clientY - sw.y, dt = Date.now() - sw.time;
+    const dx = t.clientX - sw.x, dy = t.clientY - sw.y, dt = Date.now() - sw.time, s0 = sw;
     const panned = Math.abs(viewport.scrollLeft - sw.scrollLeft) > 2; // 확대 상태에서 옆으로 스크롤한 것
     sw = null;
-    if(panned || dt > 800) return;
-    if(Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8){
-      if(dx < 0) goNextPage(); else goPrevPage();
-    }
+    if(gestureLock || panned || dt > 1500){ if(s0.slid) settleStage(); return; }
+    if(Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5){
+      const dir = dx < 0 ? 1 : -1;
+      if(hasPage(dir)){ if(s0.slid) turnWithSlide(dir); else if(dir > 0) goNextPage(true); else goPrevPage(); }
+      else { haptic(6); if(s0.slid) settleStage(); }                    // 끝 페이지: 튕겨 돌아오기
+    } else if(s0.slid) settleStage();
   }, {passive:true});
-  viewport.addEventListener("touchcancel", ()=>{ sw = null; }, {passive:true});
+  viewport.addEventListener("touchcancel", ()=>{ if(sw && sw.slid) settleStage(); sw = null; }, {passive:true});
 
   // 맥 매직마우스 · 트랙패드: 옆으로 쓸면 가로 휠 이벤트가 오고, 손을 뗀 뒤에도 관성(momentum)
   // 이벤트가 1초 가까이 이어진다. 한 번 넘기면 잠그고, 아래 중 하나면 "새로 쓸었다"로 보고 다시 연다:
@@ -6908,11 +6980,12 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
   }, {passive:false});
 })();
 
-function goPrevPage(){ if(state.currentIndex>0){ state.currentIndex--; renderSheet(); scheduleSave(); } }
+function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms || 12); }catch(err){} }   // 지원 기기에서만 (iPadOS Safari 는 미지원)
+function goPrevPage(){ if(state.currentIndex>0){ state.currentIndex--; renderSheet(); scheduleSave(); haptic(12); } }
 // 마지막 페이지에서 한 번 더 누르면 첫 페이지로 (꾹 눌러 자동 반복될 때는 돌지 않고 마지막에서 멈춘다)
 function goNextPage(noWrap){
-  if(state.currentIndex < state.sheets.length-1){ state.currentIndex++; renderSheet(); scheduleSave(); }
-  else if(noWrap !== true && state.sheets.length > 1){ state.currentIndex = 0; renderSheet(); scheduleSave(); }
+  if(state.currentIndex < state.sheets.length-1){ state.currentIndex++; renderSheet(); scheduleSave(); haptic(12); }
+  else if(noWrap !== true && state.sheets.length > 1){ state.currentIndex = 0; renderSheet(); scheduleSave(); haptic(12); }
 }
 document.getElementById("prevPage").addEventListener("click", goPrevPage);
 document.getElementById("nextPage").addEventListener("click", goNextPage);
@@ -8747,7 +8820,7 @@ function ftActive(){
 function syncFloatTools(){
   let a = ftActive();
   if(ftOpen && ftPop.classList.contains("open") && (ftOpen === "form" || ftOpen === "inst") && !placingText && !placingType) a = ftOpen;   // 아직 마커를 고르기 전에도 열린 탭을 표시
-  ftBar.querySelectorAll(".ftBtn").forEach(b=> b.classList.toggle("on", b.dataset.tool === a));
+  ftBar.querySelectorAll(".ftBtn:not(.ftLockBtn)").forEach(b=> b.classList.toggle("on", b.dataset.tool === a));
   const st = document.getElementById("sheetStage");
   if(st){ st.classList.toggle("selectMode", currentTool === "select"); st.classList.toggle("hlMode", currentTool === "highlight"); }
 }
@@ -8886,11 +8959,99 @@ function wfMiniDraw(){
   wfMini.addEventListener("pointermove", (e)=>{ if(down) seekTo(e); });
   wfMini.addEventListener("pointerup", ()=>{ down = false; }); wfMini.addEventListener("pointercancel", ()=>{ down = false; });
 })();
+
+/* ============ 멀티 핑거 제스처 · Zen 모드 · 미니 컨트롤러 · 제스처 잠금 ============
+ * 2손가락 좌/우: 셋리스트 다음·이전 곡 | 3손가락 아래: 헤더·툴바 숨김(Zen) | 3손가락 위: 메트로놈+오디오 미니 컨트롤러
+ * 화면 위·아래 40px(EDGE_DEAD)에서 시작한 터치는 모든 스와이프 제스처에서 제외. */
+const LOCK_SVG = {on:'<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>', off:'<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>'};
+function updateGlockUI(){
+  document.querySelectorAll(".glockBtn").forEach(b=>{ b.classList.toggle("locked", gestureLock); if(b.id === "focusLockBtn") b.textContent = gestureLock ? "🔒" : "🔓"; });
+  const ft = document.getElementById("ftLock"); if(ft){ ft.classList.toggle("locked", gestureLock); ft.querySelector("svg").innerHTML = gestureLock ? LOCK_SVG.on : LOCK_SVG.off; ft.querySelector("span").textContent = gestureLock ? "잠금 중" : "제스처"; }
+  document.getElementById("glockBadge").classList.toggle("show", gestureLock);
+}
+function setGestureLock(on, quiet){
+  gestureLock = !!on; try{ localStorage.setItem("mls-glock", gestureLock ? "1" : "0"); }catch(err){}
+  updateGlockUI(); haptic(gestureLock ? 20 : 8);
+  if(!quiet) showToast(gestureLock ? "제스처 잠금 — 스와이프로 페이지·곡이 넘어가지 않아요 (핀치·이동, 페달·키보드는 그대로)" : "제스처 잠금 해제", {ms:2600});
+}
+(function(){
+  // 플로팅 툴바 끝에 잠금 버튼
+  const sp = document.createElement("span"); sp.className = "ftSep"; ftBar.appendChild(sp);
+  const b = document.createElement("button"); b.type = "button"; b.id = "ftLock"; b.className = "ftBtn ftLockBtn glockBtn"; b.title = "제스처 잠금 — 라이브 연주 중 실수로 스와이프해도 악보가 넘어가지 않게";
+  b.innerHTML = `<svg viewBox="0 0 24 24">${LOCK_SVG.off}</svg><span>제스처</span>`;
+  b.addEventListener("click", ()=> setGestureLock(!gestureLock)); ftBar.appendChild(b);
+  document.getElementById("focusLockBtn").addEventListener("click", ()=> setGestureLock(!gestureLock));
+  updateGlockUI();
+})();
+
+/* ---- Zen 모드 ---- */
+function toggleZen(){
+  const on = !document.body.classList.contains("zen"); document.body.classList.toggle("zen", on); haptic(14);
+  showToast(on ? "Zen 모드 — 3손가락으로 아래로 쓸면 다시 보여요" : "헤더·툴바 다시 표시", {ms:1800});
+}
+/* ---- 미니 컨트롤러 ---- */
+const miniCtl = document.getElementById("miniCtl"); let miniTimer = 0;
+function miniRefresh(){
+  document.getElementById("mcBpm").textContent = state.bpm;
+  document.getElementById("mcPlay").textContent = isPlaying ? "■ 정지" : "▶ 시작"; document.getElementById("mcPlay").classList.toggle("on", isPlaying);
+  const ap = !!(audioEl && !audioEl.paused); const a = document.getElementById("mcAPlay"); a.textContent = ap ? "⏸" : "▶"; a.classList.toggle("on", ap);
+  document.getElementById("mcLoop").classList.toggle("on", loopStart != null && loopEnd != null);
+  document.getElementById("mcTime").textContent = audioEl ? " · " + fmtTime(audioEl.currentTime) + " / " + fmtTime(audioEl.duration) : " · 불러온 파일 없음";
+}
+function toggleMiniCtl(force){
+  const on = force != null ? force : !miniCtl.classList.contains("open");
+  miniCtl.classList.toggle("open", on); haptic(14); clearInterval(miniTimer);
+  if(on){ miniRefresh(); miniTimer = setInterval(miniRefresh, 250); }
+}
+const mcBind = (id, fn)=> document.getElementById(id).addEventListener("click", ()=>{ fn(); miniRefresh(); });
+mcBind("mcClose", ()=> toggleMiniCtl(false)); mcBind("mcPlay", ()=> toggleMetronome());
+mcBind("mcDown", ()=>{ state.bpm = Math.max(20, state.bpm - 5); syncBpmUI(); scheduleSave(); }); mcBind("mcUp", ()=>{ state.bpm = Math.min(300, state.bpm + 5); syncBpmUI(); scheduleSave(); });
+mcBind("mcTap", ()=> document.getElementById("tapTempoBtn").click());
+mcBind("mcAPlay", ()=>{ document.getElementById("audioPlayBtn").click(); }); mcBind("mcBack", ()=> document.getElementById("tpBack").click()); mcBind("mcFwd", ()=> document.getElementById("tpFwd").click());
+mcBind("mcLoop", ()=> toggleABLoop());
+const _flashBeatMini = flashBeat; flashBeat = function(beat){ _flashBeatMini(beat); if(miniCtl.classList.contains("open")){ const l = document.getElementById("mcLed"); l.classList.add("on"); setTimeout(()=> l.classList.remove("on"), 90); } };
+
+/* ---- 멀티 핑거 인식 ---- */
+(function setupMultiFinger(){
+  let m = null;
+  const cen = (ts)=>{ let x = 0, y = 0; for(const t of ts){ x += t.clientX; y += t.clientY; } return {x:x / ts.length, y:y / ts.length}; };
+  const spread = (ts)=>{ const c = cen(ts); let d = 0; for(const t of ts) d += Math.hypot(t.clientX - c.x, t.clientY - c.y); return d / ts.length; };
+  document.addEventListener("touchstart", (e)=>{
+    const n = e.touches.length;
+    if(n < 2){ if(n === 0) m = null; return; }
+    const ts = Array.from(e.touches);
+    if(ts.some(t=> t.touchType === "stylus")) { m = null; return; }
+    if(gestureBlocked() || ts.some(t=> inEdgeDead(t.clientY))){ m = {dead:true}; return; }     // 위·아래 40px 에서 시작한 터치가 섞이면 통째로 무시
+    if(m && m.dead){ return; }
+    const c = cen(ts), sp = spread(ts), now = performance.now();
+    if(!m) m = {t0:now, max:n, x0:c.x, y0:c.y, d0:sp, x1:c.x, y1:c.y, d1:sp};
+    else { m.max = Math.max(m.max, n); m.x0 = c.x; m.y0 = c.y; m.d0 = sp; m.x1 = c.x; m.y1 = c.y; m.d1 = sp; m.t0 = now; }   // 손가락이 늘면 기준을 다시 잡는다
+  }, {passive:true, capture:true});
+  document.addEventListener("touchmove", (e)=>{
+    if(!m || m.dead || e.touches.length < 2) return;
+    const ts = Array.from(e.touches), c = cen(ts); m.x1 = c.x; m.y1 = c.y; m.d1 = spread(ts);
+    if(m.max >= 3 && e.cancelable) e.preventDefault();          // 3손가락은 브라우저·시스템 스크롤에 넘기지 않는다
+  }, {passive:false, capture:true});
+  const end = (e)=>{
+    if(e.touches.length > 0) return;
+    const g = m; m = null;
+    if(!g || g.dead || gestureLock || gestureBlocked()) return;
+    const dx = g.x1 - g.x0, dy = g.y1 - g.y0, sp = Math.abs(g.d1 - g.d0), dt = performance.now() - g.t0;
+    if(dt > 1400) return;
+    if(g.max === 2 && Math.abs(dx) >= 80 && Math.abs(dx) > Math.abs(dy) * 1.8 && sp < 30){
+      haptic(12); stageSongStep(dx < 0 ? 1 : -1);
+    } else if(g.max >= 3 && Math.abs(dy) >= 60 && Math.abs(dy) > Math.abs(dx) * 1.5){
+      if(dy > 0) toggleZen(); else toggleMiniCtl();
+    }
+  };
+  document.addEventListener("touchend", end, {passive:true, capture:true});
+  document.addEventListener("touchcancel", ()=>{ m = null; }, {passive:true, capture:true});
+})();
 /* ============ 버전 · 자동 업데이트 ============
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-8";
+const APP_BUILD = "2026.11.02-9";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

@@ -130,7 +130,14 @@
   }
   .sidebar-left{width:300px;}
   .sidebar-right{width:300px;}
-  aside.collapsed{display:none;}
+  /* 사이드바 접기/펼치기: 폭이 부드럽게 줄어들고 악보 뷰포트가 같은 곡선으로 넓어진다 (ResizeObserver 가 악보 크기를 따라 맞춤) */
+  aside{transition:width .42s cubic-bezier(.16,1,.3,1), padding .42s cubic-bezier(.16,1,.3,1), margin .42s cubic-bezier(.16,1,.3,1), opacity .28s ease, transform .42s cubic-bezier(.16,1,.3,1), border-width .42s, visibility 0s linear 0s;}
+  aside.collapsed{width:0 !important; padding-left:0 !important; padding-right:0 !important; opacity:0; overflow:hidden; border-width:0 !important; visibility:hidden; pointer-events:none; transition:width .42s cubic-bezier(.16,1,.3,1), padding .42s cubic-bezier(.16,1,.3,1), margin .42s cubic-bezier(.16,1,.3,1), opacity .22s ease, border-width .42s, visibility 0s linear .42s;}
+  aside.sidebar-left.collapsed{margin-right:-12px;} aside.sidebar-right.collapsed{margin-left:-12px;}
+  .edgeTab:not([hidden]){animation:edgeIn .38s cubic-bezier(.16,1,.3,1) both;}
+  @keyframes edgeIn{from{opacity:0; transform:translateX(-14px);} to{opacity:1; transform:none;}}
+  .edgeTab.right:not([hidden]){animation-name:edgeInR;} @keyframes edgeInR{from{opacity:0; transform:translateX(14px);} to{opacity:1; transform:none;}}
+  .panelCollapseBtn svg{width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; vertical-align:-2px;}
 
   @media (max-width: 900px){
     .app-layout{ position:relative; }
@@ -139,6 +146,8 @@
     }
     aside.sidebar-left{ left:16px; }
     aside.sidebar-right{ right:16px; }
+    aside.sidebar-left.collapsed{ width:300px !important; padding:16px !important; margin:0; transform:translateX(calc(-100% - 24px)); }
+    aside.sidebar-right.collapsed{ width:300px !important; padding:16px !important; margin:0; transform:translateX(calc(100% + 24px)); }
     main.sheet-panel{ width:100%; }
   }
 
@@ -664,6 +673,54 @@
   .layerPop .lpDot{width:12px; height:12px; border-radius:50%; flex:none;} .layerPop .lpCnt{font-weight:400; font-size:10px; color:var(--text-dim,#888);}
   .layerPop input[type=checkbox]{width:18px; height:18px; justify-self:center;}
   .layerPop .lpHint{font-size:10px; color:var(--text-dim,#888); margin-top:6px; line-height:1.5;}
+
+  /* ============ Floating Studio Toolbar ============ */
+  main.sheet-panel{position:relative;}
+  #floatTools, #floatPop{display:none;}
+  .app-layout.mode-studio:not(.focusMode) #floatTools{display:flex;}
+  .app-layout.mode-studio:not(.focusMode) #floatPop{display:block;}
+  .app-layout.mode-studio:not(.focusMode) .legacyTools{display:none !important;}
+  #floatTools{
+    position:absolute; left:50%; bottom:18px; transform:translateX(-50%); z-index:30; gap:4px; padding:6px;
+    background:color-mix(in srgb, var(--panel) 74%, transparent); -webkit-backdrop-filter:blur(12px) saturate(1.2); backdrop-filter:blur(12px) saturate(1.2);
+    border:1px solid var(--glass-border, var(--border)); border-radius:var(--r-panel, 14px); box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,.05);
+    animation:ftIn .5s cubic-bezier(.16,1,.3,1) both;
+  }
+  @keyframes ftIn{from{opacity:0; transform:translate(-50%, 18px);} to{opacity:1; transform:translate(-50%, 0);}}
+  #floatTools .ftSep{width:1px; background:var(--glass-border, var(--border)); margin:6px 3px;}
+  #floatTools .ftBtn{
+    width:52px; height:50px; padding:0; border-radius:var(--r-control, 10px); border:1px solid transparent; background:transparent; color:var(--text-dim);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:10px; font-weight:700; letter-spacing:.01em;
+  }
+  #floatTools .ftBtn svg{width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; transition:transform .18s cubic-bezier(.16,1,.3,1);}
+  #floatTools .ftBtn:hover{background:var(--panel-hover); color:var(--text); border-color:transparent;}
+  #floatTools .ftBtn:hover svg{transform:translateY(-1px) scale(1.08);}
+  #floatTools .ftBtn.on{background:var(--accent); color:var(--on-accent); box-shadow:var(--glow);}
+  #floatTools .ftBtn.on svg{transform:scale(1.05);}
+  #floatPop{
+    position:absolute; left:50%; bottom:86px; z-index:29; width:max-content; max-width:min(94%, 720px);
+    background:color-mix(in srgb, var(--panel) 80%, transparent); -webkit-backdrop-filter:blur(12px) saturate(1.2); backdrop-filter:blur(12px) saturate(1.2);
+    border:1px solid var(--glass-border, var(--border)); border-radius:var(--r-panel, 14px); box-shadow:var(--shadow);
+    padding:10px 12px; opacity:0; pointer-events:none; transform:translate(-50%, 16px) scale(.97); transform-origin:50% 100%;
+    transition:opacity .22s ease, transform .38s cubic-bezier(.16,1,.3,1);
+  }
+  #floatPop.open{opacity:1; pointer-events:auto; transform:translate(-50%, 0) scale(1);}
+  #floatPop .fpSec{display:none; flex-direction:column; gap:8px;}
+  #floatPop .fpSec.cur{display:flex; animation:fpSwap .3s cubic-bezier(.16,1,.3,1) both;}
+  @keyframes fpSwap{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
+  #floatPop .fpRow{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  #floatPop .fpLbl{font-size:11px; font-weight:700; color:var(--text-muted); min-width:34px;}
+  #floatPop .fpFoot{display:none; align-items:center; gap:6px; flex-wrap:wrap; padding-top:8px; border-top:1px solid var(--glass-border, var(--border)); margin-top:2px;}
+  #floatPop.hasFoot .fpFoot{display:flex;}
+  #floatPop input[type=range]{width:150px; margin:0;}
+  #floatPop #textFontControls{display:flex !important; flex-wrap:wrap; padding-left:0 !important; gap:6px;}
+  #floatPop #markBars{max-width:660px;}
+  #floatPop[data-marks="form"] #instRow, #floatPop[data-marks="inst"] #markBars > .row:first-child{display:none;}
+  #floatPop .hlSw, #floatPop .fpSwatchBtn{width:22px; height:22px; border-radius:50%; border:2px solid transparent; cursor:pointer; transition:transform .12s;}
+  #floatPop .hlSw:hover{transform:scale(1.18);} #floatPop .hlSw.selected{border-color:var(--text); box-shadow:0 0 0 2px var(--bg);}
+  #floatPop .fpVal{font-size:11px; font-weight:800; min-width:34px; font-variant-numeric:tabular-nums; color:var(--text-dim);}
+  .sheetStage.selectMode canvas{cursor:default;} .sheetStage.hlMode canvas{cursor:cell;}
+  @media (max-width:640px){ #floatTools .ftBtn{width:42px; height:46px; font-size:9px;} #floatTools{gap:2px; padding:5px;} #floatPop input[type=range]{width:110px;} }
   .libTabs{display:flex; gap:6px; margin-bottom:16px; background:var(--panel-alt); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border);}
   .libTabs button{flex:1; border:none; background:transparent; border-radius:4px;}
   .libTabs button.active{background:var(--panel); color:var(--text); box-shadow:var(--shadow-sm);}
@@ -1083,7 +1140,7 @@
   <button class="edgeTab right" id="edgeTabRight" hidden title="노트 패널 펼치기">‹ 노트</button>
 
   <aside class="sidebar-left" id="metronomePanel">
-    <div class="asideHead"><button class="icon panelCollapseBtn" id="collapseLeftBtn" title="메트로놈 패널 접기">‹ 접기</button></div>
+    <div class="asideHead"><button class="icon panelCollapseBtn" id="collapseLeftBtn" title="메트로놈 패널 접기"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg> 접기</button></div>
     <section>
       <h2>
         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
@@ -1318,6 +1375,18 @@
     </div>
 
     <div class="pageStrip" id="pageStrip"></div>
+    <div id="floatPop" aria-live="polite">
+      <div class="fpSec" data-sec="select"><div class="fpRow"><span class="fpLbl">포인터</span><span id="fpPtr"></span></div><div style="font-size:11px; color:var(--text-muted);">선택: 코드·마커·텍스트를 눌러 고치거나 끌어 옮겨요. 아래는 레슨용 포인터예요.</div></div>
+      <div class="fpSec" data-sec="pen"><div class="fpRow"><span class="fpLbl">색</span><span id="fpPenColors"></span></div><div class="fpRow"><span class="fpLbl">굵기</span><span id="fpPenWidth"></span><span class="fpVal" id="fpPenVal">3px</span></div></div>
+      <div class="fpSec" data-sec="highlight"><div class="fpRow"><span class="fpLbl">색</span><span id="fpHlColors" class="row" style="gap:6px;"></span></div><div class="fpRow"><span class="fpLbl">굵기</span><input type="range" id="hlWidth" min="8" max="44" value="20"><span class="fpVal" id="fpHlVal">20px</span></div></div>
+      <div class="fpSec" data-sec="text"><div id="fpTextBox"></div><div class="fpRow"><span id="fpTextExtra" class="row" style="gap:6px;"></span></div></div>
+      <div class="fpSec" data-sec="form"><div id="fpMarksForm"></div></div>
+      <div class="fpSec" data-sec="inst"><div id="fpMarksInst"></div></div>
+      <div class="fpSec" data-sec="eraser"><div class="fpRow"><span class="fpLbl">크기</span><input type="range" id="eraserWidth" min="8" max="90" value="22"><span class="fpVal" id="fpEraseVal">22px</span></div><div style="font-size:11px; color:var(--text-muted);">지우개는 지금 고른 레이어의 필기만 지워요.</div></div>
+      <div class="fpFoot" id="fpFoot"></div>
+    </div>
+    <div id="floatTools" role="toolbar" aria-label="스튜디오 도구"></div>
+
 
     <div class="sheetViewport" id="sheetViewport">
       <button class="navEdge navLeft" id="navEdgeLeft" title="이전 페이지">‹</button>
@@ -1419,7 +1488,7 @@
   </main>
 
   <aside class="sidebar-right" id="notesPanel">
-    <div class="asideHead"><button class="icon panelCollapseBtn" id="collapseRightBtn" title="노트 패널 접기">접기 ›</button></div>
+    <div class="asideHead"><button class="icon panelCollapseBtn" id="collapseRightBtn" title="노트 패널 접기">접기 <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
     <section style="flex:1; display:flex; flex-direction:column;">
       <div class="notesHead">
         <h2>노트</h2>
@@ -6284,19 +6353,22 @@ function onPointerDown(e){
   if(e.pointerType === "touch") return;
   const sheet = currentSheet();
   if(!sheet) return;
+  if(currentTool === "select") return;      // 선택 도구: 필기 없이 마커·코드·텍스트만 만진다
   e.preventDefault();
   try{ canvasEl.setPointerCapture(e.pointerId); }catch(err){}
   if(currentTool === "laser"){ laserDown(e); return; }
   if(focusMode && e.pointerType==="pen" && !state.focusPenOpen){ state.focusPenOpen = true; renderFocusPen(); }
   if(layerPrefs.hide[layerPrefs.active]){ delete layerPrefs.hide[layerPrefs.active]; saveLayerPrefs(); redrawAnnotations(); refreshLayerPop(); }   // 숨긴 레이어에 쓰면 자동으로 보이게
   const {x,y} = canvasCoords(e);
+  const hl = currentTool === "highlight";
   strokeInProgress = {
     layer: layerPrefs.active,
-    color: currentTool==="eraser" ? "#000" : penColor,
-    width: currentTool==="eraser" ? 22 : parseInt(document.getElementById("penWidth").value,10),
+    color: currentTool==="eraser" ? "#000" : hl ? hlRgba(hlColor) : penColor,
+    width: currentTool==="eraser" ? eraserWidthPx : hl ? hlWidthPx : parseInt(document.getElementById("penWidth").value,10),
     mode: currentTool==="eraser" ? "erase" : "draw",
     points: [{x,y}],
   };
+  if(hl) strokeInProgress.hl = true;
 }
 
 function onPointerMove(e){
@@ -6304,6 +6376,12 @@ function onPointerMove(e){
   if(!strokeInProgress) return;
   const {x,y} = canvasCoords(e);
   strokeInProgress.points.push({x,y});
+  if(strokeInProgress.hl){   // 반투명 형광펜은 조각조각 그리면 이음새가 진해지므로 한 획으로 다시 그린다
+    redrawAnnotations();
+    const st = strokeInProgress; ctx.strokeStyle = st.color; ctx.lineWidth = st.width; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath(); st.points.forEach((p,i)=> i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y)); ctx.stroke();
+    return;
+  }
   ctx.globalCompositeOperation = strokeInProgress.mode==="erase" ? "destination-out" : "source-over";
   ctx.strokeStyle = strokeInProgress.color;
   ctx.lineWidth = strokeInProgress.width;
@@ -8452,11 +8530,116 @@ document.getElementById("guideBtn").addEventListener("click", ()=>{
 });
 window.addEventListener("pointerup", ()=> document.querySelectorAll(".vGuide.hot").forEach(el=> el.classList.remove("hot")));
 
+
+/* ============ Floating Studio Toolbar ============
+ * [선택 | 펜 | 형광펜 | 텍스트 | 송폼 | 악기 | 지우개] — 기존 도구의 실제 컨트롤을 팝오버로 옮겨 담는다 (레슨/연주 모드의 도킹 코드와 그대로 호환). */
+let hlColor = "#FFE14D", hlWidthPx = 20, eraserWidthPx = 22;
+const HL_COLORS = ["#FFE14D", "#7CF29A", "#FF8AD8", "#6EC1FF", "#FFA94D"];
+const hlRgba = (hex)=>{ const n = parseInt(hex.slice(1), 16); return `rgba(${n>>16&255},${n>>8&255},${n&255},0.38)`; };
+const FT_ICONS = {
+  select:'<path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"/>',
+  pen:'<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+  highlight:'<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
+  text:'<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/>',
+  form:'<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
+  inst:'<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  eraser:'<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>',
+};
+const FT_TOOLS = [["select","선택","선택 · 이동 (V)"],["pen","펜","펜 필기 (P)"],["highlight","형광펜","형광펜 (H)"],["text","텍스트","텍스트 입력 (T)"],["form","송폼","송폼 마커 (M)"],["inst","악기","악기 마킹 · 레이어 (I)"],["eraser","지우개","지우개 (E)"]];
+let ftOpen = null;          // 팝오버가 열려 있는 도구
+const ftBar = document.getElementById("floatTools"), ftPop = document.getElementById("floatPop");
+FT_TOOLS.forEach(([k, label, title], i)=>{
+  if(i === 1 || i === 4 || i === 6){ const sp = document.createElement("span"); sp.className = "ftSep"; ftBar.appendChild(sp); }
+  const b = document.createElement("button"); b.type = "button"; b.className = "ftBtn"; b.dataset.tool = k; b.title = title;
+  b.innerHTML = `<svg viewBox="0 0 24 24">${FT_ICONS[k]}</svg><span>${label}</span>`;
+  b.addEventListener("click", ()=> pickFloatTool(k));
+  ftBar.appendChild(b);
+});
+// ---- 실제 컨트롤을 팝오버로 옮기기 ----
+(function mountFloatControls(){
+  const $ = (id)=> document.getElementById(id), q = (sel)=> ftPop.querySelector(sel);
+  ["penTool","textTool","snapToggle","markerShapeBtn"].forEach(()=>{});
+  [$("penTool"), $("textTool"), $("snapToggle")].forEach(el=>{ const g = el && el.closest(".toolbar-group"); if(g) g.classList.add("legacyTools"); });
+  const mb = $("markBars");
+  // 펜
+  q("#fpPenColors").appendChild($("colorSwatches")); q("#fpPenWidth").appendChild($("penWidth"));
+  // 선택(포인터)
+  q("#fpPtr").appendChild($("laserTool")); q("#fpPtr").appendChild($("spotTool"));
+  // 텍스트
+  q("#fpTextBox").appendChild($("textFontControls")); q("#fpTextExtra").appendChild($("guideBtn")); q("#fpTextExtra").appendChild($("snapToggle")); q("#fpTextExtra").appendChild($("snapDivisionsSel"));
+  // 송폼 / 악기: 같은 markBars 를 한 번만 옮기고, 탭에 따라 한쪽 줄만 보이게
+  q("#fpMarksForm").appendChild(mb);
+  // 공통 푸터: 레이어 · 실행취소 · 다시실행 · 전체지우기
+  const foot = q("#fpFoot"); ["layerBtn","undoBtn","redoBtn","clearBtn"].forEach(id=> foot.appendChild($(id)));
+  // 형광펜 색
+  const hw = q("#fpHlColors");
+  HL_COLORS.forEach(c=>{ const d = document.createElement("div"); d.className = "hlSw" + (c === hlColor ? " selected" : ""); d.style.background = c; d.addEventListener("click", ()=>{ hlColor = c; hw.querySelectorAll(".hlSw").forEach(x=> x.classList.toggle("selected", x === d)); if(currentTool !== "highlight") pickFloatTool("highlight"); }); hw.appendChild(d); });
+  $("hlWidth").addEventListener("input", (e)=>{ hlWidthPx = parseInt(e.target.value, 10); q("#fpHlVal").textContent = hlWidthPx + "px"; });
+  $("eraserWidth").addEventListener("input", (e)=>{ eraserWidthPx = parseInt(e.target.value, 10); q("#fpEraseVal").textContent = eraserWidthPx + "px"; });
+  const pw = $("penWidth"), pv = q("#fpPenVal"); const upd = ()=>{ pv.textContent = pw.value + "px"; }; pw.addEventListener("input", upd); upd();
+})();
+function openFloatPop(tool){
+  ftOpen = tool;
+  ftPop.querySelectorAll(".fpSec").forEach(sec=> sec.classList.toggle("cur", sec.dataset.sec === tool));
+  const mb = document.getElementById("markBars");
+  if(tool === "form" || tool === "inst"){
+    const host = ftPop.querySelector(tool === "form" ? "#fpMarksForm" : "#fpMarksInst"); if(mb && mb.parentNode !== host && !dockedNodes.has(mb)) host.appendChild(mb);
+    ftPop.dataset.marks = tool;
+  }
+  ftPop.classList.toggle("hasFoot", tool === "pen" || tool === "highlight" || tool === "eraser");
+  ftPop.classList.add("open");
+  syncFloatTools();
+}
+function closeFloatPop(){ ftOpen = null; ftPop.classList.remove("open"); syncFloatTools(); }
+function pickFloatTool(t){
+  if(t !== "text" && placingText) setPlacingText(false);
+  if(t !== "form" && t !== "inst" && placingType) setPlacingType(null);
+  if(t === "pen") setTool("pen"); else if(t === "highlight") setTool("highlight"); else if(t === "eraser") setTool("eraser");
+  else if(t === "select"){ if(currentTool !== "laser") setTool("select"); }
+  else { if(currentTool !== "select") setTool("select"); }           // 텍스트·송폼·악기는 놓기 전용 — 펜이 같이 그려지지 않게
+  if(t === "text" && !placingText) setPlacingText(true);
+  if(ftOpen === t && ftPop.classList.contains("open") && ftActive() === t) { closeFloatPop(); return; }
+  openFloatPop(t);
+}
+function ftActive(){
+  if(placingText) return "text";
+  if(placingType) return findInstrument(placingType) ? "inst" : "form";
+  if(currentTool === "laser") return "select";
+  return currentTool;
+}
+function syncFloatTools(){
+  let a = ftActive();
+  if(ftOpen && ftPop.classList.contains("open") && (ftOpen === "form" || ftOpen === "inst") && !placingText && !placingType) a = ftOpen;   // 아직 마커를 고르기 전에도 열린 탭을 표시
+  ftBar.querySelectorAll(".ftBtn").forEach(b=> b.classList.toggle("on", b.dataset.tool === a));
+  const st = document.getElementById("sheetStage");
+  if(st){ st.classList.toggle("selectMode", currentTool === "select"); st.classList.toggle("hlMode", currentTool === "highlight"); }
+}
+// 기존 함수 확장: 도구가 바뀌면 상태 표시 갱신
+(function(){
+  const _setTool = setTool, _spt = setPlacingType, _sptx = setPlacingText;
+  setTool = function(t){ _setTool(t); syncFloatTools(); };
+  setPlacingType = function(k){ _spt(k); syncFloatTools(); };
+  setPlacingText = function(on){ _sptx(on); syncFloatTools(); };
+})();
+document.addEventListener("pointerdown", (e)=>{
+  if(!ftOpen || e.target.closest("#floatPop") || e.target.closest("#floatTools") || e.target.closest("#layerPop") || e.target.closest(".chordSug")) return;
+  if(e.target.closest("#sheetViewport") && (ftOpen === "text" || ftOpen === "form" || ftOpen === "inst")) return;   // 놓기 도구는 악보를 눌러도 팝오버 유지
+  closeFloatPop();
+}, true);
+document.addEventListener("keydown", (e)=>{
+  if(e.metaKey || e.ctrlKey || e.altKey || e.isComposing || isTypingTarget(document.activeElement)) return;
+  if(focusMode || document.querySelector(".libraryOverlay:not([hidden])") || !document.querySelector(".app-layout.mode-studio")) return;
+  if(!ftBar.offsetParent) return;
+  const map = {v:"select", p:"pen", h:"highlight", t:"text", m:"form", i:"inst", e:"eraser"}, t = map[e.key.toLowerCase()];
+  if(t){ e.preventDefault(); pickFloatTool(t); }
+  else if(e.key === "Escape" && ftOpen){ closeFloatPop(); }
+});
+syncFloatTools();
 /* ============ 버전 · 자동 업데이트 ============
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-5";
+const APP_BUILD = "2026.11.02-6";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

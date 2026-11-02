@@ -780,6 +780,20 @@
   .slNow{order:2; font-size:9px; font-weight:800; letter-spacing:.06em; padding:2px 6px; border-radius:6px; background:var(--accent); color:var(--on-accent); box-shadow:var(--glow); animation:nowPulse 1.6s ease-in-out infinite;}
   @keyframes nowPulse{50%{opacity:.6;}}
   .slAddSong{margin:0 12px 12px; padding:9px; border-radius:var(--r-control,8px); border:1px dashed var(--glass-border, var(--border)); background:transparent; color:var(--text-dim); font-weight:700; cursor:pointer;} .slAddSong:hover{border-color:var(--accent); color:var(--accent);}
+  .slTitle{font-size:17px !important;}
+  .slNow.next{background:var(--accent-active, #10B981); box-shadow:none; animation:none;}
+  .slCard.isNext{box-shadow:0 0 0 2px var(--accent-active, #10B981);}
+  .slCard.compact{display:flex; flex-wrap:wrap; align-items:center; column-gap:10px; padding:9px 12px 9px 16px;}
+  .slCard.compact .slTop{flex:1 1 100%;} .slCard.compact .slKey,.slCard.compact .slBpm{margin-top:2px; font-size:11px;}
+  .slCard.compact .slForm,.slCard.compact .slNote{display:none;}
+  #setlistBar{display:flex; align-items:center; gap:6px; padding:5px 16px; flex-shrink:0; overflow-x:auto; scrollbar-width:none; background:var(--panel, transparent); border-bottom:1px solid var(--glass-border, var(--border));}
+  #setlistBar::-webkit-scrollbar{display:none;} #setlistBar:empty,body.focusMode #setlistBar{display:none;}
+  .sbChip{flex:none; display:flex; align-items:center; gap:7px; padding:6px 13px; border-radius:999px; border:1px solid var(--glass-border, var(--border)); background:var(--panel-alt); color:var(--text-dim); font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap; max-width:260px;}
+  .sbChip b{font-size:11px; color:var(--text-muted); font-variant-numeric:tabular-nums;} .sbChip span{overflow:hidden; text-overflow:ellipsis;}
+  .sbChip i{width:8px; height:8px; border-radius:50%; background:var(--sc);}
+  .sbChip.cur{background:var(--accent); color:var(--on-accent); border-color:transparent; box-shadow:var(--glow); font-size:15px;} .sbChip.cur b{color:inherit; opacity:.8;}
+  .sbChip.next{border-color:var(--accent-active, #10B981); color:var(--text); border-width:2px;}
+  .sbChip em{font-style:normal; font-size:9px; font-weight:800; letter-spacing:.06em; padding:2px 5px; border-radius:5px; background:var(--accent-active, #10B981); color:#fff;}
   .slNo{font-size:13px; font-weight:800; color:var(--text-muted); font-variant-numeric:tabular-nums;}
   .slTitle{font-size:15px; font-weight:800; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .slRange{font-size:10px; color:var(--text-muted);}
@@ -1260,6 +1274,7 @@
   </div>
 </header>
 
+<div id="setlistBar" aria-label="송리스트"></div>
 <div id="chipBar" aria-label="송폼 칩 바">
   <div id="chipScroll"></div>
   <button id="chipAdd" title="섹션 추가 · 편집">＋</button>
@@ -5637,7 +5652,16 @@ async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
   if(replace && state.sheets.length && !safeConfirm("현재 악보를 교체할까요?")) return;
   try{
     let newPages = [];
-    for(const f of files) newPages = newPages.concat(await fileToPages(f));
+    const SONG_PAL = ["#3B82F6","#10B981","#F59E0B","#EF4444","#8B5CF6","#EC4899","#14B8A6","#F97316"];
+    let prevCol = replace ? null : ((state.sheets[(insertAt == null ? state.sheets.length : insertAt) - 1] || {}).songColor || null);
+    for(const f of files){
+      const pg = await fileToPages(f); if(!pg.length) continue;
+      const col = SONG_PAL[(SONG_PAL.indexOf(prevCol) + 1) % SONG_PAL.length]; prevCol = col;
+      const title = (f.name || "").replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim();
+      pg.forEach(x=>{ if(!x.songColor) x.songColor = col; });
+      if(title && !pg[0].songName) pg[0].songName = title;                // 파일 이름이 곡 제목이 된다
+      newPages = newPages.concat(pg);
+    }
     const before = pageSnap();
     pushPageUndo(replace && before.sheets.length ? `악보 ${newPages.length}페이지로 교체` : `악보 ${newPages.length}페이지 가져오기`, before);
     if(replace){
@@ -5735,10 +5759,6 @@ document.getElementById("addPageInput").addEventListener("change", async (e)=>{
   if(e.target.files.length) await handleIncomingFiles(e.target.files, {forceReplace:false});
   e.target.value = "";
   if(from !== null && state.sheets.length > from){
-    const prev = state.sheets[from - 1] && state.sheets[from - 1].songColor || null;
-    const pal = ["#3B82F6","#10B981","#F59E0B","#EF4444","#8B5CF6","#EC4899","#14B8A6"], used = new Set(state.sheets.map(x=>x.songColor));
-    const col = pal.find(c=> !used.has(c)) || pal.find(c=> c !== prev);
-    for(let i = from; i < state.sheets.length; i++) state.sheets[i].songColor = col;
     state.currentIndex = from; renderSheet(); scheduleSave();
     if(document.getElementById("contiPanel")) renderContiBody();
   }
@@ -6246,7 +6266,26 @@ function selectSong(sg, quiet){
   if(!quiet) showToast(`${String(sg.no).padStart(2, "0")}. ${sg.name || "곡 " + sg.no}${sg.bpm ? " · " + sg.bpm + " BPM" : ""}`, {ms:1600});
 }
 /* 헤더: 현재 곡의 키 · 송폼 흐름을 크게 */
+function renderSetlistBar(){
+  const bar = document.getElementById("setlistBar"); if(!bar) return;
+  const songs = state.sheets.length ? computeContiSongs() : [];
+  bar.innerHTML = "";
+  if(songs.length < 2) return;
+  const ci = songs.findIndex(sg=> sg.pages.includes(state.currentIndex));
+  songs.forEach((sg, i)=>{
+    const b = document.createElement("button"); b.type = "button";
+    b.className = "sbChip" + (i === ci ? " cur" : i === ci + 1 ? " next" : ""); b.style.setProperty("--sc", sg.color || "var(--border)");
+    b.innerHTML = `<b>${String(sg.no).padStart(2, "0")}</b>${i === ci || !sg.color ? "" : "<i></i>"}<span></span>${i === ci + 1 ? "<em>NEXT</em>" : ""}`;
+    b.querySelector("span").textContent = sg.name || "곡 " + sg.no;
+    b.title = "탭: 이 곡으로 이동 · 두 번 탭: 제목 바꾸기";
+    b.addEventListener("click", ()=> selectSong(sg, true));
+    b.addEventListener("dblclick", ()=>{ const t = window.prompt("곡 제목", sg.name || ""); if(t !== null){ state.sheets[sg.pages[0]].songName = t.trim() || null; scheduleSave(); updateSongHL(); if(document.getElementById("contiPanel")) renderContiBody(); } });
+    bar.appendChild(b);
+  });
+  const c = bar.querySelector(".sbChip.cur"); if(c) bar.scrollLeft = Math.max(0, c.offsetLeft - 24);
+}
 function updateSongHL(){
+  renderSetlistBar();
   const el = document.getElementById("songHL"), hdr = document.querySelector("header"); if(!el) return;
   const sg = state.sheets.length ? currentSong() : null;
   const has = sg && (sg.name || sg.keyInfo || sg.form.length || sg.bpm);
@@ -6285,11 +6324,12 @@ function renderContiBody(){
   if(!songs.length){ body.innerHTML = `<div class="contiEmpty">악보가 없어요. File ▸ 악보 업로드로 시작하세요.</div>`; return; }
   songs.forEach((sg, idx)=>{
     const cur = sg.pages.includes(state.currentIndex);
-    const card = document.createElement("div"); card.className = "slCard" + (cur ? " cur" : ""); card.style.setProperty("--sc", sg.color || "var(--border)");
+    const isNext = idx > 0 && songs[idx - 1].pages.includes(state.currentIndex);
+    const card = document.createElement("div"); card.className = "slCard" + (cur ? " cur" : "") + (isNext ? " isNext" : "") + (!contiEdit && !cur && !isNext ? " compact" : ""); card.style.setProperty("--sc", sg.color || "var(--border)");
     const noStr = String(sg.no).padStart(2, "0");
     if(!contiEdit){
       const keyHtml = sg.keyInfo ? `<div class="slKey"><span>${escapeHtml(sg.keyInfo.from)}</span>${sg.keyInfo.to ? `<em>➔</em><span class="to">${escapeHtml(sg.keyInfo.to)} ${sg.keyInfo.dir > 0 ? "▲" : "▼"}</span>` : ""}${sg.keyInfo.detected ? `<small>자동</small>` : ""}</div>` : `<div class="slKey dim">Key —</div>`;
-      card.innerHTML = `<div class="slTop"><span class="slNo">${noStr}</span>${cur ? `<span class="slNow">NOW PLAYING</span>` : ""}<span class="slTitle">${escapeHtml(sg.name || "곡 " + sg.no)}</span><span class="slRange">p.${sg.pages[0] + 1}${sg.pages.length > 1 ? "–" + (sg.pages[sg.pages.length - 1] + 1) : ""}</span></div>${keyHtml}<div class="slBpm ${sg.bpm ? "" : "dim"}">${escapeHtml(sg.bpm ? meterText(sg) : (sg.num || state.beatsPerBar) + "/" + (sg.den || state.beatUnit) + " · BPM —")}</div>`;
+      card.innerHTML = `<div class="slTop"><span class="slNo">${noStr}</span>${cur ? `<span class="slNow">NOW PLAYING</span>` : isNext ? `<span class="slNow next">NEXT</span>` : ""}<span class="slTitle">${escapeHtml(sg.name || "곡 " + sg.no)}</span><span class="slRange">p.${sg.pages[0] + 1}${sg.pages.length > 1 ? "–" + (sg.pages[sg.pages.length - 1] + 1) : ""}</span></div>${keyHtml}<div class="slBpm ${sg.bpm ? "" : "dim"}">${escapeHtml(sg.bpm ? meterText(sg) : (sg.num || state.beatsPerBar) + "/" + (sg.den || state.beatUnit) + " · BPM —")}</div>`;
       const fl = document.createElement("div"); fl.className = "slForm";
       if(sg.form.length){
         sg.form.forEach((f, i)=>{
@@ -9265,7 +9305,7 @@ function scheduleDock(){ clearTimeout(dockT); dockT = setTimeout(layoutBottomDoc
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-13";
+const APP_BUILD = "2026.11.02-14";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

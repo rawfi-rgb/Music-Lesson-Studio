@@ -329,8 +329,6 @@
   .markerPill .del:hover{opacity:1;}
   .markerPill .bar{opacity:0.9; font-weight:500; font-size:10px; background:rgba(0,0,0,0.2); padding:1px 5px; border-radius:10px;}
 
-  .snapGrid{position:absolute; inset:0; pointer-events:none; z-index:3; display:none;}
-  .sheetStage.placing.snapOn .snapGrid{display:block;}
 
   .formTypeBtn{display:flex; align-items:center; gap:6px; padding:4px 8px; font-size:11px; border-radius:14px; border:1px solid var(--border);}
   .formTypeBtn .dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
@@ -617,37 +615,7 @@
   .libraryEmpty{text-align:center; color:var(--text-muted); font-size:13px; padding:40px 10px;}
 
 
-  /* ---------- 스테이지 뷰 (무대용) ---------- */
-  #stageView{position:fixed; inset:0; z-index:98; background:#000; color:#fff; display:flex; flex-direction:column; padding:max(14px, env(safe-area-inset-top)) 18px max(14px, env(safe-area-inset-bottom)); font-family:-apple-system,"Apple SD Gothic Neo",sans-serif; gap:12px; user-select:none; -webkit-user-select:none;}
-  #stageView[hidden]{display:none;}
-  #stageView button{font-family:inherit; color:#fff; background:#111; border:2px solid #fff; border-radius:14px; font-weight:800; cursor:pointer;}
-  #stageView button:active{background:#fff; color:#000;}
-  .stTop{display:flex; align-items:center; gap:12px;}
-  .stTop .stTitle{flex:1; font-size:clamp(18px,3.2vw,30px); font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .stTop button{padding:8px 16px; font-size:18px;}
-  .stSecs{display:grid; grid-template-columns:1.6fr 1fr; gap:12px; flex:1; min-height:0;}
-  .stCard{border:3px solid #fff; border-radius:20px; padding:12px 18px; display:flex; flex-direction:column; justify-content:center; min-width:0; overflow:hidden;}
-  .stCard small{font-size:clamp(13px,2vw,20px); color:#ffd400; font-weight:800; letter-spacing:.06em;}
-  .stCard.next{border-color:#8a8a8a;} .stCard.next small{color:#9cf;}
-  .stCard .stBig{font-size:clamp(34px,10vw,150px); line-height:1.05; font-weight:900; overflow-wrap:anywhere;}
-  .stCard.next .stBig{font-size:clamp(28px,6.5vw,96px); color:#ddd;}
-  .stCard .stSub{font-size:clamp(14px,2.2vw,24px); color:#bbb; margin-top:4px;}
-  .stBottom{display:flex; align-items:stretch; gap:12px; flex:1; min-height:0;}
-  .stFlash{flex:0 0 clamp(90px,22vw,230px); border:3px solid #fff; border-radius:50%; aspect-ratio:1; align-self:center; background:#000; transition:background .09s, box-shadow .09s;}
-  .stFlash.on{background:#fff; box-shadow:0 0 60px 20px rgba(255,255,255,.7); transition:none;}
-  .stFlash.on.accent{background:#ffd400; box-shadow:0 0 70px 24px rgba(255,212,0,.8);}
-  .stBpm{display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; min-width:0;}
-  .stBpm b{font-size:clamp(60px,16vw,200px); line-height:1; font-weight:900; font-variant-numeric:tabular-nums;}
-  .stBpm span{font-size:clamp(14px,2.4vw,26px); color:#bbb; font-weight:800;}
-  .stBtns{display:grid; grid-template-columns:1fr 1fr; gap:10px; flex:1.2; min-width:0;}
-  .stBtns button{font-size:clamp(18px,3.4vw,38px); padding:6px;}
-  .stBtns .stTap{grid-column:1 / -1; grid-row:span 2; font-size:clamp(30px,7vw,84px); background:#fff; color:#000;}
-  .stBtns .stTap:active{background:#ffd400;}
-  .stBtns .stPlay.on{background:#d60000; border-color:#d60000;}
-  .stNav{display:flex; gap:10px;}
-  .stNav button{flex:1; padding:12px 6px; font-size:clamp(16px,2.8vw,28px);}
-  .stBorder{position:absolute; inset:0; pointer-events:none; border:0 solid #fff; transition:border-width .08s;} .stBorder.on{border-width:10px; transition:none;}
-  @media (max-width:640px){ #stageView{overflow-y:auto;} .stSecs{grid-template-columns:1fr; flex:none;} .stCard{padding:8px 14px; overflow:visible;} .stBottom{flex-direction:column; flex:none;} .stFlash{display:none;} .stBpm b{font-size:clamp(60px,26vw,140px);} .stBtns{flex:none;} .stBtns .stTap{grid-row:auto; padding:18px 0;} .stBtns button{padding:12px 6px;} .stNav{flex-wrap:wrap;} .stNav button{flex:1 1 44%;} }
+
 
   .wfBox{margin:0 0 10px;}
   #wfCanvas{width:100%; height:110px; display:block; border-radius:8px; background:var(--panel-alt); border:1px solid var(--border); touch-action:none; cursor:crosshair;}
@@ -773,6 +741,58 @@
   #miniCtl .mcLbl{font-size:10px; font-weight:800; letter-spacing:.1em; color:var(--text-muted);}
   #miniCtl button.on{background:var(--accent); color:var(--on-accent); border-color:transparent; box-shadow:var(--glow);}
   #miniCtl .mcLed{width:12px; height:12px; border-radius:50%; background:color-mix(in srgb, var(--text-muted) 35%, transparent); flex:none;} #miniCtl .mcLed.on{background:var(--beat-accent); box-shadow:0 0 10px var(--beat-accent);}
+  /* ============ File 메뉴 · 송폼 Chip Bar · Minimal 화면 ============ */
+  body.noAnim aside, body.noAnim #floatTools{transition:none !important; animation:none !important;}
+  #pageLabel{white-space:nowrap; font-variant-numeric:tabular-nums; font-size:12px;}
+  .pageNavGrp{flex:none;}
+  .fileBtn{padding:6px 12px; font-size:13px; gap:7px;} .fileBtn .caret{width:14px; height:14px; opacity:.7; transition:transform .2s;} .fileBtn[aria-expanded="true"] .caret{transform:rotate(180deg);}
+  #fileMenu{position:fixed; z-index:99; min-width:210px; padding:6px; display:flex; flex-direction:column; gap:1px;
+    background:color-mix(in srgb, var(--panel) 88%, transparent); -webkit-backdrop-filter:blur(12px) saturate(1.2); backdrop-filter:blur(12px) saturate(1.2);
+    border:1px solid var(--glass-border, var(--border)); border-radius:var(--r-panel, 14px); box-shadow:var(--shadow);
+    opacity:0; transform:translateY(-8px) scale(.97); transform-origin:0 0; pointer-events:none; transition:opacity .18s ease, transform .3s cubic-bezier(.16,1,.3,1);}
+  #fileMenu[hidden]{display:flex !important; visibility:hidden;}
+  #fileMenu.open{opacity:1; transform:none; pointer-events:auto; visibility:visible;}
+  #fileMenu button{justify-content:flex-start; width:100%; background:transparent; border-color:transparent; border-radius:var(--r-control, 8px); padding:9px 12px; font-size:13px; font-weight:600;}
+  #fileMenu button:hover{background:var(--accent-dim); border-color:transparent; box-shadow:none;}
+  #fileMenu kbd{margin-left:auto; font-size:10px; color:var(--text-muted); font-family:inherit; padding-left:18px;}
+  #fileMenu .fmSep{height:1px; background:var(--glass-border, var(--border)); margin:4px 6px;}
+  #chipBar{display:flex; align-items:center; gap:8px; padding:4px 16px 0; flex-shrink:0; position:sticky; top:0; z-index:12; min-height:36px;}
+  body.focusMode #chipBar{display:none;}
+  #chipScroll{display:flex; gap:6px; overflow-x:auto; flex:1; scrollbar-width:none; padding:2px 0; scroll-behavior:smooth; -webkit-mask-image:linear-gradient(90deg,#000 94%,transparent); mask-image:linear-gradient(90deg,#000 94%,transparent);}
+  #chipScroll::-webkit-scrollbar{display:none;}
+  .secChip{flex:none; display:inline-flex; align-items:center; gap:7px; padding:6px 13px; font-size:12px; font-weight:700; border-radius:999px; border:1px solid transparent; background:var(--panel-alt); color:var(--text-dim); cursor:pointer; transition:background .15s, color .15s, transform .15s, box-shadow .15s;}
+  .secChip .cd{width:8px; height:8px; border-radius:50%; flex:none;}
+  .secChip:hover{background:var(--panel-hover); color:var(--text); transform:translateY(-1px);}
+  .secChip.act{background:var(--accent); color:var(--on-accent); box-shadow:var(--glow);}
+  .secChip.act .cd{box-shadow:0 0 0 2px rgba(255,255,255,.55);}
+  #chipScroll .chipEmpty{font-size:12px; color:var(--text-muted); padding:6px 4px;}
+  #chipAdd{flex:none; width:32px; height:30px; padding:0; border-radius:999px; font-size:16px; line-height:1; background:var(--panel-alt);}
+  :root[data-theme="pro"] .secChip, :root[data-theme="pro"] #chipAdd{border-radius:var(--r-control);}
+  #chipPop{position:fixed; z-index:99; width:min(360px, 94vw); max-height:70vh; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:10px;
+    background:color-mix(in srgb, var(--panel) 90%, transparent); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--glass-border, var(--border)); border-radius:var(--r-panel, 14px); box-shadow:var(--shadow);
+    opacity:0; transform:translateY(-8px) scale(.97); transform-origin:100% 0; pointer-events:none; transition:opacity .18s, transform .3s cubic-bezier(.16,1,.3,1);}
+  #chipPop[hidden]{display:flex !important; visibility:hidden;} #chipPop.open{opacity:1; transform:none; pointer-events:auto; visibility:visible;}
+  #chipPop h4{margin:0; font-size:11px; letter-spacing:.1em; color:var(--text-muted); font-weight:800;}
+  #chipPop .cpTypes{display:flex; flex-wrap:wrap; gap:6px;}
+  #chipPop .cpTypes button{padding:6px 11px; font-size:12px; gap:6px;} #chipPop .cpTypes .cd{width:8px; height:8px; border-radius:50%;}
+  #chipPop .cpRow{display:flex; align-items:center; gap:6px; padding:4px 6px; border-radius:8px;} #chipPop .cpRow:hover{background:var(--panel-hover);}
+  #chipPop .cpRow .nm{flex:1; font-size:13px; font-weight:600; display:flex; align-items:center; gap:7px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;} #chipPop .cpRow .cd{width:8px; height:8px; border-radius:50%; flex:none;}
+  #chipPop .cpRow button{padding:3px 8px; font-size:12px;}
+  .secPulse{position:absolute; width:46px; height:46px; margin:-23px 0 0 -23px; border-radius:50%; border:3px solid var(--accent); z-index:9; pointer-events:none; animation:secPulse 1s ease-out forwards;}
+  @keyframes secPulse{from{opacity:1; transform:scale(.5);} to{opacity:0; transform:scale(2.2);}}
+  /* Minimal: 악보가 화면의 대부분 — 테두리·부가 문구 정리 */
+  main.sheet-panel > .toolbar, #toggleToolsBtn{display:none !important;}
+  header, :root[data-theme="pro"] header{background:transparent !important; box-shadow:none !important; border:0 !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; margin:6px 12px 0 !important; height:44px;}
+  #currentProjectLabel{border:0; background:transparent; padding:0 6px;}
+  .sheetTopBar{border-bottom:0 !important; background:transparent !important; height:44px;}
+  main.sheet-panel, :root[data-theme="pro"] main.sheet-panel{background:transparent !important; box-shadow:none !important; border:0 !important;}
+  aside, :root[data-theme="pro"] aside{border:0 !important; box-shadow:none !important;}
+  section, :root[data-theme="pro"] section{border:0 !important;}
+  .sheetTopBar .zoomCtl, .sheetTopBar .keyCtl, .sheetTopBar .toolbar-group{border:0 !important;}
+  .pageStrip{border:0 !important; background:transparent !important;}
+  .sidebar-left .hint:not(#loopStatusHint):not(#audioTimeLabel):not(#tempoMarking):not(#tempoResultHint), .sidebar-right .hint, #wfHint, .zoomPop .zpHint, .keyPop .zpHint{display:none !important;}
+  .sheetViewport{padding:10px 16px;}
+  .app-layout{padding:6px 12px 10px; gap:10px;}
   .libTabs{display:flex; gap:6px; margin-bottom:16px; background:var(--panel-alt); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border);}
   .libTabs button{flex:1; border:none; background:transparent; border-radius:4px;}
   .libTabs button.active{background:var(--panel); color:var(--text); box-shadow:var(--shadow-sm);}
@@ -1147,9 +1167,10 @@
   .focusPenBody input[type=range]::-webkit-slider-thumb{margin-top:0; margin-left:-5px; width:20px; height:14px; background:linear-gradient(180deg, transparent 44%, var(--accent) 44%, var(--accent) 56%, transparent 56%), linear-gradient(90deg, #f5f7fa 0%, #cdd2da 46%, #9aa1ac 54%, #d9dde3 100%);}
 </style>
 </head>
-<body>
+<body class="noAnim">
 
 <header>
+  <button class="fileBtn" id="fileMenuBtn" aria-haspopup="menu" aria-expanded="false" title="파일 메뉴 — 새 프로젝트 · 보관함 · 저장 · 내보내기"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg><span>File</span><svg class="icon-svg caret" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5z"/></svg></button>
   <h1>
     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
     <span class="appTitle">Music Lesson Studio</span>
@@ -1158,18 +1179,6 @@
   <div id="saveStatus">저장 준비 중…</div>
   <button class="icon syncChip" id="syncStatus" hidden></button>
   <div id="currentProjectLabel"></div>
-  <button id="openLibraryBtn" title="프로젝트 보관함">
-    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
-    <span class="btnLabel">프로젝트</span>
-  </button>
-  <button id="quickSaveBtn" title="저장 (⌘S) — 연 파일에 덮어쓰기, 처음이면 저장 위치 고르기">
-    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
-    <span class="btnLabel">저장</span>
-  </button>
-  <button id="newProjectBtn" title="새 프로젝트 시작">
-    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-    <span class="btnLabel">새 프로젝트</span>
-  </button>
   <button class="panelToggle active" id="toggleLeftPanel" title="메트로놈 패널">
     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
     <span class="btnLabel">메트로놈</span>
@@ -1186,6 +1195,12 @@
     <button data-mode="lesson" title="악기 앞에서 · 악보 최대화">레슨</button>
   </div>
 </header>
+
+<div id="chipBar" aria-label="송폼 칩 바">
+  <div id="chipScroll"></div>
+  <button id="chipAdd" title="섹션 추가 · 편집">＋</button>
+</div>
+<div id="chipPop" hidden></div>
 
 <div class="app-layout">
   <button class="edgeTab left" id="edgeTabLeft" hidden title="메트로놈 패널 펼치기">메트로놈 ›</button>
@@ -1358,6 +1373,11 @@
       <button id="bigPlayBtn">▶</button>
       <div class="miniDots" id="miniDots"></div>
       <div style="font-size:13px; font-weight:700; " id="bpmLabel">100 BPM</div>
+      <div class="toolbar-group pageNavGrp">
+        <button class="icon" id="prevPage">‹</button>
+        <span id="pageLabel" style="padding:0 4px;">0 / 0</span>
+        <button class="icon" id="nextPage">›</button>
+      </div>
       <div class="keyCtl" data-key-ctl data-btn-class="" style="margin-left:auto;" title="키 · 코드 바꾸기"></div>
       <div class="zoomCtl" data-zoom-ctl data-btn-class="" title="악보 크기"></div>
       <button class="icon" id="fitModeBtn" title="악보 한 장 전체 보기 ↔ 폭 맞춤">↕ 전체 보기</button>
@@ -1375,16 +1395,10 @@
         <button id="addPageBtn">＋ 페이지</button>
         <button id="pasteBtn" title="굿노트 등 다른 앱에서 복사한 악보(이미지·PDF) 붙여넣기">📋 붙여넣기</button>
         <button id="contiBtn" title="콘티(곡 순서) 보기 · 이름·색·순서 정하기">🎼 콘티</button>
-        <button id="stageBtn" title="무대용 스테이지 뷰 (검정 화면 · 현재/다음 섹션 · 큰 탭 템포)">🎤 스테이지</button>
       </div>
       <input type="file" id="fileInput" multiple>
       <input type="file" id="addPageInput" multiple>
 
-      <div class="toolbar-group">
-        <button class="icon" id="prevPage">‹</button>
-        <span id="pageLabel" style="padding:0 4px;">0 / 0</span>
-        <button class="icon" id="nextPage">›</button>
-      </div>
 
 
       <div class="toolbar-group">
@@ -1418,15 +1432,6 @@
           <button class="icon" id="fontSizeUp">A+</button>
           <span class="chordQuick" id="chordQuick" title="커서 위치에 코드 꼬리 넣기"></span>
         </div>
-      </div>
-
-      <div class="toolbar-group">
-        <button class="icon" id="snapToggle">🧲 스냅</button>
-        <select id="snapDivisionsSel" style="padding:2px 4px; font-size:11px;">
-          <option value="8">8칸</option>
-          <option value="16" selected>16칸</option>
-          <option value="32">32칸</option>
-        </select>
       </div>
 
       <div class="markBars" id="markBars">
@@ -1582,21 +1587,17 @@
   <div class="mcRow"><span class="mcLbl" style="flex:1">AUDIO <span id="mcTime" style="font-weight:600; letter-spacing:0;"></span></span></div>
   <div class="mcRow"><button class="icon" id="mcBack">⏪ 5</button><button class="icon" id="mcAPlay">▶</button><button class="icon" id="mcFwd">5 ⏩</button><button class="icon" id="mcLoop">🔁 A-B</button></div>
 </div>
-<div id="stageView" hidden>
-  <div class="stBorder" id="stBorder"></div>
-  <div class="stTop"><div class="stTitle" id="stTitle"></div><button id="stMidiLbl" style="display:none; font-size:14px; padding:4px 10px;"></button><button id="stExit">✕ 종료</button></div>
-  <div class="stSecs">
-    <div class="stCard" id="stCur"><small>지금 · 현재 섹션</small><div class="stBig" id="stCurBig">—</div><div class="stSub" id="stCurSub"></div></div>
-    <div class="stCard next" id="stNext"><small>다음 섹션 (탭하면 넘김)</small><div class="stBig" id="stNextBig">—</div><div class="stSub" id="stNextSub"></div></div>
-  </div>
-  <div class="stBottom">
-    <div class="stFlash" id="stFlash"></div>
-    <div class="stBpm"><b id="stBpm">100</b><span>BPM · <span id="stMeter">4/4</span></span></div>
-    <div class="stBtns"><button class="stTap" id="stTap">TAP</button><button class="stPlay" id="stPlay">▶ 시작</button><button id="stLoop">A-B 반복</button></div>
-  </div>
-  <div class="stNav"><button id="stSongPrev">◀ 이전 곡</button><button id="stPagePrev">⟨ 이전 페이지</button><button id="stPageNext">다음 페이지 ⟩</button><button id="stSongNext">다음 곡 ▶</button></div>
+<div id="fileMenu" role="menu" hidden>
+  <button id="newProjectBtn" role="menuitem">📄 새 프로젝트</button>
+  <button id="openLibraryBtn" role="menuitem">📂 보관함 열기</button>
+  <button id="quickSaveBtn" role="menuitem">💾 저장하기 <kbd>⌘S</kbd></button>
+  <button id="exportMenuBtn" role="menuitem">📤 내보내기</button>
+  <div class="fmSep"></div>
+  <button id="fmUpload" role="menuitem">🖼 악보 업로드</button>
+  <button id="fmAddPage" role="menuitem">＋ 페이지 추가</button>
+  <button id="fmPaste" role="menuitem">📋 붙여넣기</button>
+  <button id="fmConti" role="menuitem">🎼 곡 순서 (콘티)</button>
 </div>
-
 <div class="libraryOverlay" id="libraryOverlay" hidden>
   <div class="libraryPanel">
     <div class="libraryHead">
@@ -1647,10 +1648,9 @@
       </div>
 
       <div id="setlistSection" style="display:none;">
-        <div class="hint" style="padding:0 0 10px; line-height:1.6;">공연 순서대로 곡(저장한 프로젝트)을 모아 두세요. 스테이지 뷰에서 ‘다음 곡’ 으로 순서대로 넘어갑니다. (클라우드에 저장한 프로젝트가 대상이에요)</div>
+        <div class="hint" style="padding:0 0 10px; line-height:1.6;">공연 순서대로 곡(저장한 프로젝트)을 모아 두세요. 두 손가락으로 악보를 좌우로 쓸면 이 순서대로 곡이 넘어갑니다. (클라우드에 저장한 프로젝트가 대상이에요)</div>
         <div class="saveRow"><select id="setlistAddSel" style="flex:1;"></select><button class="primary" id="setlistAddBtn">추가</button></div>
         <div id="setlistList" style="margin:10px 0;"></div>
-        <button class="primary" id="setlistStageBtn" style="width:100%;">🎤 스테이지 뷰 시작</button>
       </div>
 
       <div id="exportSection" style="display:none;">
@@ -1800,7 +1800,6 @@ let state = {
   soundMode:"click", timbre:"sine", pitch:0, drumKit:"acoustic",
   feel:"straight", swingAmount:58, subdivision:4, hihatLevel:0.5,
   leftPanelOpen:true, rightPanelOpen:true,
-  snapEnabled:false, snapDivisions:16,
   uiMode:"studio", markerShape:"bracket", practicingId:null,
   theme:"warm", darkInFocus:false, notesFontSize:14,
   songKey:null, transpose:0, showChordBoxes:false, keyScope:"page", chordSpelling:"auto",
@@ -5133,7 +5132,6 @@ function visualLoop(){
 
 function flashBeat(beat){
   if(typeof knobFlash === "function") knobFlash(beat);
-  if(typeof stageFlash === "function") stageFlash((state.beatPattern[beat] || "normal") === "accent");
   pulseDockRing((state.beatPattern[beat] || "normal") === "accent");
   clearBeatFlash();
   const dot = document.querySelector(`.beatDot[data-index="${beat}"]`);
@@ -5954,7 +5952,6 @@ function renderSheet(){
   renderChords();
   renderKeyControls();
   renderTextBoxes();
-  renderSnapGrid();
   attachCanvasEvents();
   renderPageStrip();
 }
@@ -7053,7 +7050,7 @@ function undockAll(){
   dockedNodes.clear();
 }
 
-const RAIL_ICONS = {penTool:"✏️", eraserTool:"🧽", laserTool:"🔴", spotTool:"🔦", layerBtn:"🗂", guideBtn:"┃", textTool:"가", undoBtn:"↺", redoBtn:"↻", snapToggle:"🧲"};
+const RAIL_ICONS = {penTool:"✏️", eraserTool:"🧽", laserTool:"🔴", spotTool:"🔦", layerBtn:"🗂", guideBtn:"┃", textTool:"가", undoBtn:"↺", redoBtn:"↻"};
 const railOriginalHTML = new Map();
 function enterLessonLayout(){
   const rail = document.getElementById("railSlot");
@@ -7065,7 +7062,7 @@ function enterLessonLayout(){
     dockNode(el, rail);
   });
   const flyout = document.getElementById("railFlyout");
-  ["colorSwatches","penWidth","textFontControls","snapDivisionsSel"].forEach(id=>{
+  ["colorSwatches","penWidth","textFontControls"].forEach(id=>{
     dockNode(document.getElementById(id), flyout);
   });
   openLessonTab(lessonTab, {keepClosed:true});
@@ -7528,58 +7525,19 @@ document.addEventListener("keydown", (e)=>{
   }
 });
 
-function snapPct(pct){
-  if(!state.snapEnabled) return pct;
-  const step = 100/state.snapDivisions;
-  return Math.round(pct/step)*step;
-}
-
-function renderSnapGrid(){
-  const stage = document.getElementById("sheetStage");
-  stage.classList.toggle("snapOn", state.snapEnabled);
-  let grid = document.getElementById("snapGridOverlay");
-  if(!grid){
-    grid = document.createElement("div");
-    grid.id = "snapGridOverlay";
-    grid.className = "snapGrid";
-    stage.appendChild(grid);
-  } else if(grid.parentNode !== stage){ stage.appendChild(grid); }
-  grid.innerHTML = "";
-  const n = state.snapDivisions;
-  for(let i=1;i<n;i++){
-    const pct = (i/n)*100;
-    const v = document.createElement("div");
-    v.style.cssText = `position:absolute; top:0; bottom:0; left:${pct}%; width:1px; background:rgba(198,113,57,0.3);`;
-    grid.appendChild(v);
-    const h = document.createElement("div");
-    h.style.cssText = `position:absolute; left:0; right:0; top:${pct}%; height:1px; background:rgba(198,113,57,0.3);`;
-    grid.appendChild(h);
-  }
-}
-
-document.getElementById("snapToggle").addEventListener("click", ()=>{
-  state.snapEnabled = !state.snapEnabled;
-  document.getElementById("snapToggle").classList.toggle("active", state.snapEnabled);
-  renderSnapGrid(); scheduleSave();
-});
-document.getElementById("snapDivisionsSel").addEventListener("change", (e)=>{
-  state.snapDivisions = parseInt(e.target.value,10);
-  renderSnapGrid(); scheduleSave();
-});
-
 function placeMarkerAt(key, xPct, yPct){
   const sheet = currentSheet(); if(!sheet) return;
   const ins = findInstrument(key);
   if(ins){
     sheet.markers.push({id:uid(), kind:"inst", type:ins.key, abbr:ins.abbr, label:ins.label, color:ins.color,
-      xPct:snapPct(Math.max(0, Math.min(92, xPct))), yPct:snapPct(yPct), note:""});
+      xPct:(Math.max(0, Math.min(92, xPct))), yPct:(yPct), note:""});
     // 다른 악기만 보는 중에 새 악기를 찍으면 바로 보이도록 보기를 그 악기로 맞춘다
     if(state.instFilter!=="all" && state.instFilter!==ins.key){ state.instFilter = ins.key; renderInstFilter(); }
     renderMarkers(); scheduleSave();
     return;
   }
   const ft = findFormType(key); if(!ft) return;
-  const marker = {id:uid(), type:ft.key, label:ft.label, color:ft.color, xPct:snapPct(xPct), yPct:snapPct(yPct), bar:null};
+  const marker = {id:uid(), type:ft.key, label:ft.label, color:ft.color, xPct:(xPct), yPct:(yPct), bar:null};
   if(state.markerShape === "bracket"){
     // A song-form section spans bars, not a point — brackets are the musically
     // correct default. Starts one system tall; drag the bottom handle to fit.
@@ -7727,11 +7685,11 @@ window.addEventListener("pointermove", (e)=>{
   const m = dragBracket.marker;
   const yPct = Math.max(0, Math.min(100, ((e.clientY - r.top)/r.height)*100));
   if(dragBracket.mode === "resize"){
-    m.yEndPct = Math.max(m.yPct + 2, snapPct(yPct));
+    m.yEndPct = Math.max(m.yPct + 2, (yPct));
   } else {
     const xPct = Math.max(0, Math.min(94, ((e.clientX - r.left)/r.width)*100));
-    const newTop = Math.max(0, Math.min(100 - dragBracket.span, snapPct(yPct - dragBracket.grabDy)));
-    m.xPct = snapPct(xPct);
+    const newTop = Math.max(0, Math.min(100 - dragBracket.span, (yPct - dragBracket.grabDy)));
+    m.xPct = (xPct);
     m.yPct = newTop;
     m.yEndPct = newTop + dragBracket.span;
   }
@@ -7745,7 +7703,7 @@ window.addEventListener("pointermove", (e)=>{
   let xPct = ((e.clientX-rect.left)/rect.width)*100;
   let yPct = ((e.clientY-rect.top)/rect.height)*100;
   xPct = Math.max(0,Math.min(100,xPct)); yPct = Math.max(0,Math.min(100,yPct));
-  dragMarker.marker.xPct = snapPct(xPct); dragMarker.marker.yPct = snapPct(yPct);
+  dragMarker.marker.xPct = (xPct); dragMarker.marker.yPct = (yPct);
   renderMarkers();
 });
 window.addEventListener("pointerup", ()=>{ if(dragMarker){ dragMarker=null; scheduleSave(); } });
@@ -8130,7 +8088,7 @@ document.getElementById("settingsBtn").addEventListener("click", (e)=>{
 document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSettings(); });
 
 
-/* ============ 라이브 페달 · 셋리스트 · 스테이지 뷰 ============
+/* ============ 라이브 페달 · 셋리스트 ============
  * 키보드/블루투스 페달: PageDown·→ 다음, PageUp·← 이전 (위의 페이지 터너 코드),  Space = 메트로놈+오디오 동시 재생/정지.
  * MIDI 페달(Web MIDI): CC#64 다음 페이지 · CC#65 이전 페이지 · CC#80 재생/정지 · CC#81 A-B 구간 반복 켜기/끄기.
  * 페달은 밟을 때(값 ≥ 64)만 한 번 반응하고, 뗄 때(값 < 64)는 무시한다. */
@@ -8147,7 +8105,7 @@ function playStopAll(){
     startMetronome();
     if(audioEl) audioEl.play().catch(()=>{});
   }
-  stageSync();
+  
 }
 window.addEventListener("keydown", (e)=>{
   if(!(e.key === " " || e.code === "Space") || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
@@ -8156,7 +8114,7 @@ window.addEventListener("keydown", (e)=>{
   const t = document.activeElement;
   if(isTypingTarget(t) && Date.now() - lastTypingAt < 8000) return;
   if(t && (t.tagName === "SELECT" || t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && /^(text|number|search|email|url|tel|password)$/i.test(t.type || "text")))) return;
-  if(t && t.tagName === "BUTTON" && !focusMode && !stageOpen()) return;
+  if(t && t.tagName === "BUTTON" && !focusMode) return;
   e.preventDefault();
   if(e.repeat) return;
   if(t && t.blur && t.tagName !== "BODY") t.blur();
@@ -8170,9 +8128,9 @@ function toggleABLoop(){
   else if(abStash){ loopStart = abStash.a; loopEnd = abStash.b; abStash = null; if(audioEl.currentTime > loopEnd || audioEl.currentTime < loopStart) audioEl.currentTime = loopStart; showToast("구간 반복 켜짐 " + fmtTime(loopStart) + " ~ " + fmtTime(loopEnd)); }
   else if(loopStart == null){ loopStart = audioEl.currentTime; showToast("A 지점 " + fmtTime(loopStart) + " — 한 번 더 누르면 B 지점"); }
   else { loopEnd = audioEl.currentTime; if(loopEnd <= loopStart){ loopEnd = null; showToast("B 지점이 A 보다 앞이에요"); } else showToast("구간 반복 켜짐 " + fmtTime(loopStart) + " ~ " + fmtTime(loopEnd)); }
-  updateLoopHint(); stageSync();
+  updateLoopHint(); 
 }
-document.getElementById("clearLoopBtn").addEventListener("click", ()=>{ abStash = null; stageSync(); });
+document.getElementById("clearLoopBtn").addEventListener("click", ()=>{ abStash = null;  });
 
 /* ---- Web MIDI ---- */
 let midiAccess = null; const midiHeld = {};
@@ -8192,8 +8150,6 @@ function midiBind(){
   let n = 0;
   midiAccess.inputs.forEach(inp=>{ inp.onmidimessage = onMidiMessage; n++; });
   midiAccess.onstatechange = ()=>{ midiBind(); };
-  const lbl = document.getElementById("stMidiLbl");
-  if(lbl){ lbl.style.display = midiPref() ? "" : "none"; lbl.textContent = "MIDI " + n; }
   const info = document.getElementById("midiInfo");
   if(info){ const names = []; midiAccess.inputs.forEach(i=> names.push(i.name)); info.textContent = n ? "연결된 MIDI 입력: " + names.join(", ") : "연결된 MIDI 장치 없음 — 페달/키보드를 USB·블루투스로 연결하세요"; }
 }
@@ -8237,85 +8193,19 @@ document.getElementById("setlistAddBtn").addEventListener("click", ()=>{
   const p = (cachedProjectList || []).find(x=> x.id === id); if(!p) return;
   const list = loadSetlist(); list.push({id, name:p.name || ""}); saveSetlist(list); renderSetlist();
 });
-document.getElementById("setlistStageBtn").addEventListener("click", ()=>{ closeLibrary(); openStage(); });
 
-/* ---- 스테이지 뷰 ---- */
-const stageEl = document.getElementById("stageView");
-let stageTimer = null, stageSecIdx = 0, stageSecKey = "";
-const stageOpen = ()=> !stageEl.hidden;
-function stageSections(){
-  const out = [];
-  state.sheets.forEach((sh, i)=>{
-    (sh.markers || []).filter(m=> m.kind !== "inst" && m.label).slice()
-      .sort((a,b)=> (a.yPct||0) - (b.yPct||0) || (a.xPct||0) - (b.xPct||0))
-      .forEach(m=> out.push({label:m.label + (m.bar ? " · " + m.bar + "마디" : ""), page:i}));
-  });
-  return out;
-}
-function stageFlash(accent){
-  if(!stageOpen()) return;
-  const f = document.getElementById("stFlash"), b = document.getElementById("stBorder");
-  f.classList.add("on"); b.classList.add("on"); f.classList.toggle("accent", !!accent);
-  clearTimeout(stageFlash.t); stageFlash.t = setTimeout(()=>{ f.classList.remove("on"); b.classList.remove("on"); }, 90);
-}
-function stageSync(){
-  if(!stageOpen()) return;
-  const secs = stageSections(), key = state.currentIndex + ":" + secs.length + ":" + currentProjectId;
-  if(key !== stageSecKey){   // 페이지가 바뀌면 그 페이지의 첫 섹션(없으면 직전 섹션)을 현재로
-    stageSecKey = key;
-    let idx = secs.findIndex(x=> x.page === state.currentIndex);
-    if(idx < 0){ idx = -1; secs.forEach((x, n)=>{ if(x.page < state.currentIndex) idx = n; }); }
-    stageSecIdx = Math.max(0, idx);
-  }
-  stageSecIdx = Math.min(stageSecIdx, Math.max(0, secs.length - 1));
-  const cur = secs[stageSecIdx], nxt = secs[stageSecIdx + 1];
-  const pg = `p.${state.currentIndex + 1}/${state.sheets.length}`;
-  document.getElementById("stCurBig").textContent = cur ? cur.label : "송폼 표시 없음";
-  document.getElementById("stCurSub").textContent = cur ? `${pg} · 섹션 ${stageSecIdx + 1}/${secs.length}` : pg;
-  document.getElementById("stNextBig").textContent = nxt ? nxt.label : (secs.length ? "끝 (곡 마지막)" : "—");
-  document.getElementById("stNextSub").textContent = nxt ? `p.${nxt.page + 1}` : "";
-  const sl = loadSetlist(), si = sl.findIndex(x=> x.id === currentProjectId);
-  document.getElementById("stTitle").textContent = (si >= 0 ? `${si + 1}/${sl.length} · ` : "") + (currentProjectName || "(제목 없음)") + (state.sheets[state.currentIndex] && state.sheets[state.currentIndex].songName ? " — " + state.sheets[state.currentIndex].songName : "");
-  document.getElementById("stBpm").textContent = state.bpm;
-  document.getElementById("stMeter").textContent = state.beatsPerBar + "/" + state.beatUnit;
-  const pl = document.getElementById("stPlay"); pl.textContent = isPlaying ? "■ 정지" : "▶ 시작"; pl.classList.toggle("on", isPlaying);
-  const lp = document.getElementById("stLoop"); lp.textContent = (loopStart != null && loopEnd != null) ? "A-B 반복 켜짐" : abStash ? "A-B 반복 (꺼짐)" : loopStart != null ? "A 지정됨…" : "A-B 반복";
-  lp.style.background = (loopStart != null && loopEnd != null) ? "#fff" : ""; lp.style.color = (loopStart != null && loopEnd != null) ? "#000" : "";
-}
-function openStage(){
-  closeConti(); closeSettings();
-  stageEl.hidden = false; stageSecKey = "";
-  stageSync(); clearInterval(stageTimer); stageTimer = setInterval(stageSync, 250);
-  if(midiAccess) midiBind();
-  try{ if(stageEl.requestFullscreen && !document.fullscreenElement && !window.claude) stageEl.requestFullscreen().catch(()=>{}); }catch(err){}
-}
-function closeStage(){
-  stageEl.hidden = true; clearInterval(stageTimer);
-  try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(err){}
-}
-function stageSongStep(d){
+/* ---- 곡 이동 (2손가락 스와이프 등): 셋리스트에 있으면 셋리스트 순서로, 아니면 콘티의 곡 순서로 ---- */
+function songStep(d){
   const sl = loadSetlist(), si = sl.findIndex(x=> x.id === currentProjectId);
   if(si >= 0){
     const n = sl[si + d]; if(!n){ showToast(d > 0 ? "셋리스트의 마지막 곡이에요" : "첫 곡이에요"); return; }
-    openProject(n.id).then(()=> stageSync()); return;
+    openProject(n.id); return;
   }
   const groups = computeContiSongs(); if(!groups.length) return;
   const g = groups.findIndex(x=> (x.pages || []).includes(state.currentIndex)), t = groups[g + d];
   if(!t){ showToast(d > 0 ? "마지막 곡이에요" : "첫 곡이에요"); return; }
-  state.currentIndex = t.pages[0]; renderSheet(); scheduleSave(); stageSync();
+  state.currentIndex = t.pages[0]; renderSheet(); scheduleSave();
 }
-document.getElementById("stageBtn").addEventListener("click", openStage);
-document.getElementById("stExit").addEventListener("click", closeStage);
-document.getElementById("stTap").addEventListener("click", ()=>{ document.getElementById("tapTempoBtn").click(); stageSync(); });
-document.getElementById("stPlay").addEventListener("click", playStopAll);
-document.getElementById("stLoop").addEventListener("click", toggleABLoop);
-document.getElementById("stPagePrev").addEventListener("click", ()=>{ goPrevPage(); stageSync(); });
-document.getElementById("stPageNext").addEventListener("click", ()=>{ goNextPage(); stageSync(); });
-document.getElementById("stSongPrev").addEventListener("click", ()=> stageSongStep(-1));
-document.getElementById("stSongNext").addEventListener("click", ()=> stageSongStep(1));
-document.getElementById("stNext").addEventListener("click", ()=>{ stageSecIdx++; stageSync(); });
-document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && stageOpen()) closeStage(); });
-
 
 /* ============ 오디오 엔진 확장: 피치 시프트(-6~+6) · 파형 A-B 루퍼 · 악보 키 연동 ============
  * 타임 스트레치: <audio> 의 playbackRate + preservesPitch (음높이 고정 템포 조절).
@@ -8755,11 +8645,11 @@ const FT_ICONS = {
   inst:'<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
   eraser:'<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>',
 };
-const FT_TOOLS = [["select","선택","선택 · 이동 (V)"],["pen","펜","펜 필기 (P)"],["highlight","형광펜","형광펜 (H)"],["text","텍스트","텍스트 입력 (T)"],["form","송폼","송폼 마커 (M)"],["inst","악기","악기 마킹 · 레이어 (I)"],["eraser","지우개","지우개 (E)"]];
+const FT_TOOLS = [["select","선택","선택 · 이동 (V)"],["pen","펜","펜 필기 (P)"],["highlight","형광펜","형광펜 (H)"],["text","텍스트","텍스트 입력 (T)"],["inst","악기","악기 마킹 · 레이어 (I)"],["eraser","지우개","지우개 (E)"]];
 let ftOpen = null;          // 팝오버가 열려 있는 도구
 const ftBar = document.getElementById("floatTools"), ftPop = document.getElementById("floatPop");
 FT_TOOLS.forEach(([k, label, title], i)=>{
-  if(i === 1 || i === 4 || i === 6){ const sp = document.createElement("span"); sp.className = "ftSep"; ftBar.appendChild(sp); }
+  if(i === 1 || i === 4 || i === 5){ const sp = document.createElement("span"); sp.className = "ftSep"; ftBar.appendChild(sp); }
   const b = document.createElement("button"); b.type = "button"; b.className = "ftBtn"; b.dataset.tool = k; b.title = title;
   b.innerHTML = `<svg viewBox="0 0 24 24">${FT_ICONS[k]}</svg><span>${label}</span>`;
   b.addEventListener("click", ()=> pickFloatTool(k));
@@ -8768,15 +8658,14 @@ FT_TOOLS.forEach(([k, label, title], i)=>{
 // ---- 실제 컨트롤을 팝오버로 옮기기 ----
 (function mountFloatControls(){
   const $ = (id)=> document.getElementById(id), q = (sel)=> ftPop.querySelector(sel);
-  ["penTool","textTool","snapToggle","markerShapeBtn"].forEach(()=>{});
-  [$("penTool"), $("textTool"), $("snapToggle")].forEach(el=>{ const g = el && el.closest(".toolbar-group"); if(g) g.classList.add("legacyTools"); });
+  [$("penTool"), $("textTool")].forEach(el=>{ const g = el && el.closest(".toolbar-group"); if(g) g.classList.add("legacyTools"); });
   const mb = $("markBars");
   // 펜
   q("#fpPenColors").appendChild($("colorSwatches")); q("#fpPenWidth").appendChild($("penWidth"));
   // 선택(포인터)
   q("#fpPtr").appendChild($("laserTool")); q("#fpPtr").appendChild($("spotTool"));
   // 텍스트
-  q("#fpTextBox").appendChild($("textFontControls")); q("#fpTextExtra").appendChild($("guideBtn")); q("#fpTextExtra").appendChild($("snapToggle")); q("#fpTextExtra").appendChild($("snapDivisionsSel"));
+  q("#fpTextBox").appendChild($("textFontControls")); q("#fpTextExtra").appendChild($("guideBtn"));
   // 송폼 / 악기: 같은 markBars 를 한 번만 옮기고, 탭에 따라 한쪽 줄만 보이게
   q("#fpMarksForm").appendChild(mb);
   // 공통 푸터: 레이어 · 실행취소 · 다시실행 · 전체지우기
@@ -8840,8 +8729,9 @@ document.addEventListener("keydown", (e)=>{
   if(e.metaKey || e.ctrlKey || e.altKey || e.isComposing || isTypingTarget(document.activeElement)) return;
   if(focusMode || document.querySelector(".libraryOverlay:not([hidden])") || !document.querySelector(".app-layout.mode-studio")) return;
   if(!ftBar.offsetParent) return;
-  const map = {v:"select", p:"pen", h:"highlight", t:"text", m:"form", i:"inst", e:"eraser"}, t = map[e.key.toLowerCase()];
-  if(t){ e.preventDefault(); pickFloatTool(t); }
+  const map = {v:"select", p:"pen", h:"highlight", t:"text", i:"inst", e:"eraser"}, t = map[e.key.toLowerCase()];
+  if(e.key.toLowerCase() === "m"){ e.preventDefault(); toggleChipPop(); }
+  else if(t){ e.preventDefault(); pickFloatTool(t); }
   else if(e.key === "Escape" && ftOpen){ closeFloatPop(); }
 });
 syncFloatTools();
@@ -9039,7 +8929,7 @@ const _flashBeatMini = flashBeat; flashBeat = function(beat){ _flashBeatMini(bea
     const dx = g.x1 - g.x0, dy = g.y1 - g.y0, sp = Math.abs(g.d1 - g.d0), dt = performance.now() - g.t0;
     if(dt > 1400) return;
     if(g.max === 2 && Math.abs(dx) >= 80 && Math.abs(dx) > Math.abs(dy) * 1.8 && sp < 30){
-      haptic(12); stageSongStep(dx < 0 ? 1 : -1);
+      haptic(12); songStep(dx < 0 ? 1 : -1);
     } else if(g.max >= 3 && Math.abs(dy) >= 60 && Math.abs(dy) > Math.abs(dx) * 1.5){
       if(dy > 0) toggleZen(); else toggleMiniCtl();
     }
@@ -9047,11 +8937,114 @@ const _flashBeatMini = flashBeat; flashBeat = function(beat){ _flashBeatMini(bea
   document.addEventListener("touchend", end, {passive:true, capture:true});
   document.addEventListener("touchcancel", ()=>{ m = null; }, {passive:true, capture:true});
 })();
+
+/* ============ File 메뉴 ============ */
+(function setupFileMenu(){
+  const btn = document.getElementById("fileMenuBtn"), menu = document.getElementById("fileMenu");
+  // 기존 버튼들(새 프로젝트·보관함·저장)은 그대로 쓰고 메뉴 안으로 옮겼다 — 기존 동작/단축키 연결 유지
+  const un = document.getElementById("uploadBtn"), ap = document.getElementById("addPageBtn"), pa = document.getElementById("pasteBtn"), co = document.getElementById("contiBtn");
+  document.getElementById("exportMenuBtn").addEventListener("click", ()=>{ openLibrary(); const t = document.getElementById("tabExport"); if(t) t.click(); });
+  document.getElementById("fmUpload").addEventListener("click", ()=> un.click());
+  document.getElementById("fmAddPage").addEventListener("click", ()=> ap.click());
+  document.getElementById("fmPaste").addEventListener("click", ()=> pa.click());
+  document.getElementById("fmConti").addEventListener("click", ()=> co.click());
+  const close = ()=>{ menu.classList.remove("open"); btn.setAttribute("aria-expanded", "false"); setTimeout(()=>{ if(!menu.classList.contains("open")) menu.hidden = true; }, 220); };
+  const open = ()=>{
+    menu.hidden = false; const r = btn.getBoundingClientRect(); menu.style.left = Math.max(8, r.left) + "px"; menu.style.top = (r.bottom + 6) + "px";
+    void menu.offsetWidth; menu.classList.add("open"); btn.setAttribute("aria-expanded", "true");
+  };
+  btn.addEventListener("click", (e)=>{ e.stopPropagation(); menu.classList.contains("open") ? close() : open(); });
+  menu.addEventListener("click", (e)=>{ if(e.target.closest("button")) setTimeout(close, 60); });
+  document.addEventListener("pointerdown", (e)=>{ if(menu.classList.contains("open") && !e.target.closest("#fileMenu") && !e.target.closest("#fileMenuBtn")) close(); }, true);
+  document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && menu.classList.contains("open")) close(); });
+})();
+
+/* ============ 송폼 Chip Bar ============ */
+const chipScroll = document.getElementById("chipScroll"), chipPop = document.getElementById("chipPop");
+let chipItems = [];
+function currentSongPages(){
+  const groups = computeContiSongs(); const g = groups.find(x=> (x.pages || []).includes(state.currentIndex));
+  return g && groups.length > 1 ? g.pages : state.sheets.map((_, i)=> i);
+}
+function collectChips(){
+  const items = [];
+  currentSongPages().forEach(pi=>{
+    const sh = state.sheets[pi]; if(!sh) return;
+    (sh.markers || []).filter(m=> m.kind !== "inst" && m.label).slice()
+      .sort((a, b)=> (a.yPct || 0) - (b.yPct || 0) || (a.xPct || 0) - (b.xPct || 0))
+      .forEach(m=> items.push({m, sheet:sh, page:pi, label:m.label, color:m.color, yPct:m.yPct || 0, xPct:m.xPct || 0}));
+  });
+  const total = {}, seen = {}; items.forEach(it=>{ total[it.label] = (total[it.label] || 0) + 1; });
+  items.forEach(it=>{ seen[it.label] = (seen[it.label] || 0) + 1; it.text = total[it.label] > 1 ? `${it.label} ${seen[it.label]}` : it.label; });
+  return items;
+}
+function renderChipBar(){
+  chipItems = collectChips(); chipScroll.innerHTML = "";
+  if(!chipItems.length){ const e = document.createElement("span"); e.className = "chipEmpty"; e.textContent = "＋ 를 눌러 Intro · Verse · Chorus 같은 섹션을 악보에 표시하세요"; chipScroll.appendChild(e); return; }
+  chipItems.forEach((it, i)=>{
+    const c = document.createElement("button"); c.type = "button"; c.className = "secChip"; c.dataset.i = i;
+    c.innerHTML = `<span class="cd" style="background:${it.color || "var(--accent)"}"></span>${escapeHtml(it.text)}`;
+    c.addEventListener("click", ()=> goToSection(it));
+    chipScroll.appendChild(c);
+  });
+  updateChipActive();
+}
+function goToSection(it){
+  haptic(8);
+  if(state.currentIndex !== it.page){ state.currentIndex = it.page; renderSheet(); scheduleSave(); }
+  requestAnimationFrame(()=> requestAnimationFrame(()=>{
+    const vp = document.getElementById("sheetViewport"), stage = document.getElementById("sheetStage"); if(!stage) return;
+    const top = stage.offsetTop + stage.offsetHeight * it.yPct / 100 - vp.clientHeight * 0.28;
+    vp.scrollTo({top:Math.max(0, top), behavior:"smooth"});
+    const pulse = document.createElement("div"); pulse.className = "secPulse"; pulse.style.left = it.xPct + "%"; pulse.style.top = it.yPct + "%"; stage.appendChild(pulse); setTimeout(()=> pulse.remove(), 1000);
+  }));
+}
+function updateChipActive(){
+  if(!chipItems.length) return;
+  const vp = document.getElementById("sheetViewport"), stage = document.getElementById("sheetStage"); if(!stage) return;
+  const probe = vp.scrollTop + vp.clientHeight * 0.35 - stage.offsetTop;
+  let act = -1;
+  chipItems.forEach((it, i)=>{ if(it.page < state.currentIndex || (it.page === state.currentIndex && stage.offsetHeight * it.yPct / 100 <= probe)) act = i; });
+  if(act < 0) act = chipItems.findIndex(it=> it.page >= state.currentIndex);
+  chipScroll.querySelectorAll(".secChip").forEach((c, i)=>{ const on = i === act; if(on && !c.classList.contains("act")) c.scrollIntoView({block:"nearest", inline:"center", behavior:"smooth"}); c.classList.toggle("act", on); });
+}
+{ let raf = 0; document.getElementById("sheetViewport").addEventListener("scroll", ()=>{ if(raf) return; raf = requestAnimationFrame(()=>{ raf = 0; updateChipActive(); }); }, {passive:true}); }
+(function(){ const rm = renderMarkers, rs = renderSheet; renderMarkers = function(){ rm(); renderChipBar(); }; renderSheet = function(){ const r = rs.apply(this, arguments); renderChipBar(); return r; }; })();
+
+/* ---- + : 섹션 추가 · 편집 ---- */
+function closeChipPop(){ chipPop.classList.remove("open"); setTimeout(()=>{ if(!chipPop.classList.contains("open")) chipPop.hidden = true; }, 220); }
+function toggleChipPop(){ if(chipPop.classList.contains("open")){ closeChipPop(); return; } buildChipPop(); chipPop.hidden = false; const r = document.getElementById("chipAdd").getBoundingClientRect(); chipPop.style.top = (r.bottom + 6) + "px"; chipPop.style.left = Math.max(8, Math.min(window.innerWidth - chipPop.offsetWidth - 8, r.right - chipPop.offsetWidth)) + "px"; void chipPop.offsetWidth; chipPop.classList.add("open"); }
+function buildChipPop(){
+  chipPop.innerHTML = `<h4>섹션 추가 — 고른 뒤 악보에서 위치를 탭</h4><div class="cpTypes"></div>`;
+  const tw = chipPop.querySelector(".cpTypes");
+  allFormTypes().forEach(ft=>{
+    const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<span class="cd" style="background:${ft.color}"></span>${escapeHtml(ft.label)}`;
+    b.addEventListener("click", ()=>{ closeChipPop(); setPlacingType(ft.key); showToast(`"${ft.label}" — 악보에서 놓을 위치를 탭하세요`, {ms:2600}); });
+    tw.appendChild(b);
+  });
+  const nb = document.createElement("button"); nb.type = "button"; nb.textContent = "＋ 새 이름"; nb.addEventListener("click", async ()=>{ await addCustomFormType(); buildChipPop(); }); tw.appendChild(nb);
+  const shape = document.createElement("button"); shape.type = "button"; shape.textContent = (state.markerShape === "bracket" ? "▐ 구간(브래킷)" : "● 핀") + " · 바꾸기"; shape.addEventListener("click", ()=>{ document.getElementById("markerShapeBtn").click(); buildChipPop(); }); tw.appendChild(shape);
+  if(chipItems.length){
+    const h = document.createElement("h4"); h.textContent = "이 곡의 섹션 — 이름 바꾸기 · 삭제"; chipPop.appendChild(h);
+    chipItems.forEach(it=>{
+      const row = document.createElement("div"); row.className = "cpRow";
+      row.innerHTML = `<span class="nm"><span class="cd" style="background:${it.color || "var(--accent)"}"></span>${escapeHtml(it.text)}</span>`;
+      const ed = document.createElement("button"); ed.type = "button"; ed.textContent = "✎"; ed.title = "이름 바꾸기";
+      ed.addEventListener("click", ()=>{ const v = prompt("섹션 이름:", it.m.label); if(v && v.trim()){ it.m.label = v.trim(); renderMarkers(); scheduleSave(); buildChipPop(); } });
+      const del = document.createElement("button"); del.type = "button"; del.textContent = "✕"; del.title = "삭제";
+      del.addEventListener("click", ()=>{ it.sheet.markers = it.sheet.markers.filter(x=> x.id !== it.m.id); renderMarkers(); scheduleSave(); buildChipPop(); });
+      row.appendChild(ed); row.appendChild(del); chipPop.appendChild(row);
+    });
+  }
+}
+document.getElementById("chipAdd").addEventListener("click", (e)=>{ e.stopPropagation(); toggleChipPop(); });
+document.addEventListener("pointerdown", (e)=>{ if(chipPop.classList.contains("open") && !e.target.closest("#chipPop") && !e.target.closest("#chipAdd")) closeChipPop(); }, true);
+renderChipBar();
 /* ============ 버전 · 자동 업데이트 ============
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-9";
+const APP_BUILD = "2026.11.02-10";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외
@@ -9120,9 +9113,8 @@ async function init(){
   document.getElementById("hihatLevel").value = state.hihatLevel;
   applySoundModeUI();
   applyFeelUI();
+  try{ if(localStorage.getItem("mls-min1") !== "1"){ state.leftPanelOpen = false; state.rightPanelOpen = false; state.stripOpen = false; localStorage.setItem("mls-min1", "1"); } }catch(err){}   // Minimal UI: 처음 한 번만 사이드바·페이지 띠를 접어 악보를 넓게
   applyPanelUI();
-  document.getElementById("snapToggle").classList.toggle("active", state.snapEnabled);
-  document.getElementById("snapDivisionsSel").value = state.snapDivisions;
   updateMarkerShapeBtn();
   setUiMode(state.uiMode || "studio");
 
@@ -9135,6 +9127,7 @@ async function init(){
     try{ await loadProjectData(decodeURIComponent(hashMatch[1])); }catch(err){ updateCurrentProjectLabel(); }
   } else { updateCurrentProjectLabel(); }
   checkForUpdate(true);
+  setTimeout(()=> document.body.classList.remove("noAnim"), 500);
 }
 init();
 

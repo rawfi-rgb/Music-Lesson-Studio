@@ -805,6 +805,10 @@
   .slNewForm{margin:0 12px 8px; padding:10px; border-radius:var(--r-panel,12px); border:1px solid var(--accent); background:var(--panel-alt); display:flex; flex-direction:column; gap:6px;}
   .slNewForm .row{display:flex; gap:6px;} .slNewForm .row input{flex:1; min-width:0;}
   .slFoot{display:flex; gap:8px; margin:0 12px 12px;} .slFoot .slAddSong{margin:0; flex:1;}
+  body.zen #contiPanel .slHead, .app-layout.focusMode #contiPanel .slHead{cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none;}
+  #contiPanel.dragging .slHead{cursor:grabbing;} #contiPanel.dragging{transition:none !important; opacity:.92;}
+  .slGrip{display:none; width:34px; height:4px; border-radius:2px; background:var(--text-muted); opacity:.5; margin:6px auto 0;}
+  body.zen .slGrip, .app-layout.focusMode .slGrip{display:block;}
   .slNo{font-size:13px; font-weight:800; color:var(--text-muted); font-variant-numeric:tabular-nums;}
   .slTitle{font-size:15px; font-weight:800; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .slRange{font-size:10px; color:var(--text-muted);}
@@ -6464,6 +6468,42 @@ function renderContiBody(){
   });
   body.scrollTop = keep;
 }
+/* 전체화면 · Zen 의 플로팅 콘티: 머리글을 잡고 옮긴다 (마우스 · 터치 · 펜), 화면 가장자리 16px 안에 가두고 위치를 기억 */
+const CONTI_MARGIN = 16, CONTI_POS_KEY = "mls-conti-pos";
+const contiFloating = ()=> document.body.classList.contains("zen") || document.body.classList.contains("focusMode") || !!document.querySelector(".app-layout.focusMode");
+function clampContiPos(p, x, y){
+  const w = p.offsetWidth, h = p.offsetHeight;
+  return {x:Math.max(CONTI_MARGIN, Math.min(window.innerWidth - w - CONTI_MARGIN, x)), y:Math.max(CONTI_MARGIN, Math.min(window.innerHeight - h - CONTI_MARGIN, y))};
+}
+function placeConti(p, x, y){                                   // 화면(뷰포트) 좌표 → 부모 기준 left/top
+  const c = clampContiPos(p, x, y), o = (p.offsetParent || document.body).getBoundingClientRect();
+  p.style.left = (c.x - o.left) + "px"; p.style.top = (c.y - o.top) + "px"; p.style.bottom = "auto"; return c;
+}
+function applyContiPos(){
+  const p = document.getElementById("contiPanel"); if(!p) return;
+  if(!contiFloating()){ p.style.left = p.style.top = p.style.bottom = ""; return; }
+  let pos = null; try{ pos = JSON.parse(localStorage.getItem(CONTI_POS_KEY) || "null"); }catch(e){}
+  if(pos && isFinite(pos.x) && isFinite(pos.y)) placeConti(p, pos.x, pos.y); else { p.style.left = p.style.top = p.style.bottom = ""; }
+}
+function wireContiDrag(p){
+  const head = p.querySelector(".slHead"); if(!head) return;
+  const grip = document.createElement("div"); grip.className = "slGrip"; p.insertBefore(grip, head);
+  let sx, sy, ox, oy, id = null;
+  head.addEventListener("pointerdown", (e)=>{
+    if(!contiFloating() || e.button > 0 || e.target.closest("button,input,select,textarea")) return;
+    const r = p.getBoundingClientRect(); sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top; id = e.pointerId;
+    try{ head.setPointerCapture(id); }catch(_){} p.classList.add("dragging"); e.preventDefault();
+  });
+  head.addEventListener("pointermove", (e)=>{ if(id !== e.pointerId) return; placeConti(p, ox + e.clientX - sx, oy + e.clientY - sy); });
+  const end = (e)=>{
+    if(id !== e.pointerId) return; id = null; p.classList.remove("dragging");
+    const r = p.getBoundingClientRect(); try{ localStorage.setItem(CONTI_POS_KEY, JSON.stringify({x:Math.round(r.left), y:Math.round(r.top)})); }catch(_){}
+  };
+  head.addEventListener("pointerup", end); head.addEventListener("pointercancel", end);
+}
+window.addEventListener("resize", ()=>{ if(contiFloating()) applyContiPos(); });
+new MutationObserver(()=> applyContiPos()).observe(document.body, {attributes:true, attributeFilter:["class"]});
+{ const al = document.querySelector(".app-layout"); if(al) new MutationObserver(()=> applyContiPos()).observe(al, {attributes:true, attributeFilter:["class"]}); }
 function openConti(){
   if(document.getElementById("contiPanel")){ closeConti(); return; }
   const p = document.createElement("div");
@@ -6476,6 +6516,7 @@ function openConti(){
   p.querySelector("#slEditBtn").addEventListener("click", ()=>{ contiEdit = !contiEdit; renderContiBody(); });
   p.querySelector("#slNewSong").addEventListener("click", ()=> openSongForm(p));
   p.querySelector("#slAddSong").addEventListener("click", ()=>{ pendingSongFrom = state.sheets.length; document.getElementById("addPageInput").click(); });
+  wireContiDrag(p); applyContiPos();
   renderContiBody();
   const curCard = p.querySelector(".slCard.cur"); if(curCard) curCard.scrollIntoView({block:"nearest"});
 }
@@ -9366,7 +9407,7 @@ function scheduleDock(){ clearTimeout(dockT); dockT = setTimeout(layoutBottomDoc
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-15";
+const APP_BUILD = "2026.11.02-16";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

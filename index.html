@@ -20,11 +20,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Gowun+Batang:wght@400;700&family=Figtree:wght@400;500;600;700;800&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Nanum+Pen+Script&family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-<script>try{var t=localStorage.getItem("mls-theme");if(t&&t!=="warm")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
+<script>try{var t=localStorage.getItem("mls-theme"),c=localStorage.getItem("mls-theme-chosen")==="1";if(!c)t="pro";if(t&&t!=="warm")document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","pro");}</script>
 <style>
   /* Warm Studio Humanism — cream/terracotta/sage analog-studio palette,
      sampled directly from the Claude Design "1a 목재 콘솔" mockup. */
   :root{
+    /* ---- Design tokens (프로 DAW 테마가 이 값을 사용) ---- */
+    --surface-0:#0E0F12; --surface-1:#18191E; --surface-2:#23252C;
+    --accent-primary:#3B82F6; --accent-active:#10B981;
+    --glass-blur:blur(12px); --glass-border:#FFFFFF10; --glass-bg:rgba(24,25,30,0.72);
+    --r-control:8px; --r-panel:12px;
+    --glow:0 0 14px color-mix(in srgb, var(--accent) 38%, transparent);
     --bg:#e7dcc8; --panel:#f9f4ed; --panel-alt:#f3ecdf; --panel-hover:#efe4cf;
     --border:rgba(32,30,29,0.12); --border-focus:rgba(198,113,57,0.45);
     --text:#201e1d; --text-dim:#7a6f5e; --text-muted:#a69c8a;
@@ -159,16 +165,48 @@
     border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-dim);
   }
 
-  /* Range Sliders */
+  /* Range Sliders — 기본 모양 제거 + 메탈릭 페이더 */
   input[type=range]{
-    -webkit-appearance:none; width:100%; height:4px; background:var(--panel-hover);
-    border-radius:2px; outline:none; margin:8px 0;
+    -webkit-appearance:none; appearance:none; width:100%; height:20px; background:transparent;
+    border-radius:3px; outline:none; margin:4px 0; cursor:pointer; padding:0;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:6px; border-radius:3px; border:1px solid rgba(0,0,0,.28);
+    background:linear-gradient(180deg, rgba(0,0,0,.30), rgba(255,255,255,.07)), var(--panel-hover);
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.06);
+  }
+  input[type=range]::-moz-range-track{
+    height:6px; border-radius:3px; border:1px solid rgba(0,0,0,.28);
+    background:linear-gradient(180deg, rgba(0,0,0,.30), rgba(255,255,255,.07)), var(--panel-hover);
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.45);
   }
   input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
-    background:var(--accent); cursor:pointer; transition:transform 0.1s; box-shadow:0 2px 4px rgba(0,0,0,0.2);
+    -webkit-appearance:none; appearance:none; width:14px; height:20px; margin-top:-8px; border-radius:4px; cursor:grab;
+    border:1px solid rgba(0,0,0,.5);
+    background:linear-gradient(90deg, transparent 44%, var(--accent) 44%, var(--accent) 56%, transparent 56%),
+               linear-gradient(180deg, #f5f7fa 0%, #cdd2da 46%, #9aa1ac 54%, #d9dde3 100%);
+    box-shadow:0 2px 4px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.9);
+    transition:box-shadow .12s ease, transform .12s ease;
   }
-  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
+  input[type=range]::-moz-range-thumb{
+    width:12px; height:18px; border-radius:4px; cursor:grab; border:1px solid rgba(0,0,0,.5);
+    background:linear-gradient(90deg, transparent 44%, var(--accent) 44%, var(--accent) 56%, transparent 56%),
+               linear-gradient(180deg, #f5f7fa 0%, #cdd2da 46%, #9aa1ac 54%, #d9dde3 100%);
+    box-shadow:0 2px 4px rgba(0,0,0,.45);
+  }
+  input[type=range]:hover::-webkit-slider-thumb{box-shadow:0 2px 4px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.9), var(--glow);}
+  input[type=range]:active::-webkit-slider-thumb{cursor:grabbing; transform:scale(1.08); box-shadow:0 1px 2px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.9), 0 0 18px color-mix(in srgb, var(--accent) 60%, transparent);}
+  input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--accent);}
+
+  /* Select — 브라우저 기본 화살표 제거, 직접 그린 쉐브론 */
+  select{
+    -webkit-appearance:none; appearance:none; cursor:pointer; padding-right:26px !important;
+    background-image:linear-gradient(45deg, transparent 50%, var(--text-dim) 50%), linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+    background-position:calc(100% - 14px) 52%, calc(100% - 9px) 52%; background-size:5px 5px, 5px 5px; background-repeat:no-repeat;
+    transition:border-color .15s, box-shadow .15s, background-color .15s;
+  }
+  select:hover{border-color:var(--accent); box-shadow:var(--glow);}
+  select option{background:var(--panel); color:var(--text);}
 
   /* Buttons UI */
   button{
@@ -177,8 +215,10 @@
     padding:7px 14px; display:inline-flex; align-items:center; justify-content:center; gap:6px;
     transition:all 0.12s ease; user-select:none; white-space:nowrap;
   }
-  button:hover{background:var(--panel-hover); border-color:var(--accent);}
-  button:active{transform:scale(0.98);}
+  button{transition:background .14s ease, border-color .14s ease, box-shadow .14s ease, transform .1s ease, color .14s ease;}
+  button:hover{background:var(--panel-hover); border-color:var(--accent); box-shadow:var(--glow);}
+  button:active{transform:scale(0.96); box-shadow:inset 0 2px 5px rgba(0,0,0,.28), 0 0 20px color-mix(in srgb, var(--accent) 50%, transparent);}
+  button:focus-visible, select:focus-visible, input:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
   button.primary{
     background:var(--accent); border-color:var(--accent); color:var(--on-accent);
     box-shadow:0 3px 10px rgba(198,113,57,0.35);
@@ -920,6 +960,82 @@
   .chordTag.raised{z-index:6;}
   .chordTag.stacked{flex-direction:column; align-items:center; justify-content:center; line-height:1.05;}
   .chordTag.stacked span:first-child{border-bottom:0.08em solid currentColor; padding:0 0.1em;}
+
+  /* ============================================================
+     프로 · DAW 테마 (Logic Pro / Ableton 감성) — 기본 테마
+     ============================================================ */
+  :root[data-theme="pro"]{
+    color-scheme:dark;
+    --bg:var(--surface-0); --panel:var(--surface-1); --panel-alt:#1D1F25; --panel-hover:var(--surface-2);
+    --border:var(--glass-border); --border-focus:rgba(59,130,246,0.6);
+    --text:#E7E9EE; --text-dim:#A3A9B5; --text-muted:#707785;
+    --accent:var(--accent-primary); --accent-hover:#60A5FA; --accent-dim:rgba(59,130,246,0.18);
+    --danger:#F87171; --danger-dim:rgba(248,113,113,0.15);
+    --shadow:0 12px 32px rgba(0,0,0,0.55); --shadow-sm:0 2px 10px rgba(0,0,0,0.4);
+    --beat-accent:var(--accent-active); --beat-normal:#3A3F4B; --beat-mute:var(--surface-2);
+    --sage-bg:rgba(16,185,129,0.16); --sage-text:#34D399;
+    --radius-sm:var(--r-control); --radius:var(--r-panel); --radius-lg:var(--r-panel);
+    --on-accent:#ffffff; --ink:#101217; --on-ink:#E7E9EE; --sel-bg:var(--accent-primary); --on-sel:#ffffff;
+    --practice-bg:rgba(59,130,246,0.12); --sage-strong:var(--accent-active); --on-sage:#04130D;
+    --glow:0 0 14px rgba(59,130,246,0.42);
+  }
+  /* 글라스모피즘: 떠 있는 패널은 반투명 + blur(12px) + 1px #FFFFFF10 테두리 */
+  :root[data-theme="pro"] header,
+  :root[data-theme="pro"] .metroDock, :root[data-theme="pro"] .railFlyout, :root[data-theme="pro"] .toolRail,
+  :root[data-theme="pro"] .lessonPanel, :root[data-theme="pro"] .lessonTabsFloat, :root[data-theme="pro"] .focusBar,
+  :root[data-theme="pro"] .performHead, :root[data-theme="pro"] .settingsPop, :root[data-theme="pro"] .zoomPop,
+  :root[data-theme="pro"] .keyPop, :root[data-theme="pro"] .layerPop, :root[data-theme="pro"] .chordSug,
+  :root[data-theme="pro"] .appToast, :root[data-theme="pro"] .contiPanel, :root[data-theme="pro"] .songPalette,
+  :root[data-theme="pro"] .libraryPanel, :root[data-theme="pro"] .askPanel{
+    background:var(--glass-bg); -webkit-backdrop-filter:var(--glass-blur) saturate(1.25); backdrop-filter:var(--glass-blur) saturate(1.25);
+    border:1px solid var(--glass-border); color:var(--text);
+    box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  :root[data-theme="pro"] .libraryOverlay{background:rgba(5,6,8,0.62);}
+  :root[data-theme="pro"] aside, :root[data-theme="pro"] main.sheet-panel{border:1px solid var(--glass-border);}
+  :root[data-theme="pro"] section{background:var(--panel-alt); border-color:var(--glass-border); border-radius:var(--r-panel);}
+  /* 모서리: 컨트롤·버튼 8px / 패널·모달 12px (알약 모양 제거) */
+  :root[data-theme="pro"] header, :root[data-theme="pro"] .metroDock, :root[data-theme="pro"] .toolRail,
+  :root[data-theme="pro"] .railFlyout, :root[data-theme="pro"] .lessonTabsFloat, :root[data-theme="pro"] .focusBar,
+  :root[data-theme="pro"] .performHead, :root[data-theme="pro"] .appToast, :root[data-theme="pro"] .toolbar-group,
+  :root[data-theme="pro"] .modeSwitch, :root[data-theme="pro"] .exportVariant, :root[data-theme="pro"] .zoomCtl,
+  :root[data-theme="pro"] .keyCtl, :root[data-theme="pro"] .kpScope{border-radius:var(--r-panel);}
+  :root[data-theme="pro"] button, :root[data-theme="pro"] button.icon, :root[data-theme="pro"] .toolbar-group button,
+  :root[data-theme="pro"] .modeSwitch button, :root[data-theme="pro"] .lessonTabsFloat button, :root[data-theme="pro"] .zoomCtl button,
+  :root[data-theme="pro"] .keyCtl button, :root[data-theme="pro"] .kpScope button, :root[data-theme="pro"] .zpPresets button,
+  :root[data-theme="pro"] .appToast button, :root[data-theme="pro"] .chordQuick button, :root[data-theme="pro"] .exportVariant label,
+  :root[data-theme="pro"] #instFilterSel, :root[data-theme="pro"] #currentProjectLabel, :root[data-theme="pro"] .logo-badge,
+  :root[data-theme="pro"] .dockChip, :root[data-theme="pro"] .performSection, :root[data-theme="pro"] .contiChip{border-radius:var(--r-control);}
+  :root[data-theme="pro"] .dockPlay, :root[data-theme="pro"] #bigPlayBtn, :root[data-theme="pro"] .swatch, :root[data-theme="pro"] .beatDot{border-radius:50%;}
+  :root[data-theme="pro"] input[type=number], :root[data-theme="pro"] select, :root[data-theme="pro"] input[type=text],
+  :root[data-theme="pro"] textarea{background-color:var(--surface-2); border:1px solid var(--glass-border); border-radius:var(--r-control); color:var(--text);}
+  :root[data-theme="pro"] input[type=number]:focus, :root[data-theme="pro"] select:focus, :root[data-theme="pro"] input[type=text]:focus{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-dim), var(--glow);}
+  :root[data-theme="pro"] button{background:var(--surface-2); border-color:var(--glass-border);}
+  :root[data-theme="pro"] .toolbar-group button, :root[data-theme="pro"] .modeSwitch button, :root[data-theme="pro"] .lessonTabsFloat button,
+  :root[data-theme="pro"] .zoomCtl button, :root[data-theme="pro"] .keyCtl button, :root[data-theme="pro"] .kpScope button{background:transparent; border-color:transparent;}
+  :root[data-theme="pro"] .toolbar-group button:hover, :root[data-theme="pro"] .modeSwitch button:hover, :root[data-theme="pro"] .lessonTabsFloat button:hover,
+  :root[data-theme="pro"] .zoomCtl button:hover, :root[data-theme="pro"] .keyCtl button:hover{background:var(--surface-2); border-color:var(--glass-border);}
+  :root[data-theme="pro"] button.primary{background:linear-gradient(180deg, #4F94FF, #2F6FE0); border-color:#2F6FE0; box-shadow:0 2px 10px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,.25);}
+  :root[data-theme="pro"] button.primary:hover{background:linear-gradient(180deg, #6AA6FF, #3B82F6); box-shadow:0 0 18px rgba(59,130,246,0.6), inset 0 1px 0 rgba(255,255,255,.3);}
+  :root[data-theme="pro"] button.active{background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 0 12px rgba(59,130,246,0.45);}
+  :root[data-theme="pro"] .toolbar-group:has(#penTool){background:var(--ink); border-color:var(--glass-border);}
+  :root[data-theme="pro"] .toolbar-group:has(#penTool) input[type=range], .toolbar-group:has(#penTool) input[type=range]{background:transparent;}
+  :root[data-theme="pro"] #playBtn.playing, :root[data-theme="pro"] .dockPlay{background:linear-gradient(180deg,#34D399,#10B981); color:#04130D; box-shadow:0 0 16px rgba(16,185,129,.45);}
+  :root[data-theme="pro"] .beatDot[data-state="accent"]{background:var(--accent-active); border-color:var(--accent-active); color:#04130D; box-shadow:0 0 10px rgba(16,185,129,.5);}
+  :root[data-theme="pro"] .beatDot.flash, :root[data-theme="pro"] .miniDot.flash{box-shadow:0 0 12px var(--accent-active); background:var(--accent-active);}
+  :root[data-theme="pro"] .dockRing{border-color:var(--accent-active);}
+  /* 타이포: DAW 미터 느낌의 숫자 */
+  :root[data-theme="pro"] header h1{font-family:'Figtree',"Noto Sans KR",sans-serif; font-weight:800; letter-spacing:.02em; font-size:15px; text-transform:uppercase;}
+  :root[data-theme="pro"] #bpmInput, :root[data-theme="pro"] .dockBpmNum{font-family:'Figtree',"Noto Sans KR",sans-serif; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.02em; color:#E7E9EE; text-shadow:0 0 14px rgba(59,130,246,.45);}
+  :root[data-theme="pro"] h2{color:var(--text-muted); letter-spacing:.1em;}
+  :root[data-theme="pro"] .sheetStage{border-radius:4px; box-shadow:0 18px 50px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06);}
+  :root[data-theme="pro"] ::-webkit-scrollbar{width:10px; height:10px;}
+  :root[data-theme="pro"] ::-webkit-scrollbar-thumb{background:#2c2f38; border-radius:6px; border:2px solid transparent; background-clip:padding-box;}
+  :root[data-theme="pro"] ::-webkit-scrollbar-thumb:hover{background:#3a3e49; background-clip:padding-box; border:2px solid transparent;}
+  :root[data-theme="pro"] ::-webkit-scrollbar-track{background:transparent;}
+  /* 세로 펜 굵기 슬라이더(전체화면 트레이) */
+  .focusPenBody input[type=range]::-webkit-slider-runnable-track{height:auto; width:6px;}
+  .focusPenBody input[type=range]::-webkit-slider-thumb{margin-top:0; margin-left:-5px; width:20px; height:14px; background:linear-gradient(180deg, transparent 44%, var(--accent) 44%, var(--accent) 56%, transparent 56%), linear-gradient(90deg, #f5f7fa 0%, #cdd2da 46%, #9aa1ac 54%, #d9dde3 100%);}
 </style>
 </head>
 <body>
@@ -7657,21 +7773,25 @@ document.getElementById("toggleRightPanel").addEventListener("click", ()=>{ stat
  * warm(기존) · clean(A) · dark(B 스테이지 다크) · slate(C). 악보 종이는 모든 테마에서 흰색 그대로.
  * "전체화면에서는 스테이지 다크": 연주할 때만 어둡게 — 무대·합주실에서 눈부심을 줄인다. */
 const THEMES = [
+  {key:"pro",   name:"프로 · DAW",       hint:"Logic·Ableton 감성 다크 · 일렉트릭 블루", sw:["#0E0F12","#18191E","#3B82F6","#10B981"]},
   {key:"warm",  name:"웜 스튜디오",     hint:"지금까지 쓰던 베이지 · 테라코타",       sw:["#e7dcc8","#f9f4ed","#c67139","#201e1d"]},
   {key:"clean", name:"A · 클린 라이트",  hint:"가장 또렷함 · 밝은 레슨실, 책상 작업",   sw:["#eef1f5","#ffffff","#2457e6","#0f1729"]},
   {key:"dark",  name:"B · 스테이지 다크", hint:"악보만 밝게 · 무대, 합주실, 어두운 곳", sw:["#0d0f12","#171a1f","#ffb224","#f3f4f6"]},
   {key:"slate", name:"C · 슬레이트 & 코랄", hint:"차분한 회청색 · 따뜻한 포인트",        sw:["#e3e8ef","#f8fafc","#cc3f24","#0f172a"]},
 ];
+function themeChosen(){ try{ return localStorage.getItem("mls-theme-chosen") === "1"; }catch(err){ return false; } }
 function effectiveTheme(){
-  if(focusMode && state.darkInFocus) return "dark";
-  return THEMES.some(t=>t.key===state.theme) ? state.theme : "warm";
+  const base = themeChosen() && THEMES.some(t=>t.key===state.theme) ? state.theme : "pro";   // 직접 고른 적이 없으면 새 프로 테마
+  if(focusMode && state.darkInFocus && base !== "pro") return "dark";
+  return base;
 }
+const effectiveTheme_base = ()=> themeChosen() && THEMES.some(t=>t.key===state.theme) ? state.theme : "pro";
 function applyTheme(){
   const t = effectiveTheme();
   if(t === "warm") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme", t);
   // 다음에 열 때 깜빡임 없이 바로 적용되도록 (전체화면 임시 다크는 저장하지 않음)
-  try{ localStorage.setItem("mls-theme", state.theme || "warm"); }catch(err){}
+  try{ localStorage.setItem("mls-theme", effectiveTheme_base()); }catch(err){}
 }
 function closeSettings(){ const p = document.getElementById("settingsPop"); if(p) p.remove(); }
 function renderSettingsPop(p){
@@ -7696,10 +7816,10 @@ function renderSettingsPop(p){
   const grid = p.querySelector(".themeGrid");
   THEMES.forEach(t=>{
     const b = document.createElement("button");
-    b.className = "themeCard" + (state.theme===t.key || (!state.theme && t.key==="warm") ? " selected" : "");
+    b.className = "themeCard" + (effectiveTheme_base()===t.key ? " selected" : "");
     b.innerHTML = `<div class="themeSwatch">${t.sw.map(c=>`<span style="background:${c}"></span>`).join("")}</div>
       <div class="themeName">${t.name}</div><div class="themeHint">${t.hint}</div>`;
-    b.addEventListener("click", ()=>{ state.theme = t.key; applyTheme(); renderSettingsPop(p); scheduleSave(); });
+    b.addEventListener("click", ()=>{ state.theme = t.key; try{ localStorage.setItem("mls-theme-chosen", "1"); }catch(err){} applyTheme(); renderSettingsPop(p); scheduleSave(); });
     grid.appendChild(b);
   });
   p.querySelector("#importLogBtn").addEventListener("click", ()=>{
@@ -8336,7 +8456,7 @@ window.addEventListener("pointerup", ()=> document.querySelectorAll(".vGuide.hot
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-4";
+const APP_BUILD = "2026.11.02-5";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

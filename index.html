@@ -302,7 +302,7 @@
 
   /* Sheet Viewport — the stage width is set in JS (fit whole page / fit width × zoom).
      margin:auto instead of justify-content:center so a zoomed page can scroll to its left edge. */
-  html, body{overscroll-behavior-x:none;}
+  html, body{overscroll-behavior:none;}
   .sheetViewport{flex:1; overflow:auto; display:flex; justify-content:flex-start; align-items:flex-start; padding:24px; position:relative; background:var(--bg); touch-action:pan-x pan-y; overscroll-behavior:contain;}
   .sheetStage{position:relative; width:100%; max-width:1200px; margin:0 auto; flex-shrink:0; background:var(--paper); color:var(--paper-ink); box-shadow:var(--shadow); height:fit-content; border-radius:4px; overflow:hidden;}
   .sheetStage.placing{cursor:crosshair;}
@@ -310,7 +310,7 @@
   .sheetStage img{display:block; width:100%; height:auto; user-select:none; pointer-events:none;}
 
   /* height:auto — 캔버스가 이미지와 같은 비율을 유지 (스테이지 높이와 상관없이 필기가 늘어나거나 밀리지 않게) */
-  #annotationCanvas{position:absolute; top:0; left:0; width:100%; height:auto; touch-action:pan-x pan-y;}
+  #annotationCanvas{position:absolute; top:0; left:0; width:100%; height:auto; touch-action:none; overscroll-behavior:contain; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
 
   .emptySheet{
     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -5366,6 +5366,7 @@ let scale = 1.0;
 let currentTool = "pen";
 let penColor = COLORS[0];
 let placingType = null;
+let strokePid = null;
 let strokeInProgress = null;
 let canvasEl = null, ctx = null;
 let dragMarker = null;
@@ -6399,7 +6400,8 @@ window.addEventListener("pointerup", ()=> onPointerUp());
 
 function onPointerDown(e){
   if(placingType || placingText) return;
-  if(e.pointerType === "touch") return;
+  if(e.pointerType === "touch") return;              // 손가락은 필기 금지 — 스와이프·핀치·팬 전용
+  if(isPalmPen(e)) return;                           // 접촉 면적이 큰 '펜' 신호는 손바닥으로 보고 무시
   const sheet = currentSheet();
   if(!sheet) return;
   if(currentTool === "select") return;      // 선택 도구: 필기 없이 마커·코드·텍스트만 만진다
@@ -6410,6 +6412,7 @@ function onPointerDown(e){
   if(layerPrefs.hide[layerPrefs.active]){ delete layerPrefs.hide[layerPrefs.active]; saveLayerPrefs(); redrawAnnotations(); refreshLayerPop(); }   // 숨긴 레이어에 쓰면 자동으로 보이게
   const {x,y} = canvasCoords(e);
   const hl = currentTool === "highlight";
+  strokePid = e.pointerId;
   strokeInProgress = {
     layer: layerPrefs.active,
     color: currentTool==="eraser" ? "#000" : hl ? hlRgba(hlColor) : penColor,
@@ -6423,6 +6426,8 @@ function onPointerDown(e){
 function onPointerMove(e){
   if(laserHeld){ laserMove(e); return; }
   if(!strokeInProgress) return;
+  if(e.pointerType === "touch" || isPalmPen(e)) return;            // 필기 중 손바닥·손가락 이동은 획에 섞지 않는다
+  if(strokePid != null && e.pointerId != null && e.pointerId !== strokePid) return;
   const {x,y} = canvasCoords(e);
   strokeInProgress.points.push({x,y});
   if(strokeInProgress.hl){   // 반투명 형광펜은 조각조각 그리면 이음새가 진해지므로 한 획으로 다시 그린다
@@ -6695,6 +6700,69 @@ document.addEventListener("keydown", (e)=>{
   else if(e.key === "-" || e.key === "_"){ e.preventDefault(); setScale(scale - 0.05); }
   else if(e.key === "0"){ e.preventDefault(); setScale(1); }
 });
+
+/* ---------- 펜 / 손가락 입력 분리 (Pointer Events) ----------
+ * 펜(Apple Pencil)·마우스 = 필기만, 손가락 = 스와이프·핀치·팬 제스처만.
+ * 펜이 화면에 가까워지거나 닿아 있는 동안과 직후(PEN_LOCK_MS)에는 손가락 제스처를 잠가서,
+ * 손바닥이 닿아도 페이지가 넘어가거나 확대·이동되지 않게 한다. 접촉 면적이 큰 터치는 손바닥으로 보고 무시한다. */
+const PEN_LOCK_MS = 650, PALM_LOCK_MS = 900;
+let penNearAt = 0, penIsDown = false, palmAt = 0;
+const penLocked = ()=> penIsDown || performance.now() - penNearAt < PEN_LOCK_MS;
+const palmLocked = ()=> performance.now() - palmAt < PALM_LOCK_MS;
+const gestureBlocked = ()=> penLocked() || palmLocked();
+const isPalmPointer = (e)=> e.pointerType === "touch" && (e.width > 50 || e.height > 50);       // 손가락 끝은 보통 이보다 작다
+const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 20);            // 펜촉은 아주 작다 → 크면 손바닥
+(function setupInputGuard(){
+  const mark = (e)=>{
+    if(e.pointerType === "pen" && !isPalmPen(e)){ penNearAt = performance.now(); document.body.classList.add("penNear"); }
+    else if(isPalmPointer(e)) palmAt = performance.now();
+  };
+  ["pointerover", "pointerenter", "pointermove", "pointerdown"].forEach(t=> document.addEventListener(t, mark, true));   // 호버(pointermove, buttons=0)도 근접으로 본다
+  document.addEventListener("pointerdown", (e)=>{ if(e.pointerType === "pen" && !isPalmPen(e)) penIsDown = true; }, true);
+  const up = (e)=>{ if(e.pointerType === "pen"){ penIsDown = false; penNearAt = performance.now() - PEN_LOCK_MS + 450; } };   // 뗀 직후 0.45초는 더 잠근다
+  ["pointerup", "pointercancel"].forEach(t=> window.addEventListener(t, up, true));
+  const leave = (e)=>{ if(e.pointerType === "pen" && !e.relatedTarget){ penIsDown = false; penNearAt = performance.now() - PEN_LOCK_MS + 450; } };
+  ["pointerleave", "pointerout"].forEach(t=> document.addEventListener(t, leave, true));
+  setInterval(()=>{ if(!penLocked()) document.body.classList.remove("penNear"); }, 300);
+
+  const viewport = document.getElementById("sheetViewport");
+  // 잠금 중에는 손가락 터치가 기존 제스처(핀치·스와이프·더블탭)에 닿지 않게 먼저 막는다
+  const IGN = ".markerPill, .markerBracket, .instTag, .textBoxWrap, button, input, select, textarea, .chordTag, .contiPanel, .focusBar, .metroDock, .toolRail, .railFlyout, .lessonPanel, .lessonTabsFloat";
+  const guard = (e)=>{
+    const t = e.touches && e.touches[0];
+    if(t && t.touchType === "stylus") return;                                   // 펜 자체는 막지 않는다 (필기용)
+    const palmTouch = Array.from(e.touches || []).some(x=> (x.radiusX || 0) > 30 || (x.radiusY || 0) > 30);
+    if(palmTouch && !penLocked()) palmAt = performance.now();
+    if(gestureBlocked() && !e.target.closest(IGN)){ e.preventDefault(); e.stopImmediatePropagation(); }
+  };
+  viewport.addEventListener("touchstart", guard, {capture:true, passive:false});
+  viewport.addEventListener("touchmove", guard, {capture:true, passive:false});
+
+  // 캔버스는 touch-action:none 이라 브라우저가 손가락 스크롤을 못 하므로, 한 손가락 팬은 직접 처리한다 (관성 포함)
+  let pan = null, mom = 0;
+  viewport.addEventListener("touchstart", (e)=>{
+    cancelAnimationFrame(mom);
+    if(e.touches.length !== 1 || gestureBlocked()){ pan = null; return; }
+    const t = e.touches[0];
+    if(t.touchType === "stylus" || !e.target.closest("#sheetStage") || e.target.closest(IGN) || placingType || placingText){ pan = null; return; }
+    pan = {x:t.clientX, y:t.clientY, vx:0, vy:0, t:performance.now()};
+  }, {passive:true});
+  viewport.addEventListener("touchmove", (e)=>{
+    if(!pan) return;
+    if(e.touches.length !== 1){ pan = null; return; }
+    const t = e.touches[0], now = performance.now(), dx = t.clientX - pan.x, dy = t.clientY - pan.y, dt = Math.max(1, now - pan.t);
+    viewport.scrollLeft -= dx; viewport.scrollTop -= dy;
+    pan.vx = dx / dt; pan.vy = dy / dt; pan.x = t.clientX; pan.y = t.clientY; pan.t = now;
+  }, {passive:true});
+  const endPan = ()=>{
+    if(!pan) return; const v = pan; pan = null;
+    if(performance.now() - v.t > 80) return;
+    let vx = v.vx * 16, vy = v.vy * 16;
+    const step = ()=>{ viewport.scrollLeft -= vx; viewport.scrollTop -= vy; vx *= 0.94; vy *= 0.94; if(Math.abs(vx) > 0.4 || Math.abs(vy) > 0.4) mom = requestAnimationFrame(step); };
+    mom = requestAnimationFrame(step);
+  };
+  viewport.addEventListener("touchend", endPan, {passive:true}); viewport.addEventListener("touchcancel", ()=>{ pan = null; }, {passive:true});
+})();
 
 (function setupTouchGestures(){
   /* 두 손가락 핀치 + 두 번 탭한 채 위아래로 끌기(위 = 확대, 아래 = 축소) + 전체화면에서 두 번 탭 = 폭 맞춤 ↔ 한 장.
@@ -8822,7 +8890,7 @@ function wfMiniDraw(){
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-7";
+const APP_BUILD = "2026.11.02-8";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

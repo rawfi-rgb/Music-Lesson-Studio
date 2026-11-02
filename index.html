@@ -650,7 +650,7 @@
   @media (max-width:640px){ #stageView{overflow-y:auto;} .stSecs{grid-template-columns:1fr; flex:none;} .stCard{padding:8px 14px; overflow:visible;} .stBottom{flex-direction:column; flex:none;} .stFlash{display:none;} .stBpm b{font-size:clamp(60px,26vw,140px);} .stBtns{flex:none;} .stBtns .stTap{grid-row:auto; padding:18px 0;} .stBtns button{padding:12px 6px;} .stNav{flex-wrap:wrap;} .stNav button{flex:1 1 44%;} }
 
   .wfBox{margin:0 0 10px;}
-  #wfCanvas{width:100%; height:96px; display:block; border-radius:8px; background:var(--panel-alt); border:1px solid var(--border); touch-action:none; cursor:crosshair;}
+  #wfCanvas{width:100%; height:110px; display:block; border-radius:8px; background:var(--panel-alt); border:1px solid var(--border); touch-action:none; cursor:crosshair;}
   .wfBar{display:flex; align-items:center; gap:4px; margin-top:4px; flex-wrap:wrap;}
   .wfBar button{padding:2px 8px;} .wfBar button.on{background:var(--accent,#c67139); color:#fff;}
   .wfHint{font-size:10px; color:var(--text-dim); flex:1; min-width:120px;}
@@ -721,6 +721,36 @@
   #floatPop .fpVal{font-size:11px; font-weight:800; min-width:34px; font-variant-numeric:tabular-nums; color:var(--text-dim);}
   .sheetStage.selectMode canvas{cursor:default;} .sheetStage.hlMode canvas{cursor:cell;}
   @media (max-width:640px){ #floatTools .ftBtn{width:42px; height:46px; font-size:9px;} #floatTools{gap:2px; padding:5px;} #floatPop input[type=range]{width:110px;} }
+
+  /* ============ 비주얼 BPM 노브 + 비트 LED ============ */
+  .bpmKnob{position:relative; width:min(210px, 100%); aspect-ratio:1; margin:2px auto 6px; touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; outline:none; border-radius:50%;}
+  .bpmKnob:active{cursor:grabbing;}
+  .bpmKnob:focus-visible{box-shadow:0 0 0 2px var(--accent);}
+  .bpmKnob svg{width:100%; height:100%; overflow:visible; display:block;}
+  #knobTrack{stroke:color-mix(in srgb, var(--text-muted) 28%, transparent);}
+  #knobArc{stroke:var(--accent); filter:drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent)); transition:stroke .15s;}
+  #knobCap{fill:#f1f3f6; stroke:rgba(0,0,0,.45); stroke-width:1.5; filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));}
+  .bpmKnob.beat #knobArc{filter:drop-shadow(0 0 11px var(--accent)); stroke-width:11;}
+  .bpmKnob.beat.accent #knobArc{stroke:var(--beat-accent); filter:drop-shadow(0 0 13px var(--beat-accent));}
+  #knobTicks line{stroke:color-mix(in srgb, var(--text-muted) 55%, transparent); stroke-width:1.4;}
+  #knobTicks line.maj{stroke:var(--text-dim); stroke-width:2;}
+  .knobLed{fill:color-mix(in srgb, var(--text-muted) 32%, transparent); transition:fill .16s ease, filter .16s ease, r .16s ease;}
+  .knobLed.on{fill:var(--accent); filter:drop-shadow(0 0 7px var(--accent)); transition:none;}
+  .knobLed.on.acc{fill:var(--beat-accent); filter:drop-shadow(0 0 9px var(--beat-accent));}
+  .knobFace{position:absolute; inset:21%; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 35% 28%, color-mix(in srgb, var(--panel-hover) 80%, #fff 6%), var(--panel) 72%); box-shadow:inset 0 2px 6px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.06), 0 8px 18px rgba(0,0,0,.25); pointer-events:none;}
+  .knobFace #bpmInput{pointer-events:auto; width:100%; max-width:96px; font-size:34px; font-weight:800; letter-spacing:-.02em; padding:0; margin:0; background:transparent !important; border:none !important; box-shadow:none !important; text-align:center; font-family:'Figtree',"Noto Sans KR",sans-serif; -moz-appearance:textfield;}
+  .knobFace #bpmInput::-webkit-outer-spin-button, .knobFace #bpmInput::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  .knobUnit{font-size:10px; font-weight:800; letter-spacing:.14em; color:var(--text-muted); margin-top:-2px;}
+  /* 오디오 트랜스포트 + 파형 */
+  .tpRow{display:flex; align-items:center; gap:6px; margin-bottom:8px;}
+  .tpRow button{padding:6px 0; flex:1; font-size:13px;}
+  #audioPlayBtn{flex:1.4;}
+  #audioSeek{display:none !important;}
+  #wfMini{width:100%; height:16px; display:block; border-radius:5px; background:var(--panel-alt); border:1px solid var(--border); cursor:pointer; margin-bottom:4px; touch-action:none;}
+  .wfSnapRow{display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap;}
+  .wfSnapRow button{padding:3px 8px; font-size:11px;} .wfSnapRow button.on{background:var(--accent); color:var(--on-accent); border-color:transparent; box-shadow:var(--glow);}
+  .wfSnapRow select{width:auto; padding:3px 22px 3px 8px; font-size:11px;}
   .libTabs{display:flex; gap:6px; margin-bottom:16px; background:var(--panel-alt); padding:4px; border-radius:var(--radius-sm); border:1px solid var(--border);}
   .libTabs button{flex:1; border:none; background:transparent; border-radius:4px;}
   .libTabs button.active{background:var(--panel); color:var(--text); box-shadow:var(--shadow-sm);}
@@ -1146,10 +1176,17 @@
         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
         메트로놈
       </h2>
-      <div class="bpm-row">
-        <input type="number" id="bpmInput" inputmode="numeric" value="100">
-        <input type="range" id="bpmSlider" min="20" max="300" value="100">
+      <div class="bpmKnob" id="bpmKnob" tabindex="0" role="slider" aria-label="BPM" aria-valuemin="20" aria-valuemax="300" title="돌려서 BPM 조절 · 휠/방향키 ±1 (Shift ±5) · 가운데 숫자를 눌러 직접 입력">
+        <svg viewBox="0 0 200 200" id="knobSvg">
+          <g id="knobLeds"></g>
+          <path id="knobTrack" fill="none" stroke-width="9" stroke-linecap="round"/>
+          <path id="knobArc" fill="none" stroke-width="9" stroke-linecap="round"/>
+          <g id="knobTicks"></g>
+          <circle id="knobCap" r="7"/>
+        </svg>
+        <div class="knobFace"><input type="number" id="bpmInput" inputmode="numeric" value="100"><span class="knobUnit">BPM</span></div>
       </div>
+      <input type="range" id="bpmSlider" min="20" max="300" value="100" style="display:none;">
       <div class="hint" id="tempoMarking" style="padding:0 0 4px; font-style:italic;">Andante · 걷는 속도</div>
       <div class="row" style="margin-top:10px;">
         <button class="icon" id="bpmDown">−5</button>
@@ -1241,17 +1278,27 @@
       <input type="file" id="audioFileInput" accept="audio/*" style="display:none;">
       <button id="loadAudioBtn" style="width:100%;">음악 파일 불러오기</button>
       <div id="audioPlayerControls" style="display:none; margin-top:12px;">
-        <div class="row" style="margin-bottom:8px;">
-          <button class="icon" id="audioPlayBtn">▶</button>
-          <input type="range" id="audioSeek" min="0" max="100" value="0" step="0.1" style="flex:1;">
+        <div class="tpRow">
+          <button class="icon" id="tpBack" title="5초 뒤로">⏪ 5</button>
+          <button class="icon" id="audioPlayBtn" title="재생/정지 (Space 는 메트로놈과 함께)">▶</button>
+          <button class="icon" id="tpStop" title="정지하고 처음(또는 A 지점)으로">⏹</button>
+          <button class="icon" id="tpFwd" title="5초 앞으로">5 ⏩</button>
+          <input type="range" id="audioSeek" min="0" max="100" value="0" step="0.1">
         </div>
-        <div class="hint" id="audioTimeLabel" style="padding:0 0 8px; ">0:00 / 0:00</div>
+        <div class="hint" id="audioTimeLabel" style="padding:0 0 6px; font-variant-numeric:tabular-nums;">0:00 / 0:00</div>
+        <canvas id="wfMini" height="16" title="전체 길이 — 눌러서 이동"></canvas>
         <div class="wfBox">
-          <canvas id="wfCanvas" height="96"></canvas>
+          <canvas id="wfCanvas" height="110"></canvas>
           <div class="wfBar">
             <button class="icon" id="wfZoomOut" title="축소">－</button><button class="icon" id="wfZoomIn" title="확대">＋</button><button class="icon" id="wfZoomAll" title="전체 보기">⤢</button>
             <button class="icon" id="wfLoopTgl" title="구간 반복 켜기/끄기">🔁</button>
             <span class="wfHint" id="wfHint">파형을 드래그해 A-B 구간 지정 · 눌러서 이동</span>
+          </div>
+          <div class="wfSnapRow">
+            <button class="icon on" id="wfSnapBtn" title="루프 핸들을 박/마디 격자에 붙입니다 (Alt 를 누르면 잠시 끔)">🧲 스냅</button>
+            <select id="wfGridSel" title="격자 단위 (메트로놈 BPM·박자 기준)"><option value="bar">마디</option><option value="beat" selected>박</option><option value="half">½ 박</option><option value="quarter">¼ 박</option></select>
+            <button class="icon" id="wfGridZero" title="지금 재생 위치를 격자의 첫 박으로">▸ 기준점</button>
+            <span class="wfHint" id="wfGridInfo"></span>
           </div>
           <input type="range" id="wfScroll" min="0" max="1000" value="0" style="display:none; width:100%;">
         </div>
@@ -5055,6 +5102,7 @@ function visualLoop(){
 }
 
 function flashBeat(beat){
+  if(typeof knobFlash === "function") knobFlash(beat);
   if(typeof stageFlash === "function") stageFlash((state.beatPattern[beat] || "normal") === "accent");
   pulseDockRing((state.beatPattern[beat] || "normal") === "accent");
   clearBeatFlash();
@@ -5267,6 +5315,7 @@ function rebuildNumeratorOptions(){
 }
 
 function renderBeatDots(){
+  if(typeof renderKnobLeds === "function") renderKnobLeds();
   const wrap = document.getElementById("beatDots");
   wrap.innerHTML = "";
   for(let i=0;i<state.beatsPerBar;i++){
@@ -7728,6 +7777,7 @@ function syncBpmUI(){
   document.getElementById("bpmInput").value = state.bpm;
   document.getElementById("bpmSlider").value = state.bpm;
   document.getElementById("bpmLabel").textContent = state.bpm + " BPM";
+  if(typeof knobRender === "function") knobRender();
   const marking = tempoMarkingFor(state.bpm);
   document.getElementById("tempoMarking").textContent = marking.name + " · " + marking.ko;
   if(focusMode) updateFocusBar();
@@ -8236,7 +8286,7 @@ async function wfLoad(file){
 const wfT2X = (t)=> (t - wfVs) / Math.max(1e-6, wfVe - wfVs) * wfCv.clientWidth;
 const wfX2T = (x)=> Math.max(0, Math.min(wfDur, wfVs + x / Math.max(1, wfCv.clientWidth) * (wfVe - wfVs)));
 function wfDraw(){
-  const dpr = window.devicePixelRatio || 1, W = wfCv.clientWidth, H = 96;
+  const dpr = window.devicePixelRatio || 1, W = wfCv.clientWidth, H = 110;
   if(!W) return;
   if(wfCv.width !== Math.round(W * dpr)){ wfCv.width = Math.round(W * dpr); wfCv.height = Math.round(H * dpr); }
   const g = wfCv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
@@ -8256,6 +8306,24 @@ function wfDraw(){
     let hi = 0, lo = 0; for(let i = i0; i <= i1; i++){ if(mx[i] > hi) hi = mx[i]; if(mn[i] < lo) lo = mn[i]; }
     g.fillRect(x, mid - hi * amp, 1, Math.max(1, (hi - lo) * amp));
   }
+  // 격자선 (스냅이 켜져 있고 간격이 충분히 넓을 때)
+  if(wfSnapOn){
+    const gs = wfGridSec(), pxPer = gs / (wfVe - wfVs) * W, bar = secondsPerBeat() * state.beatsPerBar;
+    if(pxPer >= 6){
+      const k0 = Math.ceil((wfVs - wfGridZeroT) / gs), k1 = Math.floor((wfVe - wfGridZeroT) / gs);
+      for(let k = k0; k <= k1 && k - k0 < 800; k++){
+        const t = wfGridZeroT + k * gs, x = Math.round(wfT2X(t)) + .5, isBar = Math.abs(((t - wfGridZeroT) / bar) - Math.round((t - wfGridZeroT) / bar)) < 1e-3;
+        g.strokeStyle = isBar ? acc : ink; g.globalAlpha = isBar ? .55 : .22; g.lineWidth = 1; g.beginPath(); g.moveTo(x, isBar ? 0 : H - 14); g.lineTo(x, H); g.stroke();
+      }
+      g.globalAlpha = 1;
+    }
+  }
+  // 루프 블록: 위쪽 띠 + 길이 표시
+  if(hasLoop){
+    const a = Math.max(0, wfT2X(loopStart)), b = Math.min(W, wfT2X(loopEnd));
+    g.fillStyle = acc; g.fillRect(a, 0, Math.max(2, b - a), 4);
+    if(b - a > 64){ g.fillStyle = "#fff"; g.font = "bold 10px sans-serif"; const lab = (loopEnd - loopStart).toFixed(2) + "s"; g.fillText(lab, (a + b) / 2 - g.measureText(lab).width / 2, 16); }
+  }
   // A / B 핸들
   const handle = (t, label)=>{ if(t == null) return; const x = wfT2X(t); if(x < -4 || x > W + 4) return; g.fillStyle = acc; g.fillRect(x - 1, 0, 2, H); g.fillRect(x - (label === "A" ? 0 : 14), 0, 14, 14); g.fillStyle = "#fff"; g.font = "bold 10px sans-serif"; g.fillText(label, x + (label === "A" ? 3 : -11), 11); };
   handle(loopStart, "A"); handle(loopEnd, "B");
@@ -8265,6 +8333,7 @@ function wfDraw(){
   sc.style.display = zoomed ? "block" : "none";
   if(zoomed && wfDrag == null){ sc.value = Math.round(wfVs / Math.max(1e-6, wfDur - (wfVe - wfVs)) * 1000); }
   document.getElementById("wfLoopTgl").classList.toggle("on", hasLoop);
+  if(typeof wfMiniDraw === "function") wfMiniDraw();
 }
 function wfZoom(f, center){
   if(!wfDur) return;
@@ -8299,13 +8368,13 @@ wfCv.addEventListener("pointerdown", (e)=>{
 wfCv.addEventListener("pointermove", (e)=>{
   if(!wfDur) return;
   if(!wfDrag){ const x = wfPos(e); wfCv.style.cursor = ([loopStart, loopEnd].some(tt=> tt != null && Math.abs(wfT2X(tt) - x) <= 9)) ? "ew-resize" : "crosshair"; return; }
-  const t = wfX2T(wfPos(e));
+  const t = wfSnap(wfX2T(wfPos(e)), e.altKey);
   if(wfDrag.kind === "A"){ loopStart = loopEnd != null ? Math.min(t, loopEnd - 0.05) : t; }
   else if(wfDrag.kind === "B"){ loopEnd = loopStart != null ? Math.max(t, loopStart + 0.05) : t; }
   else {
     if(!wfDrag.moved && Math.abs(wfPos(e) - wfDrag.x0) < 4) return;
-    wfDrag.moved = true; loopStart = Math.min(wfDrag.t0, t); loopEnd = Math.max(wfDrag.t0, t);
-    if(loopEnd - loopStart < 0.05) loopEnd = loopStart + 0.05;
+    wfDrag.moved = true; const t0 = wfSnap(wfDrag.t0, e.altKey); loopStart = Math.min(t0, t); loopEnd = Math.max(t0, t);
+    if(loopEnd - loopStart < 0.05) loopEnd = Math.min(wfDur, loopStart + Math.max(0.05, wfSnapOn ? wfGridSec() : 0.05));
   }
   updateLoopHint(); wfDraw();
 });
@@ -8635,11 +8704,125 @@ document.addEventListener("keydown", (e)=>{
   else if(e.key === "Escape" && ftOpen){ closeFloatPop(); }
 });
 syncFloatTools();
+
+/* ============ 비주얼 BPM 노브 + 비트 LED ============ */
+const KNOB = {min:20, max:300, a0:-135, a1:135, cx:100, cy:100, rArc:74, rLed:93, rTick:86};
+const knobEl = document.getElementById("bpmKnob");
+function kPt(r, deg){ const a = (deg - 90) * Math.PI / 180; return [KNOB.cx + r * Math.cos(a), KNOB.cy + r * Math.sin(a)]; }
+function kArc(r, d0, d1){ const [x0, y0] = kPt(r, d0), [x1, y1] = kPt(r, d1); return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${d1 - d0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`; }
+const bpmToDeg = (b)=> KNOB.a0 + (Math.max(KNOB.min, Math.min(KNOB.max, b)) - KNOB.min) / (KNOB.max - KNOB.min) * (KNOB.a1 - KNOB.a0);
+function knobRender(){
+  const d = bpmToDeg(state.bpm);
+  document.getElementById("knobTrack").setAttribute("d", kArc(KNOB.rArc, KNOB.a0, KNOB.a1));
+  document.getElementById("knobArc").setAttribute("d", kArc(KNOB.rArc, KNOB.a0, Math.max(KNOB.a0 + 0.5, d)));
+  const [cx, cy] = kPt(KNOB.rArc, d), cap = document.getElementById("knobCap"); cap.setAttribute("cx", cx.toFixed(2)); cap.setAttribute("cy", cy.toFixed(2));
+  knobEl.setAttribute("aria-valuenow", state.bpm);
+  const t = document.getElementById("knobTicks");
+  if(!t.firstChild){
+    for(let b = 40; b <= 280; b += 20){ const dd = bpmToDeg(b), [x0, y0] = kPt(KNOB.rTick - (b % 60 === 40 || b === 100 || b === 160 || b === 220 || b === 280 ? 5 : 2), dd), [x1, y1] = kPt(KNOB.rTick + 1, dd);
+      const ln = document.createElementNS("http://www.w3.org/2000/svg", "line"); ln.setAttribute("x1", x0); ln.setAttribute("y1", y0); ln.setAttribute("x2", x1); ln.setAttribute("y2", y1); if(b % 60 === 40) ln.setAttribute("class", "maj"); t.appendChild(ln); }
+  }
+}
+function renderKnobLeds(){
+  const g = document.getElementById("knobLeds"); if(!g) return;
+  const n = state.beatsPerBar || 4; g.innerHTML = "";
+  for(let i = 0; i < n; i++){
+    const deg = i * 360 / n, [x, y] = kPt(KNOB.rLed, deg);
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle"); c.setAttribute("cx", x.toFixed(2)); c.setAttribute("cy", y.toFixed(2)); c.setAttribute("r", n > 8 ? 3.2 : 4.6); c.setAttribute("class", "knobLed"); c.dataset.i = i; g.appendChild(c);
+  }
+}
+let knobFlashT = 0;
+function knobFlash(beat){
+  const leds = document.querySelectorAll("#knobLeds .knobLed"); if(!leds.length) return;
+  const acc = (state.beatPattern[beat] || "normal") === "accent";
+  leds.forEach(l=>{ l.classList.remove("on", "acc"); });
+  const l = leds[beat % leds.length]; if(l){ l.classList.add("on"); if(acc) l.classList.add("acc"); }
+  knobEl.classList.add("beat"); knobEl.classList.toggle("accent", acc);
+  clearTimeout(knobFlashT); knobFlashT = setTimeout(()=>{ knobEl.classList.remove("beat", "accent"); document.querySelectorAll("#knobLeds .knobLed").forEach(x=> x.classList.remove("acc")); }, 110);
+}
+// 노브 조작: 원을 따라 돌리면 BPM 이 변한다 (상대 각도 방식이라 잡는 순간 튀지 않음)
+(function(){
+  let drag = null;
+  const ang = (e)=>{ const r = knobEl.getBoundingClientRect(); return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI; };
+  const setB = (v)=>{ v = Math.round(Math.max(KNOB.min, Math.min(KNOB.max, v))); if(v !== state.bpm){ state.bpm = v; syncBpmUI(); scheduleSave(); } };
+  knobEl.addEventListener("pointerdown", (e)=>{
+    if(e.target.id === "bpmInput") return;
+    e.preventDefault(); try{ knobEl.setPointerCapture(e.pointerId); }catch(err){}
+    drag = {a: ang(e), v: state.bpm, acc: 0, y: e.clientY}; knobEl.focus();
+  });
+  knobEl.addEventListener("pointermove", (e)=>{
+    if(!drag) return;
+    const a = ang(e); let d = a - drag.a; if(d > 180) d -= 360; if(d < -180) d += 360;
+    drag.a = a; drag.acc += d;
+    const perDeg = (KNOB.max - KNOB.min) / (KNOB.a1 - KNOB.a0) * (e.shiftKey ? 0.25 : 1);
+    setB(drag.v + drag.acc * perDeg);
+  });
+  const end = ()=>{ drag = null; };
+  knobEl.addEventListener("pointerup", end); knobEl.addEventListener("pointercancel", end);
+  knobEl.addEventListener("wheel", (e)=>{ e.preventDefault(); setB(state.bpm + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 5 : 1)); }, {passive:false});
+  knobEl.addEventListener("keydown", (e)=>{
+    if(e.target.id === "bpmInput") return;
+    const st = e.shiftKey ? 5 : 1;
+    if(e.key === "ArrowUp" || e.key === "ArrowRight"){ e.preventDefault(); setB(state.bpm + st); }
+    else if(e.key === "ArrowDown" || e.key === "ArrowLeft"){ e.preventDefault(); setB(state.bpm - st); }
+  });
+})();
+renderKnobLeds(); knobRender();
+
+/* ============ 오디오 트랜스포트 · 파형 격자 스냅 · 미니 오버뷰 ============ */
+let wfSnapOn = true, wfGrid = "beat", wfGridZeroT = 0;
+try{ wfSnapOn = localStorage.getItem("mls-wfsnap") !== "0"; wfGrid = localStorage.getItem("mls-wfgrid") || "beat"; wfGridZeroT = parseFloat(localStorage.getItem("mls-wfzero") || "0") || 0; }catch(err){}
+function wfGridSec(){
+  const spb = secondsPerBeat();
+  return wfGrid === "bar" ? spb * state.beatsPerBar : wfGrid === "half" ? spb / 2 : wfGrid === "quarter" ? spb / 4 : spb;
+}
+function wfSnap(t, alt){
+  if(!wfSnapOn || alt) return t;
+  const g = wfGridSec(); if(!(g > 0.01)) return t;
+  const v = wfGridZeroT + Math.round((t - wfGridZeroT) / g) * g;
+  return Math.max(0, Math.min(wfDur || v, v));
+}
+function wfGridInfoUpdate(){
+  const el = document.getElementById("wfGridInfo"); if(!el) return;
+  el.textContent = `${state.bpm} BPM · ${wfGridSec().toFixed(2)}초`;
+  document.getElementById("wfSnapBtn").classList.toggle("on", wfSnapOn);
+}
+document.getElementById("wfSnapBtn").addEventListener("click", ()=>{ wfSnapOn = !wfSnapOn; try{ localStorage.setItem("mls-wfsnap", wfSnapOn ? "1" : "0"); }catch(err){} wfGridInfoUpdate(); wfDraw(); });
+document.getElementById("wfGridSel").value = wfGrid;
+document.getElementById("wfGridSel").addEventListener("change", (e)=>{ wfGrid = e.target.value; try{ localStorage.setItem("mls-wfgrid", wfGrid); }catch(err){} wfGridInfoUpdate(); wfDraw(); });
+document.getElementById("wfGridZero").addEventListener("click", ()=>{ if(!audioEl) return; wfGridZeroT = audioEl.currentTime; try{ localStorage.setItem("mls-wfzero", String(wfGridZeroT)); }catch(err){} showToast("격자 기준점 " + fmtTime(wfGridZeroT) + " — 이 위치가 첫 박이에요"); wfDraw(); });
+setInterval(()=>{ if(audioEl) wfGridInfoUpdate(); }, 600);
+// 트랜스포트
+document.getElementById("tpBack").addEventListener("click", ()=>{ if(audioEl) audioEl.currentTime = Math.max(0, audioEl.currentTime - 5); wfDraw(); });
+document.getElementById("tpFwd").addEventListener("click", ()=>{ if(audioEl) audioEl.currentTime = Math.min(audioEl.duration || 1e9, audioEl.currentTime + 5); wfDraw(); });
+document.getElementById("tpStop").addEventListener("click", ()=>{ if(!audioEl) return; audioEl.pause(); audioEl.currentTime = (loopStart != null && loopEnd != null) ? loopStart : 0; wfDraw(); });
+// 미니 오버뷰 (전체 길이 · 재생헤드 · 루프 · 현재 확대 구간)
+const wfMini = document.getElementById("wfMini");
+function wfMiniDraw(){
+  const dpr = window.devicePixelRatio || 1, W = wfMini.clientWidth, H = 16; if(!W) return;
+  if(wfMini.width !== Math.round(W * dpr)){ wfMini.width = Math.round(W * dpr); wfMini.height = Math.round(H * dpr); }
+  const g = wfMini.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const cs = getComputedStyle(document.documentElement), ink = cs.getPropertyValue("--text-dim").trim() || "#888", acc = cs.getPropertyValue("--accent").trim() || "#c67139";
+  if(!wfPeaks || !wfDur) return;
+  const {mx, mn, N} = wfPeaks; g.fillStyle = ink; g.globalAlpha = .55;
+  for(let x = 0; x < W; x++){ const i0 = Math.floor(x / W * N), i1 = Math.max(i0, Math.floor((x + 1) / W * N) - 1); let hi = 0, lo = 0; for(let i = i0; i <= i1 && i < N; i++){ if(mx[i] > hi) hi = mx[i]; if(mn[i] < lo) lo = mn[i]; } g.fillRect(x, 8 - hi * 7, 1, Math.max(1, (hi - lo) * 7)); }
+  g.globalAlpha = 1;
+  if(loopStart != null || loopEnd != null){ const a = (loopStart != null ? loopStart : 0) / wfDur * W, b = (loopEnd != null ? loopEnd : wfDur) / wfDur * W; g.fillStyle = acc; g.globalAlpha = .35; g.fillRect(a, 0, Math.max(2, b - a), H); g.globalAlpha = 1; }
+  if((wfVe - wfVs) < wfDur - 0.01){ g.strokeStyle = acc; g.lineWidth = 1.5; g.strokeRect(wfVs / wfDur * W + .5, .5, Math.max(3, (wfVe - wfVs) / wfDur * W - 1), H - 1); }
+  if(audioEl){ g.fillStyle = "#e33"; g.fillRect(audioEl.currentTime / wfDur * W - 0.75, 0, 1.5, H); }
+}
+(function(){
+  let down = false;
+  const seekTo = (e)=>{ if(!audioEl || !wfDur) return; const r = wfMini.getBoundingClientRect(); audioEl.currentTime = Math.max(0, Math.min(wfDur, (e.clientX - r.left) / r.width * wfDur)); wfDraw(); };
+  wfMini.addEventListener("pointerdown", (e)=>{ down = true; try{ wfMini.setPointerCapture(e.pointerId); }catch(err){} seekTo(e); });
+  wfMini.addEventListener("pointermove", (e)=>{ if(down) seekTo(e); });
+  wfMini.addEventListener("pointerup", ()=>{ down = false; }); wfMini.addEventListener("pointercancel", ()=>{ down = false; });
+})();
 /* ============ 버전 · 자동 업데이트 ============
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.02-6";
+const APP_BUILD = "2026.11.02-7";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

@@ -4286,7 +4286,7 @@ function scopeLabel(scope){
   const n = scopeSheets(scope).length;
   return scope === "all" ? `전체 ${n}페이지` : scope === "song" ? `같은 곡 ${n}페이지` : `이 페이지(${state.currentIndex + 1}p)`;
 }
-if(location.hostname === "localhost") window.__mlsDebug = {ocrSheetTokens, pickChords, pdfPageTokens, getPdfDoc, pdfBuffers: ()=>pdfBuffers, getState: ()=>state, currentSheet: ()=>currentSheet(), getOcrWorker, parse: parseChord, fix: fixOcrChord, findStaves, grayOf, otsu};   // 로컬 테스트 전용
+if(location.hostname === "localhost") window.__mlsDebug = {getKorWorker, findTitleCrops, titleFromFileName, cleanTitle, detectPdfTitle, ocrTitleOfSheet, fileToPages, ocrSheetTokens, pickChords, pdfPageTokens, getPdfDoc, pdfBuffers: ()=>pdfBuffers, getState: ()=>state, currentSheet: ()=>currentSheet(), getOcrWorker, parse: parseChord, fix: fixOcrChord, findStaves, grayOf, otsu};   // 로컬 테스트 전용
 function chordsInReadingOrder(sheets){
   const out = [];
   sheets.forEach(s=>{
@@ -5563,17 +5563,41 @@ async function ensurePageBlob(sheet){
 }
 
 /* 악보 위쪽의 가장 큰 글씨를 곡 제목으로 본다 (PDF 안의 글자 층). 코드 · 숫자 · Key/BPM 줄은 제목이 아니다 */
-const CHORD_TOKEN_RE = /^[A-G][#b♯♭]?(m|maj|min|sus|dim|aug|add)?\d*(\([^)]*\))?(\/[A-G][#b♯♭]?)?$/;
+const CHORD_TOKEN_RE = /^[A-G][#b♯♭]?(m|M|maj|min|sus|dim|aug|add)?\d*(\([^)]*\))?(\/[A-G][#b♯♭]?)?$/;
 function detectPdfTitle(items){
   if(!items || items.length < 3) return null;
-  const hs = items.map(t=> t.h).sort((a, b)=> a - b), med = hs[hs.length >> 1] || 1;
-  const top = items.filter(t=> t.y < 38).sort((a, b)=> a.y - b.y || a.x - b.x), lines = [];
-  top.forEach(t=>{ const l = lines.find(l=> Math.abs(l.y - t.y) < Math.max(t.h, l.h) * 0.6); if(l){ l.toks.push(t); l.h = Math.max(l.h, t.h); } else lines.push({y:t.y, h:t.h, toks:[t]}); });
-  const cand = lines.map(l=>{ const toks = l.toks.sort((a, b)=> a.x - b.x); return {y:l.y, h:l.h, text:toks.map(t=> t.t).join(" ").trim(), toks}; }).filter(l=>
-    l.h >= med * 1.35 && l.text.length >= 2 && l.text.length <= 50 && /[가-힣A-Za-z]{2}/.test(l.text) && !/[©@]|^(key|bpm|capo|tempo|\(?c\)|words|music)\b/i.test(l.text) && !l.toks.every(t=> CHORD_TOKEN_RE.test(t.t)));
+  // 같은 자리에 겹쳐 찍힌 글자(굵게 보이려고 두 번 그린 것)는 하나로
+  const seen = [], its = items.filter(t=>{ if(seen.some(u=> u.t === t.t && Math.abs(u.x - t.x) < 0.8 && Math.abs(u.y - t.y) < 0.8)) return false; seen.push(t); return true; });
+  // 기준 글자 크기: 음표·기호 조각이 아니라 '단어'(글자 2자 이상)의 중앙값 — 악보 글꼴 기호가 평균을 부풀리지 않게
+  const words = its.filter(t=> /[가-힣A-Za-z]{2,}/.test(t.t)).map(t=> t.h).sort((a, b)=> a - b);
+  const hs = (words.length >= 3 ? words : its.map(t=> t.h).sort((a, b)=> a - b)), med = hs[hs.length >> 1] || 1;
+  const top = its.filter(t=> t.y < 32 && /[가-힣A-Za-z0-9]/.test(t.t)).sort((a, b)=> a.y - b.y || a.x - b.x), lines = [];
+  top.forEach(t=>{                                        // 줄 묶기: 높이도 비슷해야 같은 줄 (제목 옆 작은 작곡자 이름이 붙지 않게)
+    const l = lines.find(l=> Math.abs(l.y - t.y) < Math.max(t.h, l.h) * 0.6 && t.h / l.h > 0.72 && t.h / l.h < 1.38);
+    if(l){ l.toks.push(t); l.h = Math.max(l.h, t.h); } else lines.push({y:t.y, h:t.h, toks:[t]});
+  });
+  const cand = lines.map(l=>{ const toks = l.toks.sort((a, b)=> a.x - b.x); return {y:l.y, h:l.h, text:toks.map(t=> t.t).join(" ").replace(/\s+/g, " ").trim(), toks}; }).filter(l=>
+    l.h >= med * 1.3 && l.text.length >= 2 && l.text.length <= 50 && /[가-힣A-Za-z]{2}/.test(l.text) && !/[©@]|^(key|bpm|capo|tempo|\(?c\)|words|music|www\.)/i.test(l.text) && !l.toks.every(t=> CHORD_TOKEN_RE.test(t.t)));
   if(!cand.length) return null;
   const mx = Math.max(...cand.map(c=> c.h)), best = cand.filter(c=> c.h >= mx * 0.9).sort((a, b)=> a.y - b.y)[0];
-  const t = best.text.replace(/^[\d.\s)\-]+(?=[가-힣A-Za-z])/, "").trim();
+  return cleanTitle(best.text);
+}
+/* 곡 제목 정리: 번호·키·괄호 속 작곡자·"악보" 같은 꼬리를 떼어낸다 */
+function cleanTitle(t){
+  t = (t || "").replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
+  t = t.replace(/^[\d.\s)\-]+(?=[가-힣A-Za-z])/, "");
+  return t.length >= 2 ? t : null;
+}
+const GENERIC_NAME_RE = /^(image|img|이미지|사진|photo|scan|스캔|dsc|붙여넣기|pasted|blob|score|unnamed|무제|untitled)[\s\d().,_-]*$|^(스크린샷|screenshot|screen ?shot|캡처|화면 ?캡처|화면 ?기록|simulator screen)|^[\d\s._-]+$/i;
+function titleFromFileName(name){
+  let t = (name || "").replace(/\.[^.]+$/, "").replace(/[_]+/g, " ");
+  t = t.replace(/\([^)]*\)|\[[^\]]*\]/g, " ")                                  // (G) (박우정) [악보]
+       .replace(/\s*[-–]\s*(full\s*score|score(\s*and\s*parts)?|chord\s*(chart|sheet)|악보|코드(\s*악보)?|가사|파트보?)\s*$/i, "")
+       .replace(/\b(full\s*score|score and parts|chord (chart|sheet)|악보|코드 ?악보|전체 ?악보)\b/ig, " ")
+       .replace(/\b(in\s+)?(key\s*(of\s*)?[A-G][#b♯♭]?m?|[A-G][#b♯♭]?m?\s*key)\b/ig, " ").replace(/^\d{2,4}[\s.\-]+(?=[가-힣A-Za-z])/, "")
+       .replace(/\s+[A-G][#b♯♭]?m?\s*$/, "")                                    // 끝의 키 글자 (C, G, Am…)
+       .replace(/[\s\-–]*\(?\d{1,2}\)?\s*$/, "")                                  // -1, (2) 같은 쪽 번호
+       .replace(/\s+/g, " ").trim();
   return t.length >= 2 ? t : null;
 }
 async function fileToPages(file){
@@ -5689,9 +5713,8 @@ async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
     let prevCol = replace ? null : ((state.sheets[(insertAt == null ? state.sheets.length : insertAt) - 1] || {}).songColor || null);
     for(const f of files){
       const pg = await fileToPages(f); if(!pg.length) continue;
-      let fileTitle = (f.name || "").replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim();
-      if(!fileTitle || /^(image|img|이미지|스크린샷|screenshot|screen shot|붙여넣기|pasted|blob|score|unnamed|무제)[\s\d().-]*$/i.test(fileTitle) || /^\d{8,}$/.test(fileTitle))
-        fileTitle = "붙여넣은 악보 " + (computeContiSongs().length + 1);
+      let fileTitle = titleFromFileName(f.name);
+      if(!fileTitle || GENERIC_NAME_RE.test(fileTitle)) fileTitle = "붙여넣은 악보 " + (computeContiSongs().length + 1);
       // 곡이 시작되는 페이지: 첫 페이지, 그리고 앞 페이지와 다른 큰 제목이 맨 위에 있는 페이지
       const norm = t=> (t || "").toLowerCase().replace(/\s+/g, "");
       let lastT = null; const starts = [];
@@ -5719,6 +5742,7 @@ async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
     }
     renderSheet();
     scheduleSave();
+    if(newPages.some(x=> x.songName && (/^붙여넣은 악보 \d+$/.test(x.songName) || GENERIC_NAME_RE.test(x.songName)))) setTimeout(()=> ocrSongTitles(true), 400);   // 이름 없는 사진·캡처 악보는 곧바로 제목을 읽어 본다
     showToast((replace ? `악보 ${newPages.length}페이지를 열었습니다` : `＋ ${newPages.length}페이지 추가 · ${state.currentIndex+1} / ${state.sheets.length}`)
       + (fromGoodNotes ? " · 굿노트 원본 악보 (손글씨 제외)" : ""), {actions:[{label:"되돌리기 (⌘Z)", fn:undoPageOp}], ms:7000});
   }catch(err){ showImportError("악보를 여는 도중 멈췄어요.", err, files); }
@@ -6326,30 +6350,73 @@ async function getKorWorker(){
   if(!ocrKorWorker) ocrKorWorker = Tesseract.createWorker("kor+eng").then(async w=>{ await w.setParameters({tessedit_pageseg_mode:"6"}); return w; }).catch(e=>{ ocrKorWorker = null; throw e; });
   return ocrKorWorker;
 }
-async function ocrTitleOfSheet(sh){                      // 악보 이미지 맨 위 28% 에서 가장 큰 줄을 제목으로
+/* 이미지 악보의 제목 칸 찾기: 첫 오선(긴 가로줄) 위쪽에서 '글자 띠'를 나누고, 가장 키가 큰 덩어리를 잘라낸다.
+ * 위쪽 전체를 한꺼번에 읽으면 코드 · 작곡자 줄에 제목이 묻힌다 → 제목 한 줄만 잘라 읽는다. */
+function findTitleCrops(bmp){
+  const W = 1000, H = Math.round(bmp.height * W / bmp.width), lim = Math.min(H, Math.round(H * 0.34));
+  const c = document.createElement("canvas"); c.width = W; c.height = lim; const x = c.getContext("2d", {willReadFrequently:true});
+  x.fillStyle = "#fff"; x.fillRect(0, 0, W, lim); x.drawImage(bmp, 0, 0, bmp.width, bmp.height * lim / H, 0, 0, W, lim);
+  const d = x.getImageData(0, 0, W, lim).data, dark = new Uint8Array(W * lim);
+  let sum = 0; for(let i = 0; i < W * lim; i++){ sum += d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11; }
+  const mean = sum / (W * lim), thr = Math.min(150, mean * 0.62);                  // 어두운 사진 위 글자도 대충 따라가게
+  for(let i = 0; i < W * lim; i++) dark[i] = (d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11) < thr ? 1 : 0;
+  const rows = new Int32Array(lim); for(let y = 0; y < lim; y++){ let n = 0; for(let xx = 0; xx < W; xx++) n += dark[y * W + xx]; rows[y] = n; }
+  let staffY = lim; for(let y = 0; y < lim; y++){ if(rows[y] > W * 0.5){ staffY = y; break; } }   // 오선 줄
+  const bands = []; let cur = null;
+  for(let y = 0; y < staffY; y++){
+    if(rows[y] > 1){ if(!cur) cur = {y0:y, y1:y}; else cur.y1 = y; cur.gap = 0; }
+    else if(cur){ cur.gap = (cur.gap || 0) + 1; if(cur.gap > 5){ bands.push(cur); cur = null; } }
+  }
+  if(cur) bands.push(cur);
+  const outs = [];
+  bands.filter(b=> b.y1 - b.y0 >= 14).forEach(b=>{
+    // 띠 안에서 가로로 멀리 떨어진 덩어리(제목 vs 오른쪽 작곡자)를 나눈다
+    const cols = new Int32Array(W); for(let y = b.y0; y <= b.y1; y++) for(let xx = 0; xx < W; xx++) cols[xx] += dark[y * W + xx];
+    const segs = []; let sx = -1, gx = 0;
+    for(let xx = 0; xx < W; xx++){ if(cols[xx] > 0){ if(sx < 0) sx = xx; gx = 0; } else if(sx >= 0){ gx++; if(gx > W * 0.045){ segs.push({x0:sx, x1:xx - gx}); sx = -1; gx = 0; } } }
+    if(sx >= 0) segs.push({x0:sx, x1:W - 1});
+    segs.forEach(sg=>{
+      let y0 = -1, y1 = -1; for(let y = b.y0; y <= b.y1; y++){ let n = 0; for(let xx = sg.x0; xx <= sg.x1; xx++) n += dark[y * W + xx]; if(n > 0){ if(y0 < 0) y0 = y; y1 = y; } }
+      if(y0 >= 0 && sg.x1 - sg.x0 >= 40) outs.push({x0:sg.x0, x1:sg.x1, y0, y1, h:y1 - y0});
+    });
+  });
+  outs.sort((a, b)=> a.y0 - b.y0 || a.x0 - b.x0);                                // 위에서부터 (제목은 보통 맨 위, 코드는 오선 바로 위)
+  return {crops:outs.slice(0, 5), scale:bmp.width / W};                          // 키가 큰 순 3개 (제목 후보)
+}
+async function ocrTitleOfSheet(sh){                      // → {text, conf} 또는 null
   const blob = await ensurePageBlob(sh); if(!blob) return null;
-  const bmp = await createImageBitmap(blob), cropH = Math.round(bmp.height * 0.28), sc = Math.min(2, 1800 / bmp.width);
-  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(cropH * sc);
-  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(bmp, 0, 0, bmp.width, cropH, 0, 0, c.width, c.height);
-  const w = await getKorWorker(), {data} = await w.recognize(c);
-  const lines = (data.lines || []).map(l=>({t:(l.text || "").replace(/\s+/g, " ").trim(), h:l.bbox.y1 - l.bbox.y0, conf:l.confidence, y:l.bbox.y0}))
-    .filter(l=> l.conf >= 55 && /[가-힣A-Za-z]{2}/.test(l.t) && l.t.length <= 50 && !/[©]|^(key|bpm|capo)\b/i.test(l.t));
-  if(!lines.length) return null;
-  const mx = Math.max(...lines.map(l=> l.h)), best = lines.filter(l=> l.h >= mx * 0.85).sort((a, b)=> a.y - b.y)[0];
-  return best.t.replace(/^[\d.\s)\-]+(?=[가-힣A-Za-z])/, "").trim() || null;
+  const bmp = await createImageBitmap(blob), {crops, scale} = findTitleCrops(bmp), w = await getKorWorker();
+  let best = null; const maxH = Math.max(1, ...crops.map(c=> c.h));
+  for(const cr of crops){
+    const pad = Math.round(cr.h * 0.35 * scale), sx = Math.max(0, Math.round(cr.x0 * scale) - pad), sy = Math.max(0, Math.round(cr.y0 * scale) - pad);
+    const sw = Math.min(bmp.width - sx, Math.round((cr.x1 - cr.x0) * scale) + pad * 2), sh2 = Math.min(bmp.height - sy, Math.round(cr.h * scale) + pad * 2);
+    // 같은 줄을 크기 · 흑백 처리를 달리해 세 번 읽고 가장 믿을 만한 것을 쓴다 (글꼴마다 잘 읽히는 설정이 다르다)
+    for(const [H, bin] of [[40, 0], [60, 1], [40, 1]]){
+      const k = H / sh2, c = document.createElement("canvas"); c.width = Math.round(sw * k) + 60; c.height = H + 60;
+      const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(bmp, sx, sy, sw, sh2, 30, 30, c.width - 60, H);
+      if(bin){ const id = x.getImageData(0, 0, c.width, c.height), d = id.data; for(let q = 0; q < d.length; q += 4){ const v = (d[q] * 0.3 + d[q + 1] * 0.59 + d[q + 2] * 0.11) < 170 ? 0 : 255; d[q] = d[q + 1] = d[q + 2] = v; } x.putImageData(id, 0, 0); }
+      await w.setParameters({tessedit_pageseg_mode:"7"});
+      const {data} = await w.recognize(c); const text = cleanTitle((data.text || "").replace(/[|\\/_~`^*=<>{}\[\]]+/g, " "));
+      const toks = (text || "").split(" ").filter(t=> t.length > 1);
+      if(!text || !/[가-힣A-Za-z]{2}/.test(text) || text.length > 50 || /[©]|^(key|bpm|capo|words|music|lyrics|arr)\b|words\s*&|music by/i.test(text) || !toks.length || toks.every(t=> CHORD_TOKEN_RE.test(t))) continue;
+      const conf = data.confidence || 0, score = conf + 20 * cr.h / maxH;        // 신뢰도 + 글자가 클수록 제목답다
+      if(!best || score > best.score + 3) best = {text, conf, score};
+    }
+  }
+  return best;
 }
 let ocrBusy = false;
-async function ocrSongTitles(){
+async function ocrSongTitles(auto){
   if(ocrBusy) return; const songs = computeContiSongs();
-  const todo = songs.filter(sg=>{ const f = state.sheets[sg.pages[0]]; return !sg.name || f._fileTitle === sg.name || /^붙여넣은 악보 \d+$/.test(sg.name) || /^곡 \d+$/.test(sg.name); });
-  if(!todo.length){ showToast("제목을 채울 곡이 없어요 (이미 이름이 있는 곡은 건드리지 않아요)"); return; }
+  const todo = songs.filter(sg=>{ const f = state.sheets[sg.pages[0]]; return !sg.name || /^붙여넣은 악보 \d+$/.test(sg.name) || /^곡 \d+$/.test(sg.name) || GENERIC_NAME_RE.test(sg.name); });
+  if(!todo.length){ if(!auto) showToast("제목을 채울 곡이 없어요 (이미 이름이 있는 곡은 건드리지 않아요)"); return; }
   ocrBusy = true; const btn = document.getElementById("slOcr"); const before = pageSnap(); let n = 0;
   try{
     for(let k = 0; k < todo.length; k++){
       if(btn) btn.textContent = `🔍 인식 중… ${k + 1}/${todo.length}`;
       if(k === 0) showToast("처음에는 한글 인식 데이터를 내려받느라 1분 정도 걸릴 수 있어요", {ms:5000});
       const sh = state.sheets[todo[k].pages[0]]; let t = null;
-      try{ t = await ocrTitleOfSheet(sh); }catch(e){ if(k === 0){ showToast("글자 인식을 불러오지 못했어요 (인터넷 연결 확인)"); return; } }
+      try{ const r = await ocrTitleOfSheet(sh); t = r && r.conf >= 50 ? r.text : null; }catch(e){ if(k === 0){ showToast("글자 인식을 불러오지 못했어요 (인터넷 연결 확인)"); return; } }
       if(t){ sh.songName = t; delete sh._fileTitle; n++; if(document.getElementById("contiPanel")) renderContiBody(); updateSongHL(); }
     }
     if(n){ pushPageUndo("제목 인식", before); scheduleSave(); }
@@ -9501,7 +9568,7 @@ function scheduleDock(){ clearTimeout(dockT); dockT = setTimeout(layoutBottomDoc
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.04-2";
+const APP_BUILD = "2026.11.05-1";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

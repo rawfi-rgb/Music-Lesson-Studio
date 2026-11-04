@@ -810,6 +810,9 @@
   #contiPanel.dragging .slHead{cursor:grabbing;} #contiPanel.dragging{transition:none !important; opacity:.92;}
   .slGrip{display:none; width:34px; height:4px; border-radius:2px; background:var(--text-muted); opacity:.5; margin:6px auto 0;}
   body.zen .slGrip, .app-layout.focusMode .slGrip{display:block;}
+  #songCtx{position:fixed; z-index:200; min-width:150px; padding:5px; border-radius:var(--r-panel,12px); background:var(--panel); border:1px solid var(--glass-border, var(--border)); box-shadow:0 12px 32px rgba(0,0,0,.45); backdrop-filter:blur(14px); display:flex; flex-direction:column; gap:2px;}
+  #songCtx button{text-align:left; padding:9px 12px; border:0; border-radius:8px; background:transparent; color:var(--text); font-size:14px; font-weight:600; cursor:pointer;} #songCtx button:hover{background:var(--panel-hover);}
+  #songCtx button.danger{color:var(--danger, #ef4444);} #songCtx .hd{padding:6px 12px 4px; font-size:11px; color:var(--text-muted); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .slNo{font-size:13px; font-weight:800; color:var(--text-muted); font-variant-numeric:tabular-nums;}
   .slTitle{font-size:15px; font-weight:800; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .slRange{font-size:10px; color:var(--text-muted);}
@@ -6353,6 +6356,34 @@ async function ocrSongTitles(){
     showToast(n ? `${n}곡의 제목을 읽었어요 · 틀린 건 제목을 눌러 고치세요` : "읽을 만한 제목을 찾지 못했어요", {ms:4500, actions:n ? [{label:"되돌리기 (⌘Z)", fn:undoPageOp}] : []});
   } finally { ocrBusy = false; const b = document.getElementById("slOcr"); if(b) b.textContent = "🔍 악보에서 제목 인식"; }
 }
+/* 곡 우클릭(또는 터치 길게 누르기) → 바로 삭제 · 되돌리기는 토스트 / ⌘Z */
+function deleteSong(sg){
+  const before = pageSnap(), set = new Set(sg.pages), first = sg.pages[0];
+  state.sheets = state.sheets.filter((_, i)=> !set.has(i));
+  state.currentIndex = set.has(state.currentIndex) ? Math.min(first, Math.max(0, state.sheets.length - 1)) : state.currentIndex - sg.pages.filter(i=> i < state.currentIndex).length;
+  pushPageUndo("곡 삭제", before); renderSheet(); scheduleSave(); if(document.getElementById("contiPanel")) renderContiBody();
+  showToast(`"${sg.name || "곡 " + sg.no}" 삭제 (${sg.pages.length}페이지)`, {actions:[{label:"되돌리기", fn:undoPageOp}], ms:6000});
+}
+function closeSongCtx(){ const m = document.getElementById("songCtx"); if(m) m.remove(); }
+function showSongCtx(sg, x, y){
+  closeSongCtx();
+  const m = document.createElement("div"); m.id = "songCtx";
+  const hd = document.createElement("div"); hd.className = "hd"; hd.textContent = `${String(sg.no).padStart(2, "0")} ${sg.name || "곡 " + sg.no}`; m.appendChild(hd);
+  const add = (label, cls, fn)=>{ const b = document.createElement("button"); b.type = "button"; b.textContent = label; if(cls) b.className = cls; b.addEventListener("click", ()=>{ closeSongCtx(); fn(); }); m.appendChild(b); };
+  add("🗑 삭제", "danger", ()=> deleteSong(sg));
+  add("✎ 제목 바꾸기", "", ()=>{ const t = window.prompt("곡 제목", sg.name || ""); if(t !== null){ state.sheets[sg.pages[0]].songName = t.trim() || null; scheduleSave(); updateSongHL(); if(document.getElementById("contiPanel")) renderContiBody(); } });
+  document.body.appendChild(m);
+  const r = m.getBoundingClientRect(); m.style.left = Math.max(8, Math.min(innerWidth - r.width - 8, x)) + "px"; m.style.top = Math.max(8, Math.min(innerHeight - r.height - 8, y)) + "px";
+}
+["pointerdown", "scroll", "resize", "blur"].forEach(t=> window.addEventListener(t, (e)=>{ if(e.target && e.target.closest && e.target.closest("#songCtx")) return; closeSongCtx(); }, true));
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSongCtx(); });
+function bindSongCtx(el, getSong){
+  el.addEventListener("contextmenu", (e)=>{ e.preventDefault(); const sg = getSong(); if(sg) showSongCtx(sg, e.clientX, e.clientY); });
+  let t = 0, sx = 0, sy = 0;
+  el.addEventListener("pointerdown", (e)=>{ if(e.pointerType !== "touch") return; sx = e.clientX; sy = e.clientY; clearTimeout(t); t = setTimeout(()=>{ const sg = getSong(); if(sg){ el._lp = Date.now(); showSongCtx(sg, sx, sy); } }, 550); });
+  ["pointermove", "pointerup", "pointercancel"].forEach(n=> el.addEventListener(n, (e)=>{ if(n !== "pointermove" || Math.hypot(e.clientX - sx, e.clientY - sy) > 10) clearTimeout(t); }));
+  el.addEventListener("click", (e)=>{ if(el._lp && Date.now() - el._lp < 700){ e.stopImmediatePropagation(); e.preventDefault(); } }, true);   // 길게 누른 뒤 손을 뗄 때 곡 이동이 같이 일어나지 않게
+}
 function openSongForm(p){
   if(p.querySelector(".slNewForm")) return;
   const f = document.createElement("div"); f.className = "slNewForm";
@@ -6397,7 +6428,7 @@ function renderSetlistBar(){
     b.innerHTML = `<b>${String(sg.no).padStart(2, "0")}</b>${i === ci || !sg.color ? "" : "<i></i>"}<span></span>${i === ci + 1 ? "<em>NEXT</em>" : ""}`;
     b.querySelector("span").textContent = sg.name || "곡 " + sg.no;
     b.title = "탭: 이 곡으로 이동 · 두 번 탭: 제목 바꾸기";
-    b.addEventListener("click", ()=> selectSong(sg, true));
+    b.addEventListener("click", ()=> selectSong(sg, true)); bindSongCtx(b, ()=> computeContiSongs()[i]);
     b.addEventListener("dblclick", ()=>{ const t = window.prompt("곡 제목", sg.name || ""); if(t !== null){ state.sheets[sg.pages[0]].songName = t.trim() || null; scheduleSave(); updateSongHL(); if(document.getElementById("contiPanel")) renderContiBody(); } });
     bar.appendChild(b);
   });
@@ -6525,6 +6556,7 @@ function renderContiBody(){
       if(idx > 0){ const b = document.createElement("button"); b.type = "button"; b.className = "slMini"; b.textContent = "↑ 앞 곡과 합치기"; b.addEventListener("click", ()=> mergeSongUp(songs, idx)); sp.appendChild(b); }
       if(sp.childNodes.length) card.appendChild(sp);
     }
+    bindSongCtx(card, ()=> computeContiSongs()[idx]);
     body.appendChild(card);
   });
   body.scrollTop = keep;
@@ -9469,7 +9501,7 @@ function scheduleDock(){ clearTimeout(dockT); dockT = setTimeout(layoutBottomDoc
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.04-1";
+const APP_BUILD = "2026.11.04-2";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

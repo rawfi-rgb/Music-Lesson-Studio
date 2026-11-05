@@ -312,11 +312,14 @@
   /* 두 쪽 보기 */
   .sheetStage2{position:relative; flex:none; display:none; background:var(--paper); box-shadow:var(--shadow); height:fit-content; border-radius:4px; overflow:hidden; cursor:pointer; margin:0;}
   .sheetViewport.spread.solo .sheetStage{margin-right:auto;}
+  .sheetViewport.spread.swap .sheetStage{order:2; margin-left:7px; margin-right:auto;}
+  .sheetViewport.spread.swap .sheetStage2{order:1; margin-left:auto; margin-right:7px;}
+  .sheetViewport.spread .sheetStage2{outline:0;} .sheetViewport.spread .sheetStage{box-shadow:var(--shadow), 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);}
   .sheetStage2 canvas{display:block; width:100%; height:auto;}
   .sheetViewport.spread .sheetStage2{display:block;}
   .sheetViewport.spread .sheetStage{margin-left:auto; margin-right:7px; max-width:none;}
   .sheetViewport.spread .sheetStage2{margin-left:7px; margin-right:auto;}
-  .sheetStage2 .s2Edit{position:absolute; top:8px; right:8px; border:1px solid var(--border); background:color-mix(in srgb, var(--panel) 82%, transparent); backdrop-filter:blur(8px); color:var(--text); font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; opacity:0; transition:opacity .2s; cursor:pointer;}
+  .sheetStage2 .s2EditX{position:absolute; top:8px; right:8px; border:1px solid var(--border); background:color-mix(in srgb, var(--panel) 82%, transparent); backdrop-filter:blur(8px); color:var(--text); font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; opacity:0; transition:opacity .2s; cursor:pointer;}
   .sheetStage2:hover .s2Edit, .sheetStage2:focus-within .s2Edit{opacity:1;}
   .sheetStage2 .s2No{position:absolute; left:8px; bottom:8px; font-size:11px; font-weight:800; color:#555; background:rgba(255,255,255,.75); padding:2px 8px; border-radius:999px;}
   .spreadBtn.active{background:var(--accent); color:var(--on-accent);}
@@ -330,16 +333,21 @@
   #contiPanel .slMiniLbl{display:none; flex:1; min-width:0; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   #contiPanel.mini .slMiniLbl{display:block;}
   #contiPanel .slFold{font-size:13px; padding:2px 8px; line-height:1.2;}
-  /* Zen 미니 Dock + 연주 중 자동 흐려짐 */
-  #zenDock{position:fixed; left:50%; bottom:max(14px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:57; display:none; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; border:1px solid var(--glass-border, var(--border)); background:rgba(20,21,26,.8); color:#fff; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); box-shadow:var(--shadow); max-width:94vw;}
-  body.zen:not(.focusMode) #zenDock{display:flex;}
-  #zenDock button{border:0; background:rgba(255,255,255,.12); color:#fff; border-radius:999px; min-width:34px; height:30px; padding:0 10px; font-size:13px; font-weight:700; cursor:pointer;}
-  #zenDock button:hover{background:rgba(255,255,255,.26);}
-  #zenDock button.active{background:var(--accent); color:var(--on-accent);}
-  #zenDock .zdLbl, .focusBar .zdLbl{font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:min(44vw, 340px);}
-  #zenDock, .app-layout.focusMode .focusBar{transition:opacity .35s ease;}
-  #zenDock.dim, .app-layout.focusMode .focusBar.dim{opacity:.3;}
-  #zenDock:hover, #zenDock:active, .app-layout.focusMode .focusBar:hover{opacity:1;}
+  /* Zen · 전체화면 공용 하단 Dock = #focusBar 하나 (곡 이동 · 쪽 이동 · 재생 · 확대 · 보기 · 콘티) */
+  .focusBar > *{flex:none;} .focusBar #focusPageLabel{white-space:nowrap;} .focusBar .zdLbl{flex:0 1 auto !important; min-width:56px;}
+  .focusBar .zdLbl{font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:min(30vw, 260px);}
+  .focusBar .dkSep{width:1px; height:18px; background:color-mix(in srgb, var(--on-ink, #fff) 24%, transparent); flex:none;}
+  body.zen .focusBar{display:flex; position:fixed; left:50%; top:auto; bottom:max(14px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:57; max-width:96vw; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;}
+  body.zen .focusBar::-webkit-scrollbar{display:none;}
+  body.zen .sheetTopBar{display:none !important;}
+  body.zen .sheetViewport{padding-bottom:72px !important;}
+  .focusBar{transition:opacity .35s ease;} .focusBar.dim{opacity:.3;} .focusBar:hover, .focusBar:active, .focusBar:focus-within{opacity:1;}
+  /* 겹침 정리: 곡 이름·쪽 번호는 Dock 에만, 위쪽 알약(성격이 다른 '곡 순서')은 그대로 */
+  body.zen #performHead, body.focusMode #performHead{top:58px;}
+  body.zen #performTitle, body.focusMode #performTitle{display:none;}
+  body.zen #performHead:has(#performSection[hidden]), body.focusMode #performHead:has(#performSection[hidden]){display:none !important;}
+  body.zen #miniCtl, body.focusMode #miniCtl{bottom:84px !important;}
+  body.zen #mcPlay, body.focusMode #mcPlay{display:none;}
   .sheetStage.placing{cursor:crosshair;}
   .sheetStage.laserMode, .sheetStage.laserMode canvas{cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='12' cy='12' r='6' fill='%23ff2020' stroke='white' stroke-width='2'/></svg>") 12 12, crosshair;}
   .sheetStage img{display:block; width:100%; height:auto; user-select:none; pointer-events:none;}
@@ -541,6 +549,13 @@
   .app-layout.focusMode .focusBar #focusBpmLabel{color:var(--on-ink);}
   .app-layout.focusMode .focusBar .miniDot{background:color-mix(in srgb, var(--on-ink) 22%, transparent);}
   .app-layout.focusMode .focusBar .miniDot.on{background:var(--beat-accent);}
+  body.zen .focusBar{ background:var(--ink); border-color:transparent; color:var(--on-ink);}
+  body.zen .focusBar button{background:color-mix(in srgb, var(--on-ink) 14%, transparent); border-color:transparent; color:var(--on-ink);}
+  body.zen .focusBar button:hover{background:color-mix(in srgb, var(--on-ink) 28%, transparent);}
+  body.zen .focusBar #focusPageLabel,
+  body.zen .focusBar #focusBpmLabel{color:var(--on-ink);}
+  body.zen .focusBar .miniDot{background:color-mix(in srgb, var(--on-ink) 22%, transparent);}
+  body.zen .focusBar .miniDot.on{background:var(--beat-accent);}
 
   /* ---- 마디 구간 브래킷 마커 ---- */
   .markerBracket{position:absolute; z-index:5; display:flex; align-items:flex-start; cursor:grab; user-select:none;}
@@ -981,7 +996,7 @@
   .instTag .del:hover{opacity:1; color:var(--danger);}
 
   /* 전체화면: 상단/하단 바는 화면에 고정 (악보를 스크롤해도 따라온다) */
-  .app-layout.focusMode .focusBar, .app-layout.focusMode .performHead{position:fixed;}
+  .app-layout.focusMode .focusBar, .app-layout.focusMode .performHead, body.zen .performHead{position:fixed;}
 
   /* 전체화면: 오른쪽 페이지 서랍 */
   .focusPages, .focusPen{display:none;}
@@ -1615,9 +1630,10 @@
         <button class="icon" id="focusSongPrev" title="이전 곡">⏮</button>
         <span class="zdLbl" id="focusSongLbl"></span>
         <button class="icon" id="focusSongNext" title="다음 곡">⏭</button>
-        <button class="icon" id="focusPrevBtn">‹</button>
+        <span class="dkSep"></span>
+        <button class="icon" id="focusPrevBtn" title="이전 쪽">‹</button>
         <span id="focusPageLabel">1 / 1</span>
-        <button class="icon" id="focusNextBtn">›</button>
+        <button class="icon" id="focusNextBtn" title="다음 쪽">›</button>
         <button class="icon" id="focusPlayBtn">▶</button>
         <div class="miniDots" id="focusMiniDots"></div>
         <span id="focusBpmLabel" style="font-size:12px; font-weight:700; ">100 BPM</span>
@@ -1687,13 +1703,6 @@
     <div class="hint" id="placingHint" style="display:none; background:var(--panel); border-top:1px solid var(--border);">송폼 표시 위치를 클릭하세요. (Esc 취소)</div>
 
     <!-- 전체화면: 오른쪽 접이식 페이지 서랍 -->
-    <div id="zenDock" role="toolbar" aria-label="Zen 미니 컨트롤">
-      <button type="button" id="zdPrev" title="이전 곡">◀</button>
-      <span class="zdLbl" id="zdLbl"></span>
-      <button type="button" id="zdNext" title="다음 곡">▶</button>
-      <button type="button" id="zdPlay" title="메트로놈 재생/정지">⏯</button>
-      <button type="button" class="spreadBtn" id="zdSpread" title="한 쪽 보기 ↔ 두 쪽 보기">📖 1쪽</button>
-    </div>
     <div class="focusPages collapsed" id="focusPages">
       <button class="focusPagesTab" id="focusPagesTab" title="페이지 목록">페이지</button>
       <div class="focusPagesList" id="focusPagesList"></div>
@@ -7174,6 +7183,8 @@ document.getElementById("eraserTool").addEventListener("click", ()=>setTool("era
 let lastSheetAspect = 0.707; // A4 세로
 let spreadPref = false; try{ spreadPref = localStorage.getItem("mls-spread") === "1"; }catch(e){}
 function spreadOn(){ return spreadPref && window.innerWidth >= 768 && state.sheets.length > 0; }
+let spreadBase = 0;                                   // 두 쪽 보기에서 왼쪽 자리 페이지 (편집 대상은 base 또는 base+1)
+function syncSpreadBase(){ if(!spreadOn()){ spreadBase = state.currentIndex; return; } if(state.currentIndex !== spreadBase && state.currentIndex !== spreadBase + 1) spreadBase = state.currentIndex; }
 function pageStep(){ return spreadOn() ? 2 : 1; }
 function stageBaseWidth(){
   const vp = document.getElementById("sheetViewport");
@@ -7475,7 +7486,7 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
   const SWIPE_THRESHOLD = 80;
   const stageEl2 = ()=> document.getElementById("sheetStage");
   const canSlide = ()=> viewport.scrollWidth <= viewport.clientWidth + 2;           // 가로로 스크롤할 내용이 없을 때만 따라오기
-  const hasPage = (dir)=> dir > 0 ? state.currentIndex + pageStep() < state.sheets.length : state.currentIndex > 0;
+  const hasPage = (dir)=> { if(spreadOn()){ syncSpreadBase(); return dir > 0 ? spreadBase + 2 < state.sheets.length : spreadBase > 0; } return dir > 0 ? state.currentIndex < state.sheets.length - 1 : state.currentIndex > 0; };
   const rubber = (dx)=> Math.sign(dx) * 72 * (1 - Math.exp(-Math.abs(dx) / 110));
   function settleStage(){
     const el = stageEl2(); if(!el) return;
@@ -7582,10 +7593,18 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
 })();
 
 function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms || 12); }catch(err){} }   // 지원 기기에서만 (iPadOS Safari 는 미지원)
-function goPrevPage(){ if(state.currentIndex>0){ state.currentIndex = Math.max(0, state.currentIndex - pageStep()); renderSheet(); scheduleSave(); haptic(12); } }
+function goPrevPage(){
+  if(spreadOn()){ syncSpreadBase(); if(spreadBase > 0){ spreadBase = Math.max(0, spreadBase - 2); state.currentIndex = spreadBase; renderSheet(); scheduleSave(); haptic(12); } return; }
+  if(state.currentIndex>0){ state.currentIndex--; renderSheet(); scheduleSave(); haptic(12); } }
 // 마지막 페이지에서 한 번 더 누르면 첫 페이지로 (꾹 눌러 자동 반복될 때는 돌지 않고 마지막에서 멈춘다)
 function goNextPage(noWrap){
-  if(state.currentIndex + pageStep() < state.sheets.length){ state.currentIndex += pageStep(); renderSheet(); scheduleSave(); haptic(12); }
+  if(spreadOn()){
+    syncSpreadBase();
+    if(spreadBase + 2 < state.sheets.length){ spreadBase += 2; state.currentIndex = spreadBase; renderSheet(); scheduleSave(); haptic(12); }
+    else if(noWrap !== true && state.sheets.length > 2){ spreadBase = 0; state.currentIndex = 0; renderSheet(); scheduleSave(); haptic(12); }
+    return;
+  }
+  if(state.currentIndex < state.sheets.length-1){ state.currentIndex++; renderSheet(); scheduleSave(); haptic(12); }
   else if(noWrap !== true && state.sheets.length > 1){ state.currentIndex = 0; renderSheet(); scheduleSave(); haptic(12); }
 }
 document.getElementById("prevPage").addEventListener("click", goPrevPage);
@@ -7836,7 +7855,7 @@ function updatePracticeCard(){
 }
 
 document.getElementById("focusModeBtn").addEventListener("click", ()=> setUiMode(focusMode ? (modeBeforePerform||"studio") : "perform"));
-document.getElementById("focusExitBtn").addEventListener("click", ()=> setUiMode(modeBeforePerform || "studio"));
+document.getElementById("focusExitBtn").addEventListener("click", ()=>{ if(!focusMode && document.body.classList.contains("zen")) toggleZen(); else setUiMode(modeBeforePerform || "studio"); });
 document.getElementById("focusPrevBtn").addEventListener("click", goPrevPage);
 document.getElementById("focusNextBtn").addEventListener("click", goNextPage);
 document.getElementById("focusPlayBtn").addEventListener("click", toggleMetronome);
@@ -9700,8 +9719,9 @@ let spread2Token = 0;
 async function renderSpreadCompanion(){
   const vp = document.getElementById("sheetViewport"); if(!vp) return;
   let st2 = document.getElementById("sheetStage2");
-  const on = spreadOn(), sh2 = on ? state.sheets[state.currentIndex + 1] : null;
-  vp.classList.toggle("spread", on); vp.classList.toggle("solo", on && !sh2);
+  syncSpreadBase();
+  const on = spreadOn(), otherIdx = on ? (state.currentIndex === spreadBase ? spreadBase + 1 : spreadBase) : -1, sh2 = on ? state.sheets[otherIdx] : null;
+  vp.classList.toggle("spread", on); vp.classList.toggle("solo", on && !sh2); vp.classList.toggle("swap", on && state.currentIndex === spreadBase + 1);
   syncSpreadBtns();
   if(!sh2){ if(st2) st2.remove(); if(on) applyZoom(); return; }
   const token = ++spread2Token;
@@ -9713,16 +9733,18 @@ async function renderSpreadCompanion(){
     if(token !== spread2Token || !c) return;
     st2.innerHTML = "";
     st2.appendChild(c);
-    const no = document.createElement("span"); no.className = "s2No"; no.textContent = (state.currentIndex + 2) + " / " + state.sheets.length; st2.appendChild(no);
-    const b = document.createElement("button"); b.type = "button"; b.className = "s2Edit"; b.textContent = "✎ 이 쪽 편집"; b.title = "이 페이지를 왼쪽(편집 가능)으로 가져와요";
-    b.addEventListener("click", (e)=>{ e.stopPropagation(); state.currentIndex++; renderSheet(); scheduleSave(); });
-    st2.appendChild(b);
-    st2.onclick = ()=>{ };
+    const no = document.createElement("span"); no.className = "s2No"; no.textContent = (otherIdx + 1) + " / " + state.sheets.length; st2.appendChild(no);
+    st2.dataset.idx = otherIdx;
   }catch(err){ if(st2) st2.remove(); }
 }
+document.getElementById("sheetViewport").addEventListener("pointerdown", (e)=>{
+  const st2 = e.target.closest && e.target.closest("#sheetStage2"); if(!st2 || e.pointerType === "mouse" && e.button > 0) return;
+  const i = +st2.dataset.idx; if(!isFinite(i) || i === state.currentIndex) return;
+  state.currentIndex = i; renderSheet(); scheduleSave();
+}, true);
 function syncSpreadBtns(){
   const eff = spreadOn(), lbl = spreadPref ? "📖📖 2쪽" : "📖 1쪽";
-  ["spreadBtn","focusSpreadBtn","zdSpread"].forEach(id=>{ const b = document.getElementById(id); if(!b) return; b.textContent = lbl; b.classList.toggle("active", spreadPref); b.title = spreadPref ? (window.innerWidth < 768 ? "화면이 좁아 1쪽으로 보여요 (768px 이상에서 2쪽)" : "두 쪽 보기 중 — 누르면 한 쪽 보기") : "한 쪽 보기 중 — 누르면 두 쪽 보기"; });
+  ["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(!b) return; b.textContent = lbl; b.classList.toggle("active", spreadPref); b.title = spreadPref ? (window.innerWidth < 768 ? "화면이 좁아 1쪽으로 보여요 (768px 이상에서 2쪽)" : "두 쪽 보기 중 — 누르면 한 쪽 보기") : "한 쪽 보기 중 — 누르면 두 쪽 보기"; });
 }
 function setSpread(on){
   spreadPref = !!on; try{ localStorage.setItem("mls-spread", on ? "1" : "0"); }catch(e){}
@@ -9730,24 +9752,21 @@ function setSpread(on){
   renderSheet(); applyZoom();
   showToast(on ? (window.innerWidth < 768 ? "두 쪽 보기 켜짐 · 화면이 좁아 1쪽으로 보여요" : "📖📖 두 쪽 보기") : "📖 한 쪽 보기", {ms:1200});
 }
-["spreadBtn","focusSpreadBtn","zdSpread"].forEach(id=>{ const b = document.getElementById(id); if(b) b.addEventListener("click", ()=> setSpread(!spreadPref)); });
-(function(){ const rs = renderSheet; renderSheet = function(){ const r = rs.apply(this, arguments); renderSpreadCompanion(); updateDockLabels(); return r; }; })();
+["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(b) b.addEventListener("click", ()=> setSpread(!spreadPref)); });
+(function(){ const rs = renderSheet; renderSheet = function(){ const r = rs.apply(this, arguments); renderSpreadCompanion(); updateDockLabels(); if(document.body.classList.contains("zen")) updateFocusBar(); return r; }; })();
 window.addEventListener("resize", ()=>{ const was = !!document.getElementById("sheetStage2"), now = spreadOn() && !!state.sheets[state.currentIndex + 1]; if(was !== now || document.getElementById("sheetViewport").classList.contains("spread") !== spreadOn()) renderSpreadCompanion(); syncSpreadBtns(); });
 
 function updateDockLabels(){
   const sg = currentSong(); let t = songLabel(sg);
   if(sg){ const extra = [sg.keyInfo && sg.keyInfo.short, sg.bpm && sg.bpm + " BPM"].filter(Boolean).join(" / "); if(extra) t += ` (${extra})`; }
-  ["focusSongLbl","zdLbl"].forEach(id=>{ const e = document.getElementById(id); if(e){ e.textContent = t || "—"; e.title = t; } });
+  ["focusSongLbl"].forEach(id=>{ const e = document.getElementById(id); if(e){ e.textContent = t || "—"; e.title = t; } });
 }
-document.getElementById("zdPrev").addEventListener("click", ()=> songStep(-1));
-document.getElementById("zdNext").addEventListener("click", ()=> songStep(1));
 document.getElementById("focusSongPrev").addEventListener("click", ()=> songStep(-1));
 document.getElementById("focusSongNext").addEventListener("click", ()=> songStep(1));
-document.getElementById("zdPlay").addEventListener("click", ()=>{ try{ playStopAll(); }catch(e){} });
 // 연주 중에는 3초 뒤 30% 로 흐려지고, 마우스·터치가 있으면 100%
 (function(){
   let t = 0;
-  const els = ()=> [document.getElementById("zenDock"), document.getElementById("focusBar")];
+  const els = ()=> [document.getElementById("focusBar")];
   const wake = ()=>{ els().forEach(e=> e && e.classList.remove("dim")); clearTimeout(t); t = setTimeout(()=>{ if(document.body.classList.contains("zen") || document.body.classList.contains("focusMode")) els().forEach(e=> e && e.classList.add("dim")); }, 3000); };
   ["pointermove","pointerdown","touchstart","keydown"].forEach(ev=> document.addEventListener(ev, wake, {passive:true, capture:true}));
   new MutationObserver(wake).observe(document.body, {attributes:true, attributeFilter:["class"]});
@@ -9757,7 +9776,7 @@ document.getElementById("zdPlay").addEventListener("click", ()=>{ try{ playStopA
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.05-3";
+const APP_BUILD = "2026.11.05-4";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

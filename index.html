@@ -91,11 +91,12 @@
 
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   [hidden]{display:none !important;}
-  html,body{margin:0; height:100%; overflow:hidden;}
+  html,body{margin:0; height:100%; overflow:hidden; touch-action:manipulation; -webkit-tap-highlight-color:transparent; -webkit-text-size-adjust:100%;}
+  body{-webkit-touch-callout:none;} input,textarea,[contenteditable]{-webkit-touch-callout:default;}
   body{
     background:var(--bg); color:var(--text);
     font-family:'Figtree', "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    display:flex; flex-direction:column; height:100vh;
+    display:flex; flex-direction:column; height:100vh; height:100dvh; height:var(--app-h, 100dvh);
   }
 
   /* SVG Icons inline helper */
@@ -350,6 +351,14 @@
   body.zen #performHead:has(#performSection[hidden]), body.focusMode #performHead:has(#performSection[hidden]){display:none !important;}
   body.zen #miniCtl, body.focusMode #miniCtl{bottom:84px !important;}
   body.zen #mcPlay, body.focusMode #mcPlay{display:none;}
+  /* 손가락·펜 위주 화면(iPad): 누르기 쉬운 크기, hover 에 기대는 표시 제거 */
+  @media (pointer:coarse){
+    button.icon, .sbChip, .slMini, .slAddSong, .slEdit, .fileBtn{min-height:40px;}
+    button.icon{min-width:40px;}
+    .slChip{min-height:34px; min-width:34px;}
+    .focusBar button{min-height:38px;}
+    #setlistBar{-webkit-overflow-scrolling:touch; touch-action:pan-x;}
+  }
   .sheetStage.placing{cursor:crosshair;}
   .sheetStage.laserMode, .sheetStage.laserMode canvas{cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='12' cy='12' r='6' fill='%23ff2020' stroke='white' stroke-width='2'/></svg>") 12 12, crosshair;}
   .sheetStage img{display:block; width:100%; height:auto; user-select:none; pointer-events:none;}
@@ -681,7 +690,7 @@
   .vGuide.hot{border-left-color:#e0245e; border-left-style:solid;}
   .vGuide .gH{position:absolute; top:-2px; left:-9px; width:18px; height:18px; border-radius:9px; background:rgba(40,110,220,.9); color:#fff; font-size:10px; line-height:18px; text-align:center; cursor:ew-resize; pointer-events:auto; touch-action:none;}
   .vGuide .gX{position:absolute; top:20px; left:-8px; width:16px; height:16px; border-radius:8px; background:#fff; color:#d33; font-size:10px; line-height:16px; text-align:center; cursor:pointer; pointer-events:auto; box-shadow:0 0 0 1px #aaa;}
-  #laserCv{position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:97;}
+  #laserCv{position:fixed; inset:0; width:100vw; height:var(--app-h, 100dvh); pointer-events:none; z-index:97;}
   .chordSug{position:fixed; z-index:99; background:var(--panel,#fff); color:var(--text,#222); border:1px solid var(--border,#bbb); border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.25); padding:4px; display:flex; gap:4px; flex-wrap:wrap; max-width:320px;}
   .chordSug button{padding:3px 9px; font-size:13px; font-weight:700; border-radius:8px;}
   .layerPop{position:fixed; z-index:96; width:300px; max-width:94vw; background:var(--panel,#fff); color:var(--text,#222); border:1px solid var(--border,#bbb); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.3); padding:10px;}
@@ -826,6 +835,8 @@
   .slCard::before{content:""; position:absolute; left:0; top:10px; bottom:10px; width:4px; border-radius:0 3px 3px 0; background:var(--sc);}
   .slCard:hover{background:var(--panel-hover); transform:translateY(-1px);}
   .slCard.cur{box-shadow:0 0 0 2px var(--accent), var(--glow); background:color-mix(in srgb, var(--accent) 10%, var(--panel-alt));}
+  .slHandle{flex:none; touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; color:var(--text-muted); font-size:18px; line-height:1; padding:8px 6px 8px 0; margin:-8px 0 -8px -6px; min-width:26px; text-align:center;}
+  .slHandle:hover{color:var(--text);} .slCard.dragging{z-index:5; box-shadow:0 12px 32px rgba(0,0,0,.35); transition:none !important; opacity:.96;}
   .slCard.drag{opacity:.4;} .slCard.over{box-shadow:0 0 0 2px var(--accent-active, #10B981);}
   .slTop{display:flex; align-items:center; gap:9px;}
   .slNow{order:2; font-size:9px; font-weight:800; letter-spacing:.06em; padding:2px 6px; border-radius:6px; background:var(--accent); color:var(--on-accent); box-shadow:var(--glow); animation:nowPulse 1.6s ease-in-out infinite;}
@@ -839,6 +850,8 @@
   .slCard.compact .slForm,.slCard.compact .slNote{display:none;}
   #setlistBar{display:flex; align-items:center; gap:6px; padding:5px 16px; flex-shrink:0; overflow-x:auto; scrollbar-width:none; background:var(--panel, transparent); border-bottom:1px solid var(--glass-border, var(--border));}
   #setlistBar::-webkit-scrollbar{display:none;} #setlistBar:empty{display:none;}
+  .sbChip, .slCard{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
+  .sbChip.pressing, .slCard.pressing{transform:scale(.95); transition:transform .45s ease-in; opacity:.85;}
   .sbChip{flex:none; display:flex; align-items:center; gap:7px; padding:6px 13px; border-radius:999px; border:1px solid var(--glass-border, var(--border)); background:var(--panel-alt); color:var(--text-dim); font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap; max-width:260px;}
   .sbChip b{font-size:11px; color:var(--text-muted); font-variant-numeric:tabular-nums;} .sbChip span{overflow:hidden; text-overflow:ellipsis;}
   .sbChip i{width:8px; height:8px; border-radius:50%; background:var(--sc);}
@@ -6562,8 +6575,8 @@ document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeSongCtx(
 function bindSongCtx(el, getSong){
   el.addEventListener("contextmenu", (e)=>{ e.preventDefault(); const sg = getSong(); if(sg) showSongCtx(sg, e.clientX, e.clientY); });
   let t = 0, sx = 0, sy = 0;
-  el.addEventListener("pointerdown", (e)=>{ if(e.pointerType !== "touch") return; sx = e.clientX; sy = e.clientY; clearTimeout(t); t = setTimeout(()=>{ const sg = getSong(); if(sg){ el._lp = Date.now(); showSongCtx(sg, sx, sy); } }, 550); });
-  ["pointermove", "pointerup", "pointercancel"].forEach(n=> el.addEventListener(n, (e)=>{ if(n !== "pointermove" || Math.hypot(e.clientX - sx, e.clientY - sy) > 10) clearTimeout(t); }));
+  el.addEventListener("pointerdown", (e)=>{ if(e.pointerType === "mouse") return; sx = e.clientX; sy = e.clientY; clearTimeout(t); el.classList.add("pressing"); t = setTimeout(()=>{ el.classList.remove("pressing"); const sg = getSong(); if(sg){ el._lp = Date.now(); haptic(18); showSongCtx(sg, sx, sy); } }, 480); });
+  ["pointermove", "pointerup", "pointercancel", "pointerleave"].forEach(n=> el.addEventListener(n, (e)=>{ if(n !== "pointermove" || Math.hypot(e.clientX - sx, e.clientY - sy) > 16){ clearTimeout(t); el.classList.remove("pressing"); } }));
   el.addEventListener("click", (e)=>{ if(el._lp && Date.now() - el._lp < 700){ e.stopImmediatePropagation(); e.preventDefault(); } }, true);   // 길게 누른 뒤 손을 뗄 때 곡 이동이 같이 일어나지 않게
 }
 function openSongForm(p){
@@ -6647,6 +6660,33 @@ function reorderSongs(songs, from, to){
   state.sheets = next; state.currentIndex = Math.max(0, state.sheets.indexOf(cur));
   renderSheet(); scheduleSave(); renderContiBody();
 }
+function wireSongDrag(handle, card, idx, songs){
+  handle.addEventListener("click", (e)=> e.stopPropagation());
+  handle.addEventListener("pointerdown", (e)=>{
+    if(e.button > 0) return; e.preventDefault(); e.stopPropagation();
+    const body = card.parentElement, cards = Array.from(body.querySelectorAll(".slCard"));
+    const rects = cards.map(c=> c.getBoundingClientRect()), y0 = e.clientY, id = e.pointerId;
+    let to = idx, raf = 0, lastY = y0;
+    try{ handle.setPointerCapture(id); }catch(_){}
+    card.classList.add("dragging"); haptic(10);
+    const place = ()=>{
+      const dy = lastY - y0; card.style.transform = `translateY(${dy}px) scale(1.02)`;
+      const cy = rects[idx].top + rects[idx].height / 2 + dy;
+      let t = idx; rects.forEach((r, i)=>{ if(i !== idx && ((i < idx && cy < r.top + r.height / 2) || (i > idx && cy > r.top + r.height / 2))) t = (i < idx) ? Math.min(t, i) : Math.max(t, i); });
+      if(t !== to){ to = t; cards.forEach((c, i)=> c.classList.toggle("over", i === to && i !== idx)); haptic(6); }
+    };
+    const scroll = ()=>{ const br = body.getBoundingClientRect(); if(lastY < br.top + 36) body.scrollTop -= 8; else if(lastY > br.bottom - 36) body.scrollTop += 8; raf = requestAnimationFrame(scroll); };
+    raf = requestAnimationFrame(scroll);
+    const move = (ev)=>{ if(ev.pointerId !== id) return; lastY = ev.clientY; place(); };
+    const end = (ev)=>{
+      if(ev.pointerId !== id) return;
+      cancelAnimationFrame(raf); handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", end); handle.removeEventListener("pointercancel", end);
+      card.classList.remove("dragging"); card.style.transform = ""; cards.forEach(c=> c.classList.remove("over"));
+      if(ev.type === "pointerup" && to !== idx) reorderSongs(songs, idx, to);
+    };
+    handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
+  });
+}
 function renderContiBody(){
   const p = document.getElementById("contiPanel"); if(!p) return;
   const body = p.querySelector(".contiBody"), songs = computeContiSongs();
@@ -6664,7 +6704,7 @@ function renderContiBody(){
     const noStr = String(sg.no).padStart(2, "0");
     if(!contiEdit){
       const keyHtml = sg.keyInfo ? `<div class="slKey"><span>${escapeHtml(sg.keyInfo.from)}</span>${sg.keyInfo.to ? `<em>➔</em><span class="to">${escapeHtml(sg.keyInfo.to)} ${sg.keyInfo.dir > 0 ? "▲" : "▼"}</span>` : ""}${sg.keyInfo.detected ? `<small>자동</small>` : ""}</div>` : `<div class="slKey dim">Key —</div>`;
-      card.innerHTML = `<div class="slTop"><span class="slNo">${noStr}</span>${cur ? `<span class="slNow">NOW PLAYING</span>` : isNext ? `<span class="slNow next">NEXT</span>` : ""}<span class="slTitle">${escapeHtml(sg.name || "곡 " + sg.no)}</span><span class="slRange">p.${sg.pages[0] + 1}${sg.pages.length > 1 ? "–" + (sg.pages[sg.pages.length - 1] + 1) : ""}</span></div>${keyHtml}<div class="slBpm ${sg.bpm ? "" : "dim"}">${escapeHtml(sg.bpm ? meterText(sg) : (sg.num || state.beatsPerBar) + "/" + (sg.den || state.beatUnit) + " · BPM —")}</div>`;
+      card.innerHTML = `<div class="slTop"><span class="slHandle" title="끌어서 순서 바꾸기">⠿</span><span class="slNo">${noStr}</span>${cur ? `<span class="slNow">NOW PLAYING</span>` : isNext ? `<span class="slNow next">NEXT</span>` : ""}<span class="slTitle">${escapeHtml(sg.name || "곡 " + sg.no)}</span><span class="slRange">p.${sg.pages[0] + 1}${sg.pages.length > 1 ? "–" + (sg.pages[sg.pages.length - 1] + 1) : ""}</span></div>${keyHtml}<div class="slBpm ${sg.bpm ? "" : "dim"}">${escapeHtml(sg.bpm ? meterText(sg) : (sg.num || state.beatsPerBar) + "/" + (sg.den || state.beatUnit) + " · BPM —")}</div>`;
       const fl = document.createElement("div"); fl.className = "slForm";
       if(sg.form.length){
         sg.form.forEach((f, i)=>{
@@ -6674,6 +6714,7 @@ function renderContiBody(){
         });
       } else sg.pages.forEach(i=>{ const c = document.createElement("button"); c.type = "button"; c.className = "slChip plain"; c.textContent = i + 1; c.addEventListener("click", (e)=>{ e.stopPropagation(); state.currentIndex = i; renderSheet(); scheduleSave(); }); fl.appendChild(c); });
       card.appendChild(fl);
+      wireSongDrag(card.querySelector(".slHandle"), card, idx, songs);
       if(sg.note){ const n = document.createElement("div"); n.className = "slNote"; n.textContent = "↪ " + sg.note; card.appendChild(n); }
       card.addEventListener("click", ()=>{ selectSong(sg); renderContiBody(); });
     } else {
@@ -6684,7 +6725,8 @@ function renderContiBody(){
       card.addEventListener("dragleave", ()=> card.classList.remove("over"));
       card.addEventListener("drop", (e)=>{ e.preventDefault(); card.classList.remove("over"); const from = parseInt(e.dataTransfer.getData("text/mls-song"), 10); if(!isNaN(from)) reorderSongs(songs, from, idx); });
       const top = document.createElement("div"); top.className = "slTop";
-      top.innerHTML = `<span class="slGrip" title="끌어서 순서 바꾸기">⠿</span><span class="slNo">${noStr}</span>`;
+      top.innerHTML = `<span class="slHandle" title="끌어서 순서 바꾸기">⠿</span><span class="slNo">${noStr}</span>`;
+      wireSongDrag(top.querySelector(".slHandle"), card, idx, songs);
       const ti = document.createElement("input"); ti.type = "text"; ti.className = "slInp slTitleInp"; ti.value = sg.name; ti.placeholder = "곡 제목";
       ti.addEventListener("change", ()=>{ state.sheets[sg.pages[0]].songName = ti.value.trim() || null; scheduleSave(); updateSongHL(); });
       top.appendChild(ti);
@@ -7024,6 +7066,7 @@ function attachCanvasEvents(){
   canvasEl.addEventListener("touchstart", blockStylusScroll, {passive:false});
   canvasEl.addEventListener("touchmove", blockStylusScroll, {passive:false});
   canvasEl.addEventListener("pointercancel", onPointerUp);
+  canvasEl.addEventListener("lostpointercapture", (ev)=>{ if(strokeInProgress && ev.pointerId === strokePid) onPointerUp(); });
   document.getElementById("sheetStage").addEventListener("click", onStageClickForMarker);
 }
 window.addEventListener("pointerup", ()=> onPointerUp());
@@ -7057,6 +7100,7 @@ function onPointerMove(e){
   if(laserHeld){ laserMove(e); return; }
   if(!strokeInProgress) return;
   if(e.pointerType === "touch" || isPalmPen(e)) return;            // 필기 중 손바닥·손가락 이동은 획에 섞지 않는다
+  if(e.buttons === 0 && e.pointerId === strokePid){ onPointerUp(); return; }   // 떼는 이벤트를 놓쳤을 때: 펜이 떠 있는 채로 움직여도 선이 따라 그려지지 않게 획을 끝낸다
   if(strokePid != null && e.pointerId != null && e.pointerId !== strokePid) return;
   const {x,y} = canvasCoords(e);
   strokeInProgress.points.push({x,y});
@@ -7350,7 +7394,7 @@ document.addEventListener("keydown", (e)=>{
 const EDGE_DEAD = 40;                                   // 화면 위·아래 40px: iPadOS 제어센터/홈 바와 겹치는 구역은 제스처 감지에서 제외
 const inEdgeDead = (y)=> y < EDGE_DEAD || y > window.innerHeight - EDGE_DEAD;
 let gestureLock = false; try{ gestureLock = localStorage.getItem("mls-glock") === "1"; }catch(err){}
-const PEN_LOCK_MS = 650, PALM_LOCK_MS = 900;
+const PEN_LOCK_MS = 1300, PALM_LOCK_MS = 1300;
 let penNearAt = 0, penIsDown = false, palmAt = 0;
 const penLocked = ()=> penIsDown || performance.now() - penNearAt < PEN_LOCK_MS;
 const palmLocked = ()=> performance.now() - palmAt < PALM_LOCK_MS;
@@ -7419,7 +7463,9 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
 
   viewport.addEventListener("touchstart", (e)=>{
     if(e.touches.length === 2){
-      pinch = {d0: Math.max(10, tdist(e.touches[0], e.touches[1])), s0: scale};
+      const ts = Array.from(e.touches);
+      if(strokeInProgress || penIsDown || gestureBlocked() || ts.some(t=> t.touchType === "stylus" || (t.radiusX || 0) > 30 || (t.radiusY || 0) > 30)){ pinch = null; dbl = null; return; }   // 필기 중·손바닥 → 확대 안 함
+      pinch = {d0: Math.max(10, tdist(e.touches[0], e.touches[1])), s0: scale, live:false};
       dbl = null; return;
     }
     if(e.touches.length === 1 && !e.target.closest(IGN) && !placingType && !placingText){
@@ -7434,11 +7480,14 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
   viewport.addEventListener("touchmove", (e)=>{
     if(pinch && e.touches.length === 2){
       e.preventDefault();
+      if(strokeInProgress || penIsDown){ pinch = null; return; }
       const a = e.touches[0], b = e.touches[1];
+      if(!pinch.live){ if(Math.abs(tdist(a, b) - pinch.d0) < 22) return; pinch.live = true; pinch.d0 = Math.max(10, tdist(a, b)); pinch.s0 = scale; return; }   // 손가락이 22px 이상 벌어지거나 모일 때만 시작 (살짝 닿은 것은 무시)
       setScale(pinch.s0 * tdist(a, b) / pinch.d0, (a.clientX + b.clientX)/2, (a.clientY + b.clientY)/2);
       return;
     }
     if(dbl && e.touches.length === 1){
+      if(strokeInProgress || penIsDown || gestureBlocked()){ dbl = null; return; }
       const t = e.touches[0], dy = t.clientY - dbl.y0;
       if(!dbl.moved && Math.abs(dy) < 8) return;
       dbl.moved = true; e.preventDefault();
@@ -7592,6 +7641,7 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
   }, {passive:false});
 })();
 
+["gesturestart","gesturechange","gestureend"].forEach(n=> document.addEventListener(n, (e)=> e.preventDefault(), {passive:false}));   // iOS Safari 의 페이지 통째 확대 차단
 function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms || 12); }catch(err){} }   // 지원 기기에서만 (iPadOS Safari 는 미지원)
 function goPrevPage(){
   if(spreadOn()){ syncSpreadBase(); if(spreadBase > 0){ spreadBase = Math.max(0, spreadBase - spreadStep); state.currentIndex = spreadBase; renderSheet(); scheduleSave(); haptic(12); } return; }
@@ -9739,7 +9789,7 @@ async function renderSpreadCompanion(){
   }catch(err){ if(st2) st2.remove(); }
 }
 document.getElementById("sheetViewport").addEventListener("pointerdown", (e)=>{
-  const st2 = e.target.closest && e.target.closest("#sheetStage2"); if(!st2 || e.pointerType === "mouse" && e.button > 0) return;
+  const st2 = e.target.closest && e.target.closest("#sheetStage2"); if(!st2 || e.pointerType === "mouse" && e.button > 0 || (e.pointerType === "touch" && (gestureBlocked() || isPalmPointer(e)))) return;
   const i = +st2.dataset.idx; if(!isFinite(i) || i === state.currentIndex) return;
   state.currentIndex = i; renderSheet(); scheduleSave();
 }, true);
@@ -9775,11 +9825,28 @@ function updateDockLabels(){
   new MutationObserver(wake).observe(document.body, {attributes:true, attributeFilter:["class"]});
   wake();
 })();
+/* ============ 화면 회전 · 크기 변화: 높이를 실제 보이는 높이로 맞춘다 ============
+ * iPad Safari/홈 화면 앱은 100vh 가 주소창·회전 직후 값을 잘못 들고 있어 악보 아래쪽이 잘렸다. */
+function syncAppHeight(){
+  const vv = window.visualViewport, h = Math.round(Math.max(vv && vv.height || 0, 0) || window.innerHeight);
+  if(h > 200) document.documentElement.style.setProperty("--app-h", h + "px"); else document.documentElement.style.removeProperty("--app-h");   // 숨겨진 창 등 비정상 값은 무시
+}
+function afterViewportChange(){
+  syncAppHeight();
+  try{ applyZoom(); }catch(e){} try{ scheduleDock(); }catch(e){} try{ applyContiPos(); }catch(e){} try{ renderSpreadCompanion(); }catch(e){}
+  const vp = document.getElementById("sheetViewport"); if(vp){ vp.scrollLeft = Math.min(vp.scrollLeft, Math.max(0, vp.scrollWidth - vp.clientWidth)); vp.scrollTop = Math.min(vp.scrollTop, Math.max(0, vp.scrollHeight - vp.clientHeight)); }
+}
+let vpT = [];
+function scheduleViewportFix(){ vpT.forEach(clearTimeout); syncAppHeight(); vpT = [60, 250, 700].map(ms=> setTimeout(afterViewportChange, ms)); }   // 회전 직후엔 값이 몇 번에 걸쳐 확정된다
+["resize", "orientationchange", "pageshow"].forEach(n=> window.addEventListener(n, scheduleViewportFix));
+if(window.visualViewport){ window.visualViewport.addEventListener("resize", scheduleViewportFix); }
+if(screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener("change", scheduleViewportFix);
+syncAppHeight();
 /* ============ 버전 · 자동 업데이트 ============
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.05-6";
+const APP_BUILD = "2026.11.05-7";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

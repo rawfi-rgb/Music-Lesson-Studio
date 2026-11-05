@@ -306,6 +306,40 @@
   html, body{overscroll-behavior:none;}
   .sheetViewport{flex:1; overflow:auto; display:flex; justify-content:flex-start; align-items:flex-start; padding:24px; position:relative; background:var(--bg); touch-action:pan-x pan-y; overscroll-behavior:contain;}
   .sheetStage{position:relative; width:100%; max-width:1200px; margin:0 auto; flex-shrink:0; background:var(--paper); color:var(--paper-ink); box-shadow:var(--shadow); height:fit-content; border-radius:4px; overflow:hidden;}
+
+  /* 악보 중앙 정렬: 전체화면 · Zen 에서는 위쪽이 아니라 정중앙 (넘치면 자동으로 위에서부터 스크롤) */
+  .app-layout.focusMode .sheetStage, body.zen .sheetStage, .app-layout.focusMode .sheetStage2, body.zen .sheetStage2{margin-top:auto; margin-bottom:auto;}
+  /* 두 쪽 보기 */
+  .sheetStage2{position:relative; flex:none; display:none; background:var(--paper); box-shadow:var(--shadow); height:fit-content; border-radius:4px; overflow:hidden; cursor:pointer; margin:0;}
+  .sheetViewport.spread.solo .sheetStage{margin-right:auto;}
+  .sheetStage2 canvas{display:block; width:100%; height:auto;}
+  .sheetViewport.spread .sheetStage2{display:block;}
+  .sheetViewport.spread .sheetStage{margin-left:auto; margin-right:7px; max-width:none;}
+  .sheetViewport.spread .sheetStage2{margin-left:7px; margin-right:auto;}
+  .sheetStage2 .s2Edit{position:absolute; top:8px; right:8px; border:1px solid var(--border); background:color-mix(in srgb, var(--panel) 82%, transparent); backdrop-filter:blur(8px); color:var(--text); font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; opacity:0; transition:opacity .2s; cursor:pointer;}
+  .sheetStage2:hover .s2Edit, .sheetStage2:focus-within .s2Edit{opacity:1;}
+  .sheetStage2 .s2No{position:absolute; left:8px; bottom:8px; font-size:11px; font-weight:800; color:#555; background:rgba(255,255,255,.75); padding:2px 8px; border-radius:999px;}
+  .spreadBtn.active{background:var(--accent); color:var(--on-accent);}
+  @media (max-width:767px){ .sheetViewport.spread .sheetStage2{display:none;} }
+  /* 콘티 패널 미니 칩 (접기) */
+  #contiPanel.setlistDrawer{transition:width .3s cubic-bezier(.16,1,.3,1), max-height .3s cubic-bezier(.16,1,.3,1), border-radius .3s;}
+  #contiPanel.mini .contiBody, #contiPanel.mini .slFoot, #contiPanel.mini .slAddSong, #contiPanel.mini .slCount, #contiPanel.mini #slEditBtn, #contiPanel.mini #slClose, #contiPanel.mini .slGrip{display:none !important;}
+  #contiPanel.mini{width:176px !important; height:auto !important; max-height:46px !important; min-width:0; border-radius:999px; overflow:hidden; cursor:pointer;}
+  #contiPanel.mini .slHead{padding:10px 14px; gap:6px;}
+  #contiPanel.mini .slHead b{display:none;}
+  #contiPanel .slMiniLbl{display:none; flex:1; min-width:0; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  #contiPanel.mini .slMiniLbl{display:block;}
+  #contiPanel .slFold{font-size:13px; padding:2px 8px; line-height:1.2;}
+  /* Zen 미니 Dock + 연주 중 자동 흐려짐 */
+  #zenDock{position:fixed; left:50%; bottom:max(14px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:57; display:none; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; border:1px solid var(--glass-border, var(--border)); background:rgba(20,21,26,.8); color:#fff; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); box-shadow:var(--shadow); max-width:94vw;}
+  body.zen:not(.focusMode) #zenDock{display:flex;}
+  #zenDock button{border:0; background:rgba(255,255,255,.12); color:#fff; border-radius:999px; min-width:34px; height:30px; padding:0 10px; font-size:13px; font-weight:700; cursor:pointer;}
+  #zenDock button:hover{background:rgba(255,255,255,.26);}
+  #zenDock button.active{background:var(--accent); color:var(--on-accent);}
+  #zenDock .zdLbl, .focusBar .zdLbl{font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:min(44vw, 340px);}
+  #zenDock, .app-layout.focusMode .focusBar{transition:opacity .35s ease;}
+  #zenDock.dim, .app-layout.focusMode .focusBar.dim{opacity:.3;}
+  #zenDock:hover, #zenDock:active, .app-layout.focusMode .focusBar:hover{opacity:1;}
   .sheetStage.placing{cursor:crosshair;}
   .sheetStage.laserMode, .sheetStage.laserMode canvas{cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='12' cy='12' r='6' fill='%23ff2020' stroke='white' stroke-width='2'/></svg>") 12 12, crosshair;}
   .sheetStage img{display:block; width:100%; height:auto; user-select:none; pointer-events:none;}
@@ -1478,7 +1512,7 @@
       </div>
       <div class="keyCtl" data-key-ctl data-btn-class="" style="margin-left:auto;" title="키 · 코드 바꾸기"></div>
       <div class="zoomCtl" data-zoom-ctl data-btn-class="" title="악보 크기"></div>
-      <button class="icon" id="fitModeBtn" title="악보 한 장 전체 보기 ↔ 폭 맞춤">↕ 전체 보기</button>
+      <button class="icon" id="fitModeBtn" title="악보 한 장 전체 보기 ↔ 폭 맞춤">↕ 전체 보기</button><button class="icon spreadBtn" id="spreadBtn" title="한 쪽 보기 ↔ 두 쪽 보기 (화면 폭 768px 이상)">📖 1쪽</button>
       <button class="icon topToggle" id="toggleToolsBtn" title="마킹 도구 접기/펼치기">도구 ▴</button>
       <button class="icon topToggle" id="toggleStripBtn" title="페이지 목록 접기/펼치기">페이지 ▴</button>
       <button class="icon" id="focusModeBtn" title="전체화면 (연주)">
@@ -1578,6 +1612,9 @@
       <button class="navEdge navRight" id="navEdgeRight" title="다음 페이지">›</button>
 
       <div class="focusBar" id="focusBar">
+        <button class="icon" id="focusSongPrev" title="이전 곡">⏮</button>
+        <span class="zdLbl" id="focusSongLbl"></span>
+        <button class="icon" id="focusSongNext" title="다음 곡">⏭</button>
         <button class="icon" id="focusPrevBtn">‹</button>
         <span id="focusPageLabel">1 / 1</span>
         <button class="icon" id="focusNextBtn">›</button>
@@ -1586,6 +1623,7 @@
         <span id="focusBpmLabel" style="font-size:12px; font-weight:700; ">100 BPM</span>
         <div class="keyCtl" data-key-ctl data-btn-class="icon" title="키 · 코드 바꾸기"></div>
         <div class="zoomCtl" data-zoom-ctl data-btn-class="icon" title="악보 크기 (％를 좌우로 끌어도 돼요)"></div>
+        <button class="icon spreadBtn" id="focusSpreadBtn" title="한 쪽 보기 ↔ 두 쪽 보기">📖 1쪽</button>
         <button class="icon" id="focusFitBtn" title="폭 맞춤 ↔ 한 장 전체 보기 (악보를 두 번 탭해도 바뀌어요)">↔ 폭맞춤</button>
         <button class="icon" id="focusContiBtn" title="전체 곡 콘티(순서) 보기">🎼 콘티</button>
         <button class="icon glockBtn" id="focusLockBtn" title="제스처 잠금 — 스와이프로 페이지·곡이 넘어가지 않게 (페달·키보드는 그대로)">🔓</button>
@@ -1649,6 +1687,13 @@
     <div class="hint" id="placingHint" style="display:none; background:var(--panel); border-top:1px solid var(--border);">송폼 표시 위치를 클릭하세요. (Esc 취소)</div>
 
     <!-- 전체화면: 오른쪽 접이식 페이지 서랍 -->
+    <div id="zenDock" role="toolbar" aria-label="Zen 미니 컨트롤">
+      <button type="button" id="zdPrev" title="이전 곡">◀</button>
+      <span class="zdLbl" id="zdLbl"></span>
+      <button type="button" id="zdNext" title="다음 곡">▶</button>
+      <button type="button" id="zdPlay" title="메트로놈 재생/정지">⏯</button>
+      <button type="button" class="spreadBtn" id="zdSpread" title="한 쪽 보기 ↔ 두 쪽 보기">📖 1쪽</button>
+    </div>
     <div class="focusPages collapsed" id="focusPages">
       <button class="focusPagesTab" id="focusPagesTab" title="페이지 목록">페이지</button>
       <div class="focusPagesList" id="focusPagesList"></div>
@@ -6601,6 +6646,7 @@ function renderContiBody(){
   p.querySelector(".slCount").textContent = `${songs.length}곡 · ${state.sheets.length}페이지`;
   p.querySelector("#slEditBtn").textContent = contiEdit ? "완료" : "콘티 편집"; p.querySelector("#slEditBtn").classList.toggle("on", contiEdit);
   p.classList.toggle("editing", contiEdit);
+  { const l = p.querySelector("#slMiniLbl"); if(l){ const cs = songs.find(x=> x.pages.includes(state.currentIndex)); l.textContent = (songLabel(cs) || "콘티") + " ▾"; } }
   body.innerHTML = "";
   if(!songs.length){ body.innerHTML = `<div class="contiEmpty">악보가 없어요. File ▸ 악보 업로드로 시작하세요.</div>`; return; }
   songs.forEach((sg, idx)=>{
@@ -6726,12 +6772,22 @@ function wireContiDrag(p){
 window.addEventListener("resize", ()=>{ if(contiFloating()) applyContiPos(); });
 new MutationObserver(()=> applyContiPos()).observe(document.body, {attributes:true, attributeFilter:["class"]});
 { const al = document.querySelector(".app-layout"); if(al) new MutationObserver(()=> applyContiPos()).observe(al, {attributes:true, attributeFilter:["class"]}); }
+let contiMini = false; try{ contiMini = localStorage.getItem("mls-conti-mini") === "1"; }catch(e){}
+function songLabel(sg){ return sg ? `${String(sg.no).padStart(2, "0")}. ${sg.name || "곡 " + sg.no}` : ""; }
+function applyContiMini(){
+  const p = document.getElementById("contiPanel"); if(!p) return;
+  p.classList.toggle("mini", contiMini);
+  const f = p.querySelector("#slFold"); if(f){ f.textContent = contiMini ? "▢" : "—"; f.title = contiMini ? "펼치기" : "접기"; }
+  const l = p.querySelector("#slMiniLbl"); if(l){ const sg = currentSong(); l.textContent = (songLabel(sg) || "콘티") + " ▾"; }
+  if(contiFloating()) setTimeout(applyContiPos, 320);
+}
+function setContiMini(on){ contiMini = !!on; try{ localStorage.setItem("mls-conti-mini", on ? "1" : "0"); }catch(e){} applyContiMini(); }
 function openConti(){
   if(document.getElementById("contiPanel")){ closeConti(); return; }
   const p = document.createElement("div");
   p.id = "contiPanel"; p.className = "contiPanel setlistDrawer";
   if(isNarrow() && (state.leftPanelOpen || state.rightPanelOpen)){ state.leftPanelOpen = false; state.rightPanelOpen = false; applyPanelUI(); }   // 좁은 화면: 한 번에 하나만
-  p.innerHTML = `<div class="slHead"><b>콘티</b><span class="slCount"></span><button type="button" id="slEditBtn" class="slEdit">콘티 편집</button><button type="button" class="icon" id="slClose" title="닫기">✕</button></div><div class="contiBody"></div><div class="slFoot"><button type="button" id="slAddSong" class="slAddSong">＋ 악보로 추가</button><button type="button" id="slNewSong" class="slAddSong">＋ 곡 직접 추가</button></div><button type="button" id="slSplitAuto" class="slAddSong slOcr" title="모든 페이지의 맨 위 제목을 읽어, 다른 제목이 나오는 페이지에서 곡을 자동으로 나눠요">✂ 곡 자동 나누기</button><button type="button" id="slOcr" class="slAddSong slOcr" title="스캔 · 사진 악보의 맨 위 제목을 글자 인식으로 읽어 곡 제목을 채워요">🔍 악보에서 제목 인식</button>`;
+  p.innerHTML = `<div class="slHead"><b>콘티</b><span class="slCount"></span><span class="slMiniLbl" id="slMiniLbl"></span><button type="button" id="slEditBtn" class="slEdit">콘티 편집</button><button type="button" class="icon slFold" id="slFold" title="접기 / 펼치기">—</button><button type="button" class="icon" id="slClose" title="닫기">✕</button></div><div class="contiBody"></div><div class="slFoot"><button type="button" id="slAddSong" class="slAddSong">＋ 악보로 추가</button><button type="button" id="slNewSong" class="slAddSong">＋ 곡 직접 추가</button></div><button type="button" id="slSplitAuto" class="slAddSong slOcr" title="모든 페이지의 맨 위 제목을 읽어, 다른 제목이 나오는 페이지에서 곡을 자동으로 나눠요">✂ 곡 자동 나누기</button><button type="button" id="slOcr" class="slAddSong slOcr" title="스캔 · 사진 악보의 맨 위 제목을 글자 인식으로 읽어 곡 제목을 채워요">🔍 악보에서 제목 인식</button>`;
   const host = document.querySelector(".app-layout"), mainEl = document.querySelector("main.sheet-panel");
   host.insertBefore(p, mainEl);                                      // 레이아웃 안에 끼워 넣어 악보 영역을 옆으로 민다 (Push)
   p.querySelector("#slClose").addEventListener("click", closeConti);
@@ -6740,7 +6796,9 @@ function openConti(){
   p.querySelector("#slOcr").addEventListener("click", ()=> ocrSongTitles());
   p.querySelector("#slSplitAuto").addEventListener("click", ()=> autoSplitSongs());
   p.querySelector("#slAddSong").addEventListener("click", ()=>{ pendingSongFrom = state.sheets.length; document.getElementById("addPageInput").click(); });
-  wireContiDrag(p); applyContiPos();
+  p.querySelector("#slFold").addEventListener("click", (e)=>{ e.stopPropagation(); setContiMini(!contiMini); });
+  p.addEventListener("click", (e)=>{ if(contiMini && !e.target.closest("#slFold")) setContiMini(false); });
+  wireContiDrag(p); applyContiPos(); applyContiMini();
   renderContiBody();
   const curCard = p.querySelector(".slCard.cur"); if(curCard) curCard.scrollIntoView({block:"nearest"});
 }
@@ -7114,12 +7172,19 @@ document.getElementById("eraserTool").addEventListener("click", ()=>setTool("era
 /* 맞춤: "page" = 악보 한 장이 화면에 다 들어오게(가로 화면에서도 위아래 스크롤 없이),
  *       "width" = 폭 맞춤(최대 1200px). 확대/축소·핀치는 그 위에 곱해진다. */
 let lastSheetAspect = 0.707; // A4 세로
+let spreadPref = false; try{ spreadPref = localStorage.getItem("mls-spread") === "1"; }catch(e){}
+function spreadOn(){ return spreadPref && window.innerWidth >= 768 && state.sheets.length > 0; }
+function pageStep(){ return spreadOn() ? 2 : 1; }
 function stageBaseWidth(){
   const vp = document.getElementById("sheetViewport");
   const cs = getComputedStyle(vp);
   const availW = vp.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const availH = vp.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
   const sheet = currentSheet();
+  if(spreadOn()){
+    const half = Math.max(160, (availW - 14) / 2), asp = (sheet && sheet._aspect) || lastSheetAspect;
+    return state.fitMode === "page" && availH > 80 ? Math.max(160, Math.min(half, availH * asp)) : Math.max(160, Math.min(half, focusMode ? half : 700));
+  }
   const aspect = (sheet && sheet._aspect) || lastSheetAspect;
   if(state.fitMode === "page" && sheet && availH > 80) return Math.max(160, Math.min(availW, availH * aspect));
   return Math.max(160, focusMode ? availW : Math.min(availW, 1200));
@@ -7132,7 +7197,9 @@ function toggleFitMode(){
 function applyZoom(){
   const stage = document.getElementById("sheetStage");
   stage.style.maxWidth = "none";
-  stage.style.width = Math.round(stageBaseWidth() * scale) + "px";
+  const w1 = Math.round(stageBaseWidth() * scale);
+  stage.style.width = w1 + "px";
+  const st2 = document.getElementById("sheetStage2"); if(st2) st2.style.width = w1 + "px";
   syncZoomControls();
   const fb = document.getElementById("fitModeBtn");
   fb.textContent = state.fitMode === "page" ? "↕ 전체 보기" : "↔ 폭 맞춤";
@@ -7408,7 +7475,7 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
   const SWIPE_THRESHOLD = 80;
   const stageEl2 = ()=> document.getElementById("sheetStage");
   const canSlide = ()=> viewport.scrollWidth <= viewport.clientWidth + 2;           // 가로로 스크롤할 내용이 없을 때만 따라오기
-  const hasPage = (dir)=> dir > 0 ? state.currentIndex < state.sheets.length - 1 : state.currentIndex > 0;
+  const hasPage = (dir)=> dir > 0 ? state.currentIndex + pageStep() < state.sheets.length : state.currentIndex > 0;
   const rubber = (dx)=> Math.sign(dx) * 72 * (1 - Math.exp(-Math.abs(dx) / 110));
   function settleStage(){
     const el = stageEl2(); if(!el) return;
@@ -7515,10 +7582,10 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
 })();
 
 function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms || 12); }catch(err){} }   // 지원 기기에서만 (iPadOS Safari 는 미지원)
-function goPrevPage(){ if(state.currentIndex>0){ state.currentIndex--; renderSheet(); scheduleSave(); haptic(12); } }
+function goPrevPage(){ if(state.currentIndex>0){ state.currentIndex = Math.max(0, state.currentIndex - pageStep()); renderSheet(); scheduleSave(); haptic(12); } }
 // 마지막 페이지에서 한 번 더 누르면 첫 페이지로 (꾹 눌러 자동 반복될 때는 돌지 않고 마지막에서 멈춘다)
 function goNextPage(noWrap){
-  if(state.currentIndex < state.sheets.length-1){ state.currentIndex++; renderSheet(); scheduleSave(); haptic(12); }
+  if(state.currentIndex + pageStep() < state.sheets.length){ state.currentIndex += pageStep(); renderSheet(); scheduleSave(); haptic(12); }
   else if(noWrap !== true && state.sheets.length > 1){ state.currentIndex = 0; renderSheet(); scheduleSave(); haptic(12); }
 }
 document.getElementById("prevPage").addEventListener("click", goPrevPage);
@@ -9627,11 +9694,70 @@ function scheduleDock(){ clearTimeout(dockT); dockT = setTimeout(layoutBottomDoc
   window.addEventListener("resize", scheduleDock);
   scheduleDock(); setTimeout(scheduleDock, 600);
 })();
+
+/* ============ 두 쪽 보기 · Zen 미니 Dock ============ */
+let spread2Token = 0;
+async function renderSpreadCompanion(){
+  const vp = document.getElementById("sheetViewport"); if(!vp) return;
+  let st2 = document.getElementById("sheetStage2");
+  const on = spreadOn(), sh2 = on ? state.sheets[state.currentIndex + 1] : null;
+  vp.classList.toggle("spread", on); vp.classList.toggle("solo", on && !sh2);
+  syncSpreadBtns();
+  if(!sh2){ if(st2) st2.remove(); if(on) applyZoom(); return; }
+  const token = ++spread2Token;
+  if(!st2){ st2 = document.createElement("div"); st2.id = "sheetStage2"; st2.className = "sheetStage2"; vp.insertBefore(st2, document.getElementById("navEdgeRight")); }
+  st2.innerHTML = "";
+  applyZoom();
+  try{
+    const c = await composePageCanvas(sh2, exportScaleRef(), {marks:true});
+    if(token !== spread2Token || !c) return;
+    st2.innerHTML = "";
+    st2.appendChild(c);
+    const no = document.createElement("span"); no.className = "s2No"; no.textContent = (state.currentIndex + 2) + " / " + state.sheets.length; st2.appendChild(no);
+    const b = document.createElement("button"); b.type = "button"; b.className = "s2Edit"; b.textContent = "✎ 이 쪽 편집"; b.title = "이 페이지를 왼쪽(편집 가능)으로 가져와요";
+    b.addEventListener("click", (e)=>{ e.stopPropagation(); state.currentIndex++; renderSheet(); scheduleSave(); });
+    st2.appendChild(b);
+    st2.onclick = ()=>{ };
+  }catch(err){ if(st2) st2.remove(); }
+}
+function syncSpreadBtns(){
+  const eff = spreadOn(), lbl = spreadPref ? "📖📖 2쪽" : "📖 1쪽";
+  ["spreadBtn","focusSpreadBtn","zdSpread"].forEach(id=>{ const b = document.getElementById(id); if(!b) return; b.textContent = lbl; b.classList.toggle("active", spreadPref); b.title = spreadPref ? (window.innerWidth < 768 ? "화면이 좁아 1쪽으로 보여요 (768px 이상에서 2쪽)" : "두 쪽 보기 중 — 누르면 한 쪽 보기") : "한 쪽 보기 중 — 누르면 두 쪽 보기"; });
+}
+function setSpread(on){
+  spreadPref = !!on; try{ localStorage.setItem("mls-spread", on ? "1" : "0"); }catch(e){}
+  if(on && state.currentIndex > 0 && false) state.currentIndex = state.currentIndex;
+  renderSheet(); applyZoom();
+  showToast(on ? (window.innerWidth < 768 ? "두 쪽 보기 켜짐 · 화면이 좁아 1쪽으로 보여요" : "📖📖 두 쪽 보기") : "📖 한 쪽 보기", {ms:1200});
+}
+["spreadBtn","focusSpreadBtn","zdSpread"].forEach(id=>{ const b = document.getElementById(id); if(b) b.addEventListener("click", ()=> setSpread(!spreadPref)); });
+(function(){ const rs = renderSheet; renderSheet = function(){ const r = rs.apply(this, arguments); renderSpreadCompanion(); updateDockLabels(); return r; }; })();
+window.addEventListener("resize", ()=>{ const was = !!document.getElementById("sheetStage2"), now = spreadOn() && !!state.sheets[state.currentIndex + 1]; if(was !== now || document.getElementById("sheetViewport").classList.contains("spread") !== spreadOn()) renderSpreadCompanion(); syncSpreadBtns(); });
+
+function updateDockLabels(){
+  const sg = currentSong(); let t = songLabel(sg);
+  if(sg){ const extra = [sg.keyInfo && sg.keyInfo.short, sg.bpm && sg.bpm + " BPM"].filter(Boolean).join(" / "); if(extra) t += ` (${extra})`; }
+  ["focusSongLbl","zdLbl"].forEach(id=>{ const e = document.getElementById(id); if(e){ e.textContent = t || "—"; e.title = t; } });
+}
+document.getElementById("zdPrev").addEventListener("click", ()=> songStep(-1));
+document.getElementById("zdNext").addEventListener("click", ()=> songStep(1));
+document.getElementById("focusSongPrev").addEventListener("click", ()=> songStep(-1));
+document.getElementById("focusSongNext").addEventListener("click", ()=> songStep(1));
+document.getElementById("zdPlay").addEventListener("click", ()=>{ try{ playStopAll(); }catch(e){} });
+// 연주 중에는 3초 뒤 30% 로 흐려지고, 마우스·터치가 있으면 100%
+(function(){
+  let t = 0;
+  const els = ()=> [document.getElementById("zenDock"), document.getElementById("focusBar")];
+  const wake = ()=>{ els().forEach(e=> e && e.classList.remove("dim")); clearTimeout(t); t = setTimeout(()=>{ if(document.body.classList.contains("zen") || document.body.classList.contains("focusMode")) els().forEach(e=> e && e.classList.add("dim")); }, 3000); };
+  ["pointermove","pointerdown","touchstart","keydown"].forEach(ev=> document.addEventListener(ev, wake, {passive:true, capture:true}));
+  new MutationObserver(wake).observe(document.body, {attributes:true, attributeFilter:["class"]});
+  wake();
+})();
 /* ============ 버전 · 자동 업데이트 ============
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.05-2";
+const APP_BUILD = "2026.11.05-3";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

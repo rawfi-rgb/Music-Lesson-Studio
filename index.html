@@ -360,6 +360,17 @@
     #setlistBar{-webkit-overflow-scrolling:touch; touch-action:pan-x;}
   }
   @media (max-width:980px){ .sheetTopBar{flex-wrap:wrap; height:auto !important; min-height:44px; row-gap:6px; padding:6px 12px !important;} .sheetTopBar .keyCtl{margin-left:0 !important;} }
+  /* 창을 줄였을 때(스플릿뷰 · 슬라이드 오버 · 스테이지 매니저) */
+  body.noSpread .spreadBtn, body.noSpread .stepBtn{display:none !important;}
+  @media (max-width:560px){
+    #floatTools{max-width:calc(100vw - 12px); overflow-x:auto; scrollbar-width:none; justify-content:flex-start;} #floatTools::-webkit-scrollbar{display:none;}
+    #floatTools .ftBtn{flex:none;}
+    header{overflow-x:auto; scrollbar-width:none; gap:6px; padding-left:8px !important; padding-right:8px !important;} header::-webkit-scrollbar{display:none;}
+    header .fileBtn span:not(.btnLabel){font-size:13px;}
+    .sheetTopBar{gap:6px !important; padding:4px 8px !important;} .sheetTopBar .keyCtl{padding:1px;}
+    #setlistBar .sbChip{max-width:170px;}
+  }
+  @media (max-height:520px){ header{min-height:0;} .sheetTopBar{padding-top:3px !important; padding-bottom:3px !important; row-gap:3px;} #floatTools .ftBtn{height:40px;} }
   #floatTools .ftAct svg{fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
   .sheetStage.placing{cursor:crosshair;}
   .sheetStage.laserMode, .sheetStage.laserMode canvas{cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='12' cy='12' r='6' fill='%23ff2020' stroke='white' stroke-width='2'/></svg>") 12 12, crosshair;}
@@ -7231,7 +7242,7 @@ document.getElementById("eraserTool").addEventListener("click", ()=>setTool("era
  *       "width" = 폭 맞춤(최대 1200px). 확대/축소·핀치는 그 위에 곱해진다. */
 let lastSheetAspect = 0.707; // A4 세로
 let spreadPref = false; try{ spreadPref = localStorage.getItem("mls-spread") === "1"; }catch(e){}
-function spreadOn(){ return spreadPref && window.innerWidth >= 768 && window.innerWidth > window.innerHeight && state.sheets.length > 0; }   // 세로로 들면 한 쪽 보기가 더 크게 보인다
+function spreadOn(){ const vp = document.getElementById("sheetViewport"), vw = (vp && vp.clientWidth) || window.innerWidth; return spreadPref && window.innerWidth >= 768 && vw >= 680 && vw > (window.innerHeight * 0.95) && state.sheets.length > 0; }   // 창을 줄이면(스플릿뷰·스테이지 매니저) 보이는 악보 영역 폭 기준으로 판단   // 세로로 들면 한 쪽 보기가 더 크게 보인다
 let spreadStep = 2; try{ spreadStep = localStorage.getItem("mls-spread-step") === "1" ? 1 : 2; }catch(e){}
 let spreadBase = 0;                                   // 두 쪽 보기에서 왼쪽 자리 페이지 (편집 대상은 base 또는 base+1)
 function syncSpreadBase(){ if(!spreadOn()){ spreadBase = state.currentIndex; return; } if(state.currentIndex !== spreadBase && state.currentIndex !== spreadBase + 1) spreadBase = state.currentIndex; }
@@ -7630,6 +7641,36 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
     } else if(s0.slid) settleStage();
   }, {passive:true});
   viewport.addEventListener("touchcancel", ()=>{ if(sw && sw.slid) settleStage(); sw = null; }, {passive:true});
+
+  // 마우스(맥) 드래그로 넘기기: 선택 도구일 때만 (펜·지우개는 마우스로 필기해야 하므로 제외). 전체화면이 아니어도 동작.
+  let md = null;
+  viewport.addEventListener("pointerdown", (e)=>{
+    if(e.pointerType !== "mouse" || e.button !== 0 || currentTool !== "select" || placingType || placingText || e.target.closest(IGNORE)) return;
+    md = {x:e.clientX, y:e.clientY, id:e.pointerId, h:null, slid:false, sl:viewport.scrollLeft};
+    clearTimeout(settleStage.t);
+  }, true);
+  window.addEventListener("pointermove", (e)=>{
+    if(!md || e.pointerId !== md.id) return;
+    if(e.buttons === 0){ if(md.slid) settleStage(); md = null; return; }
+    const dx = e.clientX - md.x, dy = e.clientY - md.y;
+    if(md.h === null){ if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) md.h = true; else if(Math.abs(dy) > 14) md.h = false; }
+    if(md.h && canSlide() && !gestureLock){
+      const dir = dx < 0 ? 1 : -1, x = hasPage(dir) ? Math.max(-150, Math.min(150, dx * 0.5)) : rubber(dx), el = stageEl2(); if(!el) return;
+      el.style.transition = "none"; el.style.transform = `translateX(${x.toFixed(1)}px)`; md.slid = true; viewport.style.cursor = "grabbing";
+    }
+  });
+  const endMd = (e)=>{
+    if(!md || e.pointerId !== md.id) return;
+    const s0 = md; md = null; viewport.style.cursor = "";
+    const dx = e.clientX - s0.x, dy = e.clientY - s0.y;
+    if(gestureLock || !s0.h || Math.abs(viewport.scrollLeft - s0.sl) > 2){ if(s0.slid) settleStage(); return; }
+    if(Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5){
+      const dir = dx < 0 ? 1 : -1;
+      if(hasPage(dir)){ if(s0.slid) turnWithSlide(dir); else if(dir > 0) goNextPage(true); else goPrevPage(); }
+      else if(s0.slid) settleStage();
+    } else if(s0.slid) settleStage();
+  };
+  window.addEventListener("pointerup", endMd); window.addEventListener("pointercancel", endMd);
 
   // 맥 매직마우스 · 트랙패드: 옆으로 쓸면 가로 휠 이벤트가 오고, 손을 뗀 뒤에도 관성(momentum)
   // 이벤트가 1초 가까이 이어진다. 한 번 넘기면 잠그고, 아래 중 하나면 "새로 쓸었다"로 보고 다시 연다:
@@ -9831,7 +9872,7 @@ document.getElementById("sheetViewport").addEventListener("pointerdown", (e)=>{
 }, true);
 function setSpreadStep(n){ spreadStep = n; try{ localStorage.setItem("mls-spread-step", n === 1 ? "1" : "0"); }catch(e){} syncSpreadBtns(); showToast(n === 1 ? "두 쪽 보기 · 한 쪽씩 넘김" : "두 쪽 보기 · 두 쪽씩 넘김", {ms:1200}); }
 ["spreadStepBtn","focusStepBtn"].forEach(id=>{ const b = document.getElementById(id); if(b) b.addEventListener("click", ()=> setSpreadStep(spreadStep === 2 ? 1 : 2)); });
-function syncSpreadBtns(){
+function syncSpreadBtns(){ document.body.classList.toggle("noSpread", !(window.innerWidth >= 768 && (((document.getElementById("sheetViewport")||{}).clientWidth) || window.innerWidth) >= 680 && window.innerWidth > window.innerHeight * 0.95));
   document.body.classList.toggle("spreadActive", spreadOn());
   ["spreadStepBtn","focusStepBtn"].forEach(id=>{ const b = document.getElementById(id); if(b){ b.textContent = spreadStep === 1 ? "넘김 1쪽" : "넘김 2쪽"; b.classList.toggle("active", spreadStep === 1); } });
   const eff = spreadOn(), lbl = spreadPref ? "📖📖 2쪽" : "📖 1쪽";
@@ -9846,7 +9887,8 @@ function setSpread(on){
 }
 ["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(b) b.addEventListener("click", ()=> setSpread(!spreadPref)); });
 (function(){ const rs = renderSheet; renderSheet = function(){ const r = rs.apply(this, arguments); renderSpreadCompanion(); updateDockLabels(); if(document.body.classList.contains("zen")) updateFocusBar(); return r; }; })();
-window.addEventListener("resize", ()=>{ const was = !!document.getElementById("sheetStage2"), now = spreadOn() && !!state.sheets[state.currentIndex + 1]; if(was !== now || document.getElementById("sheetViewport").classList.contains("spread") !== spreadOn()) renderSpreadCompanion(); syncSpreadBtns(); });
+function spreadResync(){ const was = !!document.getElementById("sheetStage2"), now = spreadOn() && !!state.sheets[state.currentIndex + 1]; if(was !== now || document.getElementById("sheetViewport").classList.contains("spread") !== spreadOn()) renderSpreadCompanion(); syncSpreadBtns(); }
+window.addEventListener("resize", ()=>{ spreadResync(); requestAnimationFrame(()=>requestAnimationFrame(spreadResync)); setTimeout(spreadResync, 300); });
 
 function updateDockLabels(){
   const sg = currentSong(); let t = songLabel(sg);
@@ -9883,7 +9925,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.05-8";
+const APP_BUILD = "2026.11.05-9";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

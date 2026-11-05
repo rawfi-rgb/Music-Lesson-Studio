@@ -874,7 +874,12 @@
   /* 전체화면 · Zen: 콘티는 악보를 밀지 않고 반투명 HUD 로 얹힌다 */
   body.zen #contiPanel.setlistDrawer, .app-layout.focusMode #contiPanel.setlistDrawer{position:absolute; left:12px; top:60px; bottom:auto; max-height:calc(100% - 80px); width:min(300px, 86vw); z-index:60; background:color-mix(in srgb, var(--panel) 68%, transparent); backdrop-filter:blur(16px) saturate(1.2); -webkit-backdrop-filter:blur(16px) saturate(1.2);}
   body.zen #contiPanel.setlistDrawer .slCard.compact, .app-layout.focusMode #contiPanel.setlistDrawer .slCard.compact{opacity:.8;}
-  body.zen #setlistBar, body.focusMode #setlistBar{position:fixed; top:max(10px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%); width:max-content; max-width:min(94vw, 920px); z-index:58; border:1px solid var(--glass-border, var(--border)); border-radius:999px; padding:4px 8px; background:color-mix(in srgb, var(--panel) 60%, transparent); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); opacity:.55; transition:opacity .25s ease;}
+  body.zen #setlistBar, body.focusMode #setlistBar{position:fixed; top:max(10px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%); width:max-content; max-width:min(94vw, 920px); z-index:58; border:1px solid var(--glass-border, var(--border)); border-radius:999px; padding:4px 8px; background:var(--panel); box-shadow:0 2px 10px rgba(0,0,0,.18); opacity:1; transition:opacity .25s ease;}
+  /* 전체화면 · Zen: 상단 곡 탭이 악보 맨 위를 가려 흐려 보이던 것 → 탭 높이만큼 악보를 아래로 내린다 */
+  body.hasSetlistBar.zen .sheetViewport, body.hasSetlistBar.focusMode .sheetViewport{padding-top:calc(max(10px, env(safe-area-inset-top)) + 54px) !important;}
+  .sbChip.dragging{position:relative; z-index:5; transform:scale(1.06); box-shadow:0 8px 22px rgba(0,0,0,.35); transition:none; opacity:.95; touch-action:none;}
+  .sbChip.dropL{box-shadow:-4px 0 0 0 var(--accent-active,#10B981);} .sbChip.dropR{box-shadow:4px 0 0 0 var(--accent-active,#10B981);}
+  #setlistBar.sorting{touch-action:none; overflow-x:hidden;}
   body.zen #setlistBar:hover, body.focusMode #setlistBar:hover, body.zen #setlistBar:active, body.focusMode #setlistBar:active{opacity:1;}
   body.zen #setlistBar:empty, body.focusMode #setlistBar:empty{display:none;}
   .slSplit{margin-top:8px; display:flex; flex-wrap:wrap; align-items:center; gap:4px; font-size:11px; color:var(--text-muted);}
@@ -1874,49 +1879,67 @@ if(typeof pdfjsLib !== "undefined"){
 const DB_NAME = "music-lesson-studio", STORE = "kv";
 let idbUnavailable = false;
 
+let idbPromise = null;
 function idb(){
-  return new Promise((resolve,reject)=>{
-    if(idbUnavailable || !window.indexedDB) return reject(new Error("no-idb"));
+  if(idbUnavailable || !window.indexedDB) return Promise.reject(new Error("no-idb"));
+  if(idbPromise) return idbPromise;
+  idbPromise = new Promise((resolve,reject)=>{
     let req;
     try{ req = indexedDB.open(DB_NAME, 1); }
     catch(err){ return reject(err); }
     req.onupgradeneeded = ()=> req.result.createObjectStore(STORE);
-    req.onsuccess = ()=> resolve(req.result);
+    req.onsuccess = ()=>{ const db = req.result; db.onclose = ()=>{ idbPromise = null; }; db.onversionchange = ()=>{ try{ db.close(); }catch(e){} idbPromise = null; }; resolve(db); };
     req.onerror = ()=> reject(req.error);
+    req.onblocked = ()=> reject(new Error("idb-blocked"));
   });
+  idbPromise.catch(()=>{ idbPromise = null; });
+  return idbPromise;
+}
+const sleepMs = (ms)=> new Promise(r=> setTimeout(r, ms));
+/* 일시적 오류(iPad 가 앱을 재워 연결이 끊김 등)로 저장소를 '영구 사용 불가'로 돌리면, 그 뒤로는 악보(Blob)가 빠진 사본이 저장돼 악보가 사라진다.
+ * 그래서 여러 번 다시 시도하고, 정말 IndexedDB 가 없을 때만 localStorage 로 내려간다. */
+async function idbRun(mode, fn){
+  let lastErr;
+  for(let a = 0; a < 4; a++){
+    try{
+      const db = await idb();
+      return await new Promise((resolve,reject)=>{
+        const tx = db.transaction(STORE, mode);
+        let out; try{ out = fn(tx.objectStore(STORE)); }catch(e){ return reject(e); }
+        tx.oncomplete = ()=> resolve(out && "result" in out ? out.result : undefined);
+        tx.onerror = ()=> reject(tx.error); tx.onabort = ()=> reject(tx.error || new Error("idb-abort"));
+      });
+    }catch(err){
+      lastErr = err; idbPromise = null;
+      if(!window.indexedDB) break;
+      await sleepMs(120 * (a + 1));
+    }
+  }
+  throw lastErr || new Error("no-idb");
 }
 async function idbGet(key){
-  try{
-    const db = await idb();
-    return await new Promise((resolve,reject)=>{
-      const tx = db.transaction(STORE,"readonly");
-      const r = tx.objectStore(STORE).get(key);
-      r.onsuccess = ()=>resolve(r.result);
-      r.onerror = ()=>reject(r.error);
-    });
-  }catch(err){
-    idbUnavailable = true;
-    try{
-      const raw = localStorage.getItem("mls:"+key);
-      return raw ? JSON.parse(raw) : undefined;
-    }catch(e2){ return undefined; }
+  try{ return await idbRun("readonly", st=> st.get(key)); }
+  catch(err){
+    if(!window.indexedDB) idbUnavailable = true;
+    console.warn("idbGet", key, err);
+    if(!window.indexedDB){ try{ const raw = localStorage.getItem("mls:"+key); return raw ? JSON.parse(raw) : undefined; }catch(e2){} }
+    return undefined;
   }
 }
+let idbPutFailAt = 0;
 async function idbPut(key,val){
-  try{
-    const db = await idb();
-    await new Promise((resolve,reject)=>{
-      const tx = db.transaction(STORE,"readwrite");
-      tx.objectStore(STORE).put(val,key);
-      tx.oncomplete = ()=>resolve();
-      tx.onerror = ()=>reject(tx.error);
-    });
-  }catch(err){
-    idbUnavailable = true;
-    const safe = JSON.parse(JSON.stringify(val, (k,v)=> (v instanceof Blob ? undefined : v)));
-    try{ localStorage.setItem("mls:"+key, JSON.stringify(safe)); }catch(e2){}
+  try{ await idbRun("readwrite", st=> { st.put(val,key); }); idbPutFailAt = 0; }
+  catch(err){
+    console.warn("idbPut", key, err); idbPutFailAt = Date.now();
+    if(!window.indexedDB){
+      idbUnavailable = true;
+      const safe = JSON.parse(JSON.stringify(val, (k,v)=> (v instanceof Blob ? undefined : v)));
+      try{ localStorage.setItem("mls:"+key, JSON.stringify(safe)); }catch(e2){}
+    }
   }
 }
+// 기기가 저장 공간을 임의로 지우지 못하게 요청 (iPad Safari 는 오래 안 쓰면 지울 수 있다)
+try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
 
 /* ---------- State ---------- */
 const FORM_TYPES = [
@@ -1992,7 +2015,35 @@ function scheduleSave(){
   document.getElementById("saveStatus").textContent = "저장 중…";
   saveTimer = setTimeout(doSave, 800);
 }
+/* PDF 에서 가져온 쪽은 이미지(blob)를 보기 전에는 만들지 않는다 → 원본 PDF 를 같이 저장해 두지 않으면 다음 날 열었을 때 안 본 쪽이 사라진다 */
+const pdfPersisted = new Set();
+async function persistPdfBuffers(){
+  const ids = new Set(state.sheets.filter(sh=> sh.kind === "pdf" && sh.pdfSourceId && !(sh.blob instanceof Blob)).map(sh=> sh.pdfSourceId));
+  for(const id of ids){
+    if(pdfPersisted.has(id) || !pdfBuffers.has(id)) continue;
+    await idbPut("pdf:" + id, pdfBuffers.get(id));
+    if(!idbPutFailAt) pdfPersisted.add(id);
+  }
+}
+async function restorePdfBuffers(){
+  const ids = new Set(state.sheets.filter(sh=> sh.kind === "pdf" && sh.pdfSourceId && !(sh.blob instanceof Blob)).map(sh=> sh.pdfSourceId));
+  for(const id of ids){
+    if(pdfBuffers.has(id)) continue;
+    const buf = await idbGet("pdf:" + id);
+    if(buf){ pdfBuffers.set(id, buf instanceof ArrayBuffer ? buf : (buf.buffer || buf)); pdfPersisted.add(id); }
+  }
+}
+// 앱이 백그라운드로 가거나 닫히기 직전에는 기다리지 않고 바로 저장한다 (iPad 는 뒤로 가면 페이지를 그냥 끝내 버린다)
+function flushSaveNow(){
+  if(!saveTimer) return;
+  clearTimeout(saveTimer); saveTimer = null;
+  try{ persistPdfBuffers().catch(()=>{}); idbPut("state", state); }catch(e){}
+}
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "hidden") flushSaveNow(); });
+window.addEventListener("pagehide", flushSaveNow);
 async function doSave(){
+  saveTimer = null;
+  try{ await persistPdfBuffers(); }catch(e){}
   await idbPut("state", state);
   const t = new Date().toLocaleTimeString("ko-KR",{hour12:false});
   let statusText = "자동 저장됨 · " + t;
@@ -2016,6 +2067,7 @@ async function loadState(){
     state = Object.assign(state, saved);
     if(!Array.isArray(state.sheets)) state.sheets = [];
     state.sheets.forEach(s=>{ if(!Array.isArray(s.textBoxes)) s.textBoxes = []; });
+    try{ await restorePdfBuffers(); }catch(e){ console.warn("restorePdfBuffers", e); }
   }
 }
 
@@ -2822,7 +2874,7 @@ async function saveProjectAsFile(name, opts){
   btn.disabled = true; btn.textContent = "준비 중...";
   try{
     // Same extension as the folder save, so one project is one file wherever it is saved.
-    const filename = sanitizeFilename(name) + ".mlsproj.json";
+    const filename = (state.openedFileName && state.openedFileName.replace(/\.mlsproj\.json$/i, "").replace(/\.json$/i, "") === name) ? state.openedFileName : sanitizeFilename(name) + ".mlsproj.json";   // 불러온 파일과 같은 이름 → 파일 앱에서 '대치'
     const ready = preparedFile && preparedFile.name === name && preparedFile.sig === projectSignature();
     const text = ready ? preparedFile.text : JSON.stringify(await buildProjectFileData(name));
     const ok = await deliverProjectFile(filename, text);
@@ -3043,8 +3095,9 @@ async function openProjectData(data, fileName, opts){
   try{
     await flushCurrentProject();
     await applyProjectFileData(data);
-    if(!currentProjectName && fileName){
-      currentProjectName = fileName.replace(/\.mlsproj\.json$/i, "").replace(/\.json$/i, "").replace(/\s\d+$/, "");
+    if(fileName){   // 연 파일의 이름 그대로 이어서 저장해야 같은 파일을 덮어쓴다 (예전엔 이미 열린 프로젝트 이름이 남거나 ' 2' 가 잘렸다)
+      currentProjectName = fileName.replace(/\.mlsproj\.json$/i, "").replace(/\.json$/i, "");
+      state.openedFileName = fileName;
     }
     setProjectNameInputs();
     // 실제 파일과 연결(맥 Chrome) → ⌘S 덮어쓰기, 자동 저장, 다른 기기 최신본 확인
@@ -3212,6 +3265,13 @@ async function checkLinkedFileNewer(){
   }catch(err){}
   finally{ checkingNewer = false; }
 }
+/* 브라우저를 다시 열면 폴더 접근 권한을 한 번 더 받아야 한다 → 화면을 처음 누를 때 자동으로 다시 연결해 iCloud 저장이 끊긴 채 남지 않게 한다 */
+let autoReconnectTried = 0;
+["pointerup", "keydown"].forEach(ev=> document.addEventListener(ev, async ()=>{
+  if(autoReconnectTried > 2 || !((savedFolderHandle && !folderHandle) || linkNeedsPermission)) return;
+  autoReconnectTried++;
+  try{ await reconnectFolder(); }catch(e){}
+}, true));
 document.addEventListener("visibilitychange", ()=>{
   if(document.visibilityState === "visible") checkLinkedFileNewer();
   else flushFolderAutosave();
@@ -6624,10 +6684,60 @@ function mergeSongUp(songs, idx){
   const col = songs[idx - 1].color || null; songs[idx].pages.forEach(i=>{ state.sheets[i].songColor = col; });
   renderSheet(); scheduleSave(); renderContiBody();
 }
+/* 상단 곡 탭 드래그로 순서 바꾸기 (모든 모드). 손가락·펜: 0.25초 꾹 누르면 집어 올려지고 좌우로 끈다 / 마우스: 바로 끈다.
+ * 짧게 옆으로 쓸면 탭 줄이 그냥 스크롤된다. 끝에 닿으면 줄이 자동으로 따라 움직인다. */
+function wireChipDrag(chip, idx, bar){
+  let st = null;
+  const clear = ()=>{ if(!st) return; clearTimeout(st.t); cancelAnimationFrame(st.raf); chip.classList.remove("dragging"); chip.style.transform = ""; bar.classList.remove("sorting"); bar.querySelectorAll(".dropL,.dropR").forEach(c=> c.classList.remove("dropL","dropR")); document.removeEventListener("touchmove", blockScroll, {passive:false}); st = null; };
+  const blockScroll = (e)=>{ if(st && st.armed) e.preventDefault(); };
+  const arm = ()=>{ if(!st || st.armed) return; st.armed = true; clearTimeout(st.t); chip.classList.remove("pressing"); chip.classList.add("dragging"); bar.classList.add("sorting"); try{ chip.setPointerCapture(st.id); }catch(e){} haptic(12); document.addEventListener("touchmove", blockScroll, {passive:false}); };
+  const place = ()=>{
+    if(!st || !st.armed) return;
+    const chips = Array.from(bar.querySelectorAll(".sbChip")), br = bar.getBoundingClientRect();
+    if(st.x < br.left + 48) bar.scrollLeft -= 10; else if(st.x > br.right - 48) bar.scrollLeft += 10;
+    const dx = st.x - st.x0 + (bar.scrollLeft - st.sl0);
+    chip.style.transform = `translateX(${dx}px) scale(1.06)`;
+    let to = idx; const cx = st.x;
+    chips.forEach((c, i)=>{ if(i === idx) return; const r = c.getBoundingClientRect(), m = r.left + r.width / 2; if(i < idx && cx < m) to = Math.min(to, i); if(i > idx && cx > m) to = Math.max(to, i); });
+    if(to !== st.to){ st.to = to; haptic(6); }
+    chips.forEach((c, i)=>{ c.classList.toggle("dropL", i === st.to && st.to < idx); c.classList.toggle("dropR", i === st.to && st.to > idx); });
+    st.raf = requestAnimationFrame(place);
+  };
+  chip.addEventListener("pointerdown", (e)=>{
+    if(e.button > 0 || st) return;
+    if(e.pointerType === "touch" && isPalmPointer(e)) return;
+    st = {id:e.pointerId, x0:e.clientX, y0:e.clientY, x:e.clientX, sl0:bar.scrollLeft, armed:false, to:idx, mouse:e.pointerType === "mouse"};
+    if(!st.mouse) st.t = setTimeout(arm, 250);
+  });
+  chip.addEventListener("pointermove", (e)=>{
+    if(!st || e.pointerId !== st.id) return;
+    st.x = e.clientX;
+    if(!st.armed){
+      const mv = Math.hypot(e.clientX - st.x0, e.clientY - st.y0);
+      if(st.mouse){ if(mv > 6) { arm(); st.raf = requestAnimationFrame(place); } }
+      else if(mv > 10){ clear(); }                         // 아직 안 집었는데 움직임 → 줄 스크롤로 본다
+      return;
+    }
+    if(chip._lp && Date.now() - chip._lp < 2500){ clear(); return; }   // 길게 눌러 메뉴가 열렸으면 드래그 취소
+    if(!st.raf) st.raf = requestAnimationFrame(place);
+    e.preventDefault();
+  });
+  const finish = (e, ok)=>{
+    if(!st || e.pointerId !== st.id) return;
+    const s0 = st, moved = s0.armed && Math.abs(s0.x - s0.x0) > 4; clear();
+    if(!moved) return;
+    chip._lp = Date.now();                                  // 이어서 오는 click(곡 이동)을 막는다
+    if(ok && s0.to !== idx){ const songs = computeContiSongs(); reorderSongs(songs, idx, s0.to); showToast("곡 순서를 바꿨어요", {ms:1200}); }
+  };
+  chip.addEventListener("pointerup", (e)=> finish(e, true));
+  chip.addEventListener("pointercancel", (e)=> finish(e, false));
+  chip.addEventListener("lostpointercapture", (e)=> finish(e, false));
+}
 function renderSetlistBar(){
   const bar = document.getElementById("setlistBar"); if(!bar) return;
   const songs = state.sheets.length ? computeContiSongs() : [];
   bar.innerHTML = "";
+  document.body.classList.toggle("hasSetlistBar", songs.length >= 2);
   if(songs.length < 2) return;
   const ci = songs.findIndex(sg=> sg.pages.includes(state.currentIndex));
   songs.forEach((sg, i)=>{
@@ -6636,7 +6746,7 @@ function renderSetlistBar(){
     b.innerHTML = `<b>${String(sg.no).padStart(2, "0")}</b>${i === ci || !sg.color ? "" : "<i></i>"}<span></span>${i === ci + 1 ? "<em>NEXT</em>" : ""}`;
     b.querySelector("span").textContent = sg.name || "곡 " + sg.no;
     b.title = "탭: 이 곡으로 이동 · 두 번 탭: 제목 바꾸기";
-    b.addEventListener("click", ()=> selectSong(sg, true)); bindSongCtx(b, ()=> computeContiSongs()[i]);
+    b.addEventListener("click", ()=> selectSong(sg, true)); bindSongCtx(b, ()=> computeContiSongs()[i]); wireChipDrag(b, i, bar);
     b.addEventListener("dblclick", ()=>{ const t = window.prompt("곡 제목", sg.name || ""); if(t !== null){ state.sheets[sg.pages[0]].songName = t.trim() || null; scheduleSave(); updateSongHL(); if(document.getElementById("contiPanel")) renderContiBody(); } });
     bar.appendChild(b);
   });
@@ -7639,11 +7749,53 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 15 || e.height > 1
     const flick = Math.abs(dx) >= FLICK_MIN && Math.abs(dx) / Math.max(dt, 1) >= FLICK_SPEED;
     if((Math.abs(dx) >= SWIPE_THRESHOLD || flick) && Math.abs(dx) > Math.abs(dy) * 1.2){
       const dir = dx < 0 ? 1 : -1;
-      if(hasPage(dir)){ if(s0.slid) turnWithSlide(dir); else if(dir > 0) goNextPage(true); else goPrevPage(); }
+      if(Date.now() - swipeAt < 500){ if(s0.slid) settleStage(); return; }   // 포인터 경로가 이미 넘겼다
+      if(hasPage(dir)){ swipeAt = Date.now(); if(s0.slid) turnWithSlide(dir); else if(dir > 0) goNextPage(true); else goPrevPage(); }
       else { haptic(6); if(s0.slid) settleStage(); }                    // 끝 페이지: 튕겨 돌아오기
     } else if(s0.slid) settleStage();
   }, {passive:true});
   viewport.addEventListener("touchcancel", ()=>{ if(sw && sw.slid) settleStage(); sw = null; }, {passive:true});
+
+  /* 손가락 스와이프 (포인터 경로): 아이패드 Safari 는 가로로 끄는 터치를 스크롤로 가로채 touch 이벤트가 안 오는 일이 있다.
+   * 그래서 악보 영역의 touch-action 을 상황에 맞게 바꾸고(옆으로 넘길 때는 pan-y 만 허용), 포인터 이벤트로도 같은 넘김을 처리한다.
+   * 두 경로가 한 번의 스와이프에서 두 번 넘기지 않게 swipeAt 으로 막는다. 모든 모드(작업·레슨·전체화면·Zen)에서 같은 악보 영역을 쓴다. */
+  let swipeAt = 0, tp = null; const touchIds = new Set();
+  function syncViewportTouch(){ const ta = canSlide() ? "pan-y" : "pan-x pan-y"; if(viewport.style.touchAction !== ta) viewport.style.touchAction = ta; }
+  syncViewportTouch(); setInterval(syncViewportTouch, 500);
+  window.addEventListener("resize", syncViewportTouch);
+  viewport.addEventListener("pointerdown", (e)=>{
+    if(e.pointerType !== "touch") return;
+    touchIds.add(e.pointerId);
+    if(touchIds.size > 1){ if(tp && tp.slid) settleStage(); tp = null; return; }
+    syncViewportTouch();
+    if(e.target.closest(IGNORE) || placingType || placingText || penIsDown || isPalmPointer(e) || inEdgeDead(e.clientY)){ tp = null; return; }
+    tp = {id:e.pointerId, x:e.clientX, y:e.clientY, time:Date.now(), sl:viewport.scrollLeft, h:null, slid:false};
+    clearTimeout(settleStage.t);
+  }, true);
+  window.addEventListener("pointermove", (e)=>{
+    if(!tp || e.pointerId !== tp.id || gestureLock) return;
+    const dx = e.clientX - tp.x, dy = e.clientY - tp.y;
+    if(tp.h === null){ if(Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) tp.h = true; else if(Math.abs(dy) > 16) tp.h = false; }
+    if(tp.h && canSlide()){
+      const dir = dx < 0 ? 1 : -1, x = hasPage(dir) ? Math.max(-150, Math.min(150, dx * 0.5)) : rubber(dx), el = stageEl2(); if(!el) return;
+      el.style.transition = "none"; el.style.transform = `translateX(${x.toFixed(1)}px)`; tp.slid = true;
+    }
+  });
+  const endTp = (e, cancelled)=>{
+    if(e.pointerType === "touch") touchIds.delete(e.pointerId);
+    if(!tp || e.pointerId !== tp.id) return;
+    const s0 = tp; tp = null;
+    const dx = e.clientX - s0.x, dy = e.clientY - s0.y, dt = Date.now() - s0.time;
+    if(cancelled || gestureLock || Math.abs(viewport.scrollLeft - s0.sl) > 2 || dt > 1500){ if(s0.slid) settleStage(); return; }
+    const flick = Math.abs(dx) >= FLICK_MIN && Math.abs(dx) / Math.max(dt, 1) >= FLICK_SPEED;
+    if((Math.abs(dx) >= SWIPE_THRESHOLD || flick) && Math.abs(dx) > Math.abs(dy) * 1.2){
+      if(Date.now() - swipeAt < 500){ if(s0.slid) settleStage(); return; }
+      const dir = dx < 0 ? 1 : -1;
+      if(hasPage(dir)){ swipeAt = Date.now(); if(s0.slid) turnWithSlide(dir); else if(dir > 0) goNextPage(true); else goPrevPage(); }
+      else { haptic(6); if(s0.slid) settleStage(); }
+    } else if(s0.slid) settleStage();
+  };
+  window.addEventListener("pointerup", (e)=> endTp(e, false)); window.addEventListener("pointercancel", (e)=> endTp(e, true));
 
   // 마우스(맥) 드래그로 넘기기: 선택 도구일 때만 (펜·지우개는 마우스로 필기해야 하므로 제외). 전체화면이 아니어도 동작.
   let md = null;
@@ -9934,7 +10086,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.05-11";
+const APP_BUILD = "2026.11.06-1";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

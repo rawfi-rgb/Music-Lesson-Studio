@@ -359,6 +359,8 @@
     .focusBar button{min-height:38px;}
     #setlistBar{-webkit-overflow-scrolling:touch; touch-action:pan-x;}
   }
+  @media (max-width:980px){ .sheetTopBar{flex-wrap:wrap; height:auto !important; min-height:44px; row-gap:6px; padding:6px 12px !important;} .sheetTopBar .keyCtl{margin-left:0 !important;} }
+  #floatTools .ftAct svg{fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
   .sheetStage.placing{cursor:crosshair;}
   .sheetStage.laserMode, .sheetStage.laserMode canvas{cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='12' cy='12' r='6' fill='%23ff2020' stroke='white' stroke-width='2'/></svg>") 12 12, crosshair;}
   .sheetStage img{display:block; width:100%; height:auto; user-select:none; pointer-events:none;}
@@ -7189,12 +7191,16 @@ document.addEventListener("keydown", (e)=>{
   const key = e.key.toLowerCase();
   if(key==="z" && !e.shiftKey){
     e.preventDefault();
-    const top = pageUndo[pageUndo.length - 1], sh = currentSheet();
-    // 가장 최근에 한 일부터: 방금 필기했으면 필기, 아니면 악보 가져오기·삭제
-    if(top && (!(sh && sh.annotations.length) || top.at >= lastAnnotAt)) undoPageOp(); else undoAnnotation();
+    smartUndo();
   }
-  else if((key==="z" && e.shiftKey) || key==="y"){ e.preventDefault(); if(pageRedo.length) redoPageOp(); else redoAnnotation(); }
+  else if((key==="z" && e.shiftKey) || key==="y"){ e.preventDefault(); smartRedo(); }
 });
+// 가장 최근에 한 일부터: 방금 필기했으면 필기, 아니면 악보 가져오기·삭제 (키보드 ⌘Z · 두 손가락 탭 · 하단 ↺ 버튼이 같은 동작)
+function smartUndo(){
+  const top = pageUndo[pageUndo.length - 1], sh = currentSheet();
+  if(top && (!(sh && sh.annotations.length) || top.at >= lastAnnotAt)) undoPageOp(); else undoAnnotation();
+}
+function smartRedo(){ if(pageRedo.length) redoPageOp(); else redoAnnotation(); }
 
 function renderColorSwatches(){
   const wrap = document.getElementById("colorSwatches"); wrap.innerHTML = "";
@@ -7225,7 +7231,7 @@ document.getElementById("eraserTool").addEventListener("click", ()=>setTool("era
  *       "width" = 폭 맞춤(최대 1200px). 확대/축소·핀치는 그 위에 곱해진다. */
 let lastSheetAspect = 0.707; // A4 세로
 let spreadPref = false; try{ spreadPref = localStorage.getItem("mls-spread") === "1"; }catch(e){}
-function spreadOn(){ return spreadPref && window.innerWidth >= 768 && state.sheets.length > 0; }
+function spreadOn(){ return spreadPref && window.innerWidth >= 768 && window.innerWidth > window.innerHeight && state.sheets.length > 0; }   // 세로로 들면 한 쪽 보기가 더 크게 보인다
 let spreadStep = 2; try{ spreadStep = localStorage.getItem("mls-spread-step") === "1" ? 1 : 2; }catch(e){}
 let spreadBase = 0;                                   // 두 쪽 보기에서 왼쪽 자리 페이지 (편집 대상은 base 또는 base+1)
 function syncSpreadBase(){ if(!spreadOn()){ spreadBase = state.currentIndex; return; } if(state.currentIndex !== spreadBase && state.currentIndex !== spreadBase + 1) spreadBase = state.currentIndex; }
@@ -7503,6 +7509,29 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
     }
   }, {passive:true});
   viewport.addEventListener("touchcancel", ()=>{ pinch = null; dbl = null; }, {passive:true});
+
+  // 두 손가락 톡 = 되돌리기, 세 손가락 톡 = 다시 실행 (iPad 앱의 일반적인 약속)
+  let tapG = null;
+  viewport.addEventListener("touchstart", (e)=>{
+    const n = e.touches.length;
+    if(n >= 2 && n <= 3 && !e.target.closest(IGN) && !strokeInProgress && !penIsDown && !gestureBlocked()){
+      const ts = Array.from(e.touches);
+      if(ts.some(t=> t.touchType === "stylus" || (t.radiusX || 0) > 30 || (t.radiusY || 0) > 30)){ tapG = null; return; }
+      tapG = {n: Math.max(n, tapG ? tapG.n : 0), t: tapG ? tapG.t : Date.now(), pts: ts.map(t=>[t.clientX, t.clientY]), moved:false};
+    } else if(n > 3) tapG = null;
+  }, {passive:true});
+  viewport.addEventListener("touchmove", (e)=>{
+    if(!tapG) return;
+    const ts = Array.from(e.touches);
+    if(ts.some((t, i)=> tapG.pts[i] && Math.hypot(t.clientX - tapG.pts[i][0], t.clientY - tapG.pts[i][1]) > 14)) tapG.moved = true;
+  }, {passive:true});
+  viewport.addEventListener("touchend", (e)=>{
+    if(!tapG || e.touches.length > 0) return;
+    const g = tapG; tapG = null;
+    if(g.moved || Date.now() - g.t > 320 || (pinch && pinch.live)) return;
+    haptic(10); if(g.n === 2) smartUndo(); else if(g.n === 3) smartRedo();
+  }, {passive:true});
+  viewport.addEventListener("touchcancel", ()=>{ tapG = null; }, {passive:true});
 
   // 마우스: ⌥(Option)을 누른 채 악보를 위아래로 끌면 확대·축소 (맥 트랙패드 핀치와 ⌘+휠은 그대로)
   let mz = null;
@@ -9343,6 +9372,13 @@ FT_TOOLS.forEach(([k, label, title], i)=>{
   b.addEventListener("click", ()=> pickFloatTool(k));
   ftBar.appendChild(b);
 });
+{ const sp = document.createElement("span"); sp.className = "ftSep"; ftBar.appendChild(sp);
+  [["undo","되돌리기","되돌리기 (두 손가락으로 톡)","M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3", smartUndo], ["redo","다시","다시 실행 (세 손가락으로 톡)","m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3", smartRedo]].forEach(([k, label, title, d, fn])=>{
+    const b = document.createElement("button"); b.type = "button"; b.className = "ftBtn ftAct"; b.title = title; b.dataset.act = k;
+    b.innerHTML = `<svg viewBox="0 0 24 24"><path d="${d}" fill="none"/></svg><span>${label}</span>`;
+    b.addEventListener("click", ()=>{ fn(); haptic(8); }); ftBar.appendChild(b);
+  });
+}
 // ---- 실제 컨트롤을 팝오버로 옮기기 ----
 (function mountFloatControls(){
   const $ = (id)=> document.getElementById(id), q = (sel)=> ftPop.querySelector(sel);
@@ -9799,13 +9835,14 @@ function syncSpreadBtns(){
   document.body.classList.toggle("spreadActive", spreadOn());
   ["spreadStepBtn","focusStepBtn"].forEach(id=>{ const b = document.getElementById(id); if(b){ b.textContent = spreadStep === 1 ? "넘김 1쪽" : "넘김 2쪽"; b.classList.toggle("active", spreadStep === 1); } });
   const eff = spreadOn(), lbl = spreadPref ? "📖📖 2쪽" : "📖 1쪽";
-  ["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(!b) return; b.textContent = lbl; b.classList.toggle("active", spreadPref); b.title = spreadPref ? (window.innerWidth < 768 ? "화면이 좁아 1쪽으로 보여요 (768px 이상에서 2쪽)" : "두 쪽 보기 중 — 누르면 한 쪽 보기") : "한 쪽 보기 중 — 누르면 두 쪽 보기"; });
+  ["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(!b) return; b.textContent = lbl; b.classList.toggle("active", spreadPref); b.title = spreadPref ? (window.innerWidth < 768 || window.innerWidth <= window.innerHeight ? "세로 화면이라 1쪽으로 보여요 — 가로로 돌리면 2쪽" : "두 쪽 보기 중 — 누르면 한 쪽 보기") : "한 쪽 보기 중 — 누르면 두 쪽 보기"; });
 }
 function setSpread(on){
   spreadPref = !!on; try{ localStorage.setItem("mls-spread", on ? "1" : "0"); }catch(e){}
+  if(on && state.fitMode !== "page"){ state.fitMode = "page"; scale = 1; if(state.zoomByMode) state.zoomByMode[zoomKey()] = 1; }   // 두 쪽은 한 장 전체 보기로 시작
   if(on && state.currentIndex > 0 && false) state.currentIndex = state.currentIndex;
   renderSheet(); applyZoom();
-  showToast(on ? (window.innerWidth < 768 ? "두 쪽 보기 켜짐 · 화면이 좁아 1쪽으로 보여요" : "📖📖 두 쪽 보기") : "📖 한 쪽 보기", {ms:1200});
+  showToast(on ? (window.innerWidth < 768 || window.innerWidth <= window.innerHeight ? "두 쪽 보기 켜짐 · 가로로 돌리면 2쪽으로 보여요" : "📖📖 두 쪽 보기") : "📖 한 쪽 보기", {ms:1200});
 }
 ["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(b) b.addEventListener("click", ()=> setSpread(!spreadPref)); });
 (function(){ const rs = renderSheet; renderSheet = function(){ const r = rs.apply(this, arguments); renderSpreadCompanion(); updateDockLabels(); if(document.body.classList.contains("zen")) updateFocusBar(); return r; }; })();
@@ -9846,7 +9883,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.05-7";
+const APP_BUILD = "2026.11.05-8";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

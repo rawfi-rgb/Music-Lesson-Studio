@@ -7088,6 +7088,7 @@ function onPointerDown(e){
   if(placingType || placingText) return;
   if(e.pointerType === "touch") return;              // 손가락은 필기 금지 — 스와이프·핀치·팬 전용
   if(isPalmPen(e)) return;                           // 접촉 면적이 큰 '펜' 신호는 손바닥으로 보고 무시
+  if(e.pointerType !== "mouse" && (e.clientY > window.innerHeight - 34 || (e.clientY < 24 && e.clientX > window.innerWidth - 160))) return;   // 홈 바(하단 34px)·제어센터(우상단 24px) 구역에서는 필기하지 않는다
   const sheet = currentSheet();
   if(!sheet) return;
   if(currentTool === "select") return;      // 선택 도구: 필기 없이 마커·코드·텍스트만 만진다
@@ -7417,7 +7418,7 @@ const penLocked = ()=> penIsDown || performance.now() - penNearAt < PEN_LOCK_MS;
 const palmLocked = ()=> performance.now() - palmAt < PALM_LOCK_MS;
 const gestureBlocked = ()=> penLocked() || palmLocked();
 const isPalmPointer = (e)=> e.pointerType === "touch" && (e.width > 50 || e.height > 50);       // 손가락 끝은 보통 이보다 작다
-const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 20);            // 펜촉은 아주 작다 → 크면 손바닥
+const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 15 || e.height > 15);            // 펜촉은 아주 작다 → 크면 손바닥
 (function setupInputGuard(){
   const mark = (e)=>{
     if(e.pointerType === "pen" && !isPalmPen(e)){ penNearAt = performance.now(); document.body.classList.add("penNear"); }
@@ -9885,7 +9886,13 @@ function setSpread(on){
   renderSheet(); applyZoom();
   showToast(on ? (window.innerWidth < 768 || window.innerWidth <= window.innerHeight ? "두 쪽 보기 켜짐 · 가로로 돌리면 2쪽으로 보여요" : "📖📖 두 쪽 보기") : "📖 한 쪽 보기", {ms:1200});
 }
-["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(b) b.addEventListener("click", ()=> setSpread(!spreadPref)); });
+["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(b) b.addEventListener("click", ()=>{ const on = !spreadPref; try{ localStorage.setItem("mls-spread-auto", on ? "1" : "0"); }catch(e){} setSpread(on); }); });
+{ /* 아이패드 회전: 가로로 돌리면 2쪽 보기로 자동 전환, 세로는 1쪽(spreadOn 이 폭·방향으로 판단). 직접 1쪽으로 꺼 두면 자동 전환하지 않는다 */
+  const mq = window.matchMedia ? window.matchMedia("(orientation: landscape)") : null, coarse = window.matchMedia && window.matchMedia("(pointer:coarse)");
+  const onRot = ()=>{ if(!mq || !coarse || !coarse.matches) return; let auto = "1"; try{ auto = localStorage.getItem("mls-spread-auto") || "1"; }catch(e){}
+    if(mq.matches && auto !== "0" && !spreadPref && window.innerWidth >= 768 && state.sheets.length > 0) setSpread(true); };
+  if(mq){ (mq.addEventListener ? mq.addEventListener("change", onRot) : mq.addListener(onRot)); }
+}
 (function(){ const rs = renderSheet; renderSheet = function(){ const r = rs.apply(this, arguments); renderSpreadCompanion(); updateDockLabels(); if(document.body.classList.contains("zen")) updateFocusBar(); return r; }; })();
 function spreadResync(){ const was = !!document.getElementById("sheetStage2"), now = spreadOn() && !!state.sheets[state.currentIndex + 1]; if(was !== now || document.getElementById("sheetViewport").classList.contains("spread") !== spreadOn()) renderSpreadCompanion(); syncSpreadBtns(); }
 window.addEventListener("resize", ()=>{ spreadResync(); requestAnimationFrame(()=>requestAnimationFrame(spreadResync)); setTimeout(spreadResync, 300); });
@@ -9925,7 +9932,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.05-9";
+const APP_BUILD = "2026.11.05-10";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

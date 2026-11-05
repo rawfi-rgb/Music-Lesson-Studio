@@ -322,6 +322,7 @@
   .sheetStage2 .s2EditX{position:absolute; top:8px; right:8px; border:1px solid var(--border); background:color-mix(in srgb, var(--panel) 82%, transparent); backdrop-filter:blur(8px); color:var(--text); font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; opacity:0; transition:opacity .2s; cursor:pointer;}
   .sheetStage2:hover .s2Edit, .sheetStage2:focus-within .s2Edit{opacity:1;}
   .sheetStage2 .s2No{position:absolute; left:8px; bottom:8px; font-size:11px; font-weight:800; color:#555; background:rgba(255,255,255,.75); padding:2px 8px; border-radius:999px;}
+  .stepBtn{display:none;} body.spreadActive .stepBtn{display:inline-flex;}
   .spreadBtn.active{background:var(--accent); color:var(--on-accent);}
   @media (max-width:767px){ .sheetViewport.spread .sheetStage2{display:none;} }
   /* 콘티 패널 미니 칩 (접기) */
@@ -1528,7 +1529,7 @@
       </div>
       <div class="keyCtl" data-key-ctl data-btn-class="" style="margin-left:auto;" title="키 · 코드 바꾸기"></div>
       <div class="zoomCtl" data-zoom-ctl data-btn-class="" title="악보 크기"></div>
-      <button class="icon" id="fitModeBtn" title="악보 한 장 전체 보기 ↔ 폭 맞춤">↕ 전체 보기</button><button class="icon spreadBtn" id="spreadBtn" title="한 쪽 보기 ↔ 두 쪽 보기 (화면 폭 768px 이상)">📖 1쪽</button>
+      <button class="icon" id="fitModeBtn" title="악보 한 장 전체 보기 ↔ 폭 맞춤">↕ 전체 보기</button><button class="icon stepBtn" id="spreadStepBtn" title="두 쪽 보기에서 넘기는 단위">넘김 2쪽</button><button class="icon spreadBtn" id="spreadBtn" title="한 쪽 보기 ↔ 두 쪽 보기 (화면 폭 768px 이상)">📖 1쪽</button>
       <button class="icon topToggle" id="toggleToolsBtn" title="마킹 도구 접기/펼치기">도구 ▴</button>
       <button class="icon topToggle" id="toggleStripBtn" title="페이지 목록 접기/펼치기">페이지 ▴</button>
       <button class="icon" id="focusModeBtn" title="전체화면 (연주)">
@@ -1637,6 +1638,7 @@
         <span id="focusBpmLabel" style="font-size:12px; font-weight:700; ">100 BPM</span>
         <div class="keyCtl" data-key-ctl data-btn-class="icon" title="키 · 코드 바꾸기"></div>
         <div class="zoomCtl" data-zoom-ctl data-btn-class="icon" title="악보 크기 (％를 좌우로 끌어도 돼요)"></div>
+        <button class="icon stepBtn" id="focusStepBtn" title="두 쪽 보기에서 넘기는 단위">넘김 2쪽</button>
         <button class="icon spreadBtn" id="focusSpreadBtn" title="한 쪽 보기 ↔ 두 쪽 보기">📖 1쪽</button>
         <button class="icon" id="focusFitBtn" title="폭 맞춤 ↔ 한 장 전체 보기 (악보를 두 번 탭해도 바뀌어요)">↔ 폭맞춤</button>
         <button class="icon glockBtn" id="focusLockBtn" title="제스처 잠금 — 스와이프로 페이지·곡이 넘어가지 않게 (페달·키보드는 그대로)">🔓</button>
@@ -7180,6 +7182,7 @@ document.getElementById("eraserTool").addEventListener("click", ()=>setTool("era
 let lastSheetAspect = 0.707; // A4 세로
 let spreadPref = false; try{ spreadPref = localStorage.getItem("mls-spread") === "1"; }catch(e){}
 function spreadOn(){ return spreadPref && window.innerWidth >= 768 && state.sheets.length > 0; }
+let spreadStep = 2; try{ spreadStep = localStorage.getItem("mls-spread-step") === "1" ? 1 : 2; }catch(e){}
 let spreadBase = 0;                                   // 두 쪽 보기에서 왼쪽 자리 페이지 (편집 대상은 base 또는 base+1)
 function syncSpreadBase(){ if(!spreadOn()){ spreadBase = state.currentIndex; return; } if(state.currentIndex !== spreadBase && state.currentIndex !== spreadBase + 1) spreadBase = state.currentIndex; }
 function pageStep(){ return spreadOn() ? 2 : 1; }
@@ -7483,7 +7486,7 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
   const SWIPE_THRESHOLD = 80;
   const stageEl2 = ()=> document.getElementById("sheetStage");
   const canSlide = ()=> viewport.scrollWidth <= viewport.clientWidth + 2;           // 가로로 스크롤할 내용이 없을 때만 따라오기
-  const hasPage = (dir)=> { if(spreadOn()){ syncSpreadBase(); return dir > 0 ? spreadBase + 2 < state.sheets.length : spreadBase > 0; } return dir > 0 ? state.currentIndex < state.sheets.length - 1 : state.currentIndex > 0; };
+  const hasPage = (dir)=> { if(spreadOn()){ syncSpreadBase(); return dir > 0 ? (spreadBase + spreadStep < state.sheets.length && (spreadStep === 2 || spreadBase + 1 <= state.sheets.length - 2)) : spreadBase > 0; } return dir > 0 ? state.currentIndex < state.sheets.length - 1 : state.currentIndex > 0; };
   const rubber = (dx)=> Math.sign(dx) * 72 * (1 - Math.exp(-Math.abs(dx) / 110));
   function settleStage(){
     const el = stageEl2(); if(!el) return;
@@ -7591,13 +7594,14 @@ const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 20 || e.height > 2
 
 function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms || 12); }catch(err){} }   // 지원 기기에서만 (iPadOS Safari 는 미지원)
 function goPrevPage(){
-  if(spreadOn()){ syncSpreadBase(); if(spreadBase > 0){ spreadBase = Math.max(0, spreadBase - 2); state.currentIndex = spreadBase; renderSheet(); scheduleSave(); haptic(12); } return; }
+  if(spreadOn()){ syncSpreadBase(); if(spreadBase > 0){ spreadBase = Math.max(0, spreadBase - spreadStep); state.currentIndex = spreadBase; renderSheet(); scheduleSave(); haptic(12); } return; }
   if(state.currentIndex>0){ state.currentIndex--; renderSheet(); scheduleSave(); haptic(12); } }
 // 마지막 페이지에서 한 번 더 누르면 첫 페이지로 (꾹 눌러 자동 반복될 때는 돌지 않고 마지막에서 멈춘다)
 function goNextPage(noWrap){
   if(spreadOn()){
     syncSpreadBase();
-    if(spreadBase + 2 < state.sheets.length){ spreadBase += 2; state.currentIndex = spreadBase; renderSheet(); scheduleSave(); haptic(12); }
+    const nb = spreadBase + spreadStep;
+    if(nb < state.sheets.length && (spreadStep === 2 || nb <= state.sheets.length - 2)){ spreadBase = nb; state.currentIndex = spreadBase; renderSheet(); scheduleSave(); haptic(12); }
     else if(noWrap !== true && state.sheets.length > 2){ spreadBase = 0; state.currentIndex = 0; renderSheet(); scheduleSave(); haptic(12); }
     return;
   }
@@ -9739,7 +9743,11 @@ document.getElementById("sheetViewport").addEventListener("pointerdown", (e)=>{
   const i = +st2.dataset.idx; if(!isFinite(i) || i === state.currentIndex) return;
   state.currentIndex = i; renderSheet(); scheduleSave();
 }, true);
+function setSpreadStep(n){ spreadStep = n; try{ localStorage.setItem("mls-spread-step", n === 1 ? "1" : "0"); }catch(e){} syncSpreadBtns(); showToast(n === 1 ? "두 쪽 보기 · 한 쪽씩 넘김" : "두 쪽 보기 · 두 쪽씩 넘김", {ms:1200}); }
+["spreadStepBtn","focusStepBtn"].forEach(id=>{ const b = document.getElementById(id); if(b) b.addEventListener("click", ()=> setSpreadStep(spreadStep === 2 ? 1 : 2)); });
 function syncSpreadBtns(){
+  document.body.classList.toggle("spreadActive", spreadOn());
+  ["spreadStepBtn","focusStepBtn"].forEach(id=>{ const b = document.getElementById(id); if(b){ b.textContent = spreadStep === 1 ? "넘김 1쪽" : "넘김 2쪽"; b.classList.toggle("active", spreadStep === 1); } });
   const eff = spreadOn(), lbl = spreadPref ? "📖📖 2쪽" : "📖 1쪽";
   ["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(!b) return; b.textContent = lbl; b.classList.toggle("active", spreadPref); b.title = spreadPref ? (window.innerWidth < 768 ? "화면이 좁아 1쪽으로 보여요 (768px 이상에서 2쪽)" : "두 쪽 보기 중 — 누르면 한 쪽 보기") : "한 쪽 보기 중 — 누르면 두 쪽 보기"; });
 }
@@ -9771,7 +9779,7 @@ function updateDockLabels(){
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.05-5";
+const APP_BUILD = "2026.11.05-6";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

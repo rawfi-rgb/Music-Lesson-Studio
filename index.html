@@ -335,6 +335,7 @@
   #contiPanel .slFold{font-size:13px; padding:2px 8px; line-height:1.2;}
   /* Zen · 전체화면 공용 하단 Dock = #focusBar 하나 (곡 이동 · 쪽 이동 · 재생 · 확대 · 보기 · 콘티) */
   .focusBar > *{flex:none;} .focusBar #focusPageLabel{white-space:nowrap;} .focusBar .zdLbl{flex:0 1 auto !important; min-width:56px;}
+  .focusBar button.zdLbl{background:transparent !important; border:0 !important; cursor:pointer; text-align:left;}
   .focusBar .zdLbl{font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:min(30vw, 260px);}
   .focusBar .dkSep{width:1px; height:18px; background:color-mix(in srgb, var(--on-ink, #fff) 24%, transparent); flex:none;}
   body.zen .focusBar{display:flex; position:fixed; left:50%; top:auto; bottom:max(14px, env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:57; max-width:96vw; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;}
@@ -1627,13 +1628,10 @@
       <button class="navEdge navRight" id="navEdgeRight" title="다음 페이지">›</button>
 
       <div class="focusBar" id="focusBar">
-        <button class="icon" id="focusSongPrev" title="이전 곡">⏮</button>
-        <span class="zdLbl" id="focusSongLbl"></span>
-        <button class="icon" id="focusSongNext" title="다음 곡">⏭</button>
-        <span class="dkSep"></span>
-        <button class="icon" id="focusPrevBtn" title="이전 쪽">‹</button>
+        <button class="icon" id="focusPrevBtn" title="이전 쪽 (곡이 끝나면 다음 곡으로 이어져요)">‹</button>
         <span id="focusPageLabel">1 / 1</span>
-        <button class="icon" id="focusNextBtn" title="다음 쪽">›</button>
+        <button class="icon" id="focusNextBtn" title="다음 쪽 (곡이 끝나면 다음 곡으로 이어져요)">›</button>
+        <button class="icon zdLbl" id="focusSongLbl" title="콘티 열기 · 곡 목록"></button>
         <button class="icon" id="focusPlayBtn">▶</button>
         <div class="miniDots" id="focusMiniDots"></div>
         <span id="focusBpmLabel" style="font-size:12px; font-weight:700; ">100 BPM</span>
@@ -1641,7 +1639,6 @@
         <div class="zoomCtl" data-zoom-ctl data-btn-class="icon" title="악보 크기 (％를 좌우로 끌어도 돼요)"></div>
         <button class="icon spreadBtn" id="focusSpreadBtn" title="한 쪽 보기 ↔ 두 쪽 보기">📖 1쪽</button>
         <button class="icon" id="focusFitBtn" title="폭 맞춤 ↔ 한 장 전체 보기 (악보를 두 번 탭해도 바뀌어요)">↔ 폭맞춤</button>
-        <button class="icon" id="focusContiBtn" title="전체 곡 콘티(순서) 보기">🎼 콘티</button>
         <button class="icon glockBtn" id="focusLockBtn" title="제스처 잠금 — 스와이프로 페이지·곡이 넘어가지 않게 (페달·키보드는 그대로)">🔓</button>
         <button class="icon" id="focusExitBtn">✕ 나가기</button>
       </div>
@@ -6811,7 +6808,7 @@ function openConti(){
   renderContiBody();
   const curCard = p.querySelector(".slCard.cur"); if(curCard) curCard.scrollIntoView({block:"nearest"});
 }
-document.getElementById("focusContiBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
+document.getElementById("focusSongLbl").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
 document.getElementById("contiBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
 document.getElementById("setlistBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
 document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && document.getElementById("contiPanel")){ closeConti(); e.stopPropagation(); } }, true);
@@ -9761,8 +9758,6 @@ function updateDockLabels(){
   if(sg){ const extra = [sg.keyInfo && sg.keyInfo.short, sg.bpm && sg.bpm + " BPM"].filter(Boolean).join(" / "); if(extra) t += ` (${extra})`; }
   ["focusSongLbl"].forEach(id=>{ const e = document.getElementById(id); if(e){ e.textContent = t || "—"; e.title = t; } });
 }
-document.getElementById("focusSongPrev").addEventListener("click", ()=> songStep(-1));
-document.getElementById("focusSongNext").addEventListener("click", ()=> songStep(1));
 // 연주 중에는 3초 뒤 30% 로 흐려지고, 마우스·터치가 있으면 100%
 (function(){
   let t = 0;
@@ -9776,7 +9771,7 @@ document.getElementById("focusSongNext").addEventListener("click", ()=> songStep
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.05-4";
+const APP_BUILD = "2026.11.05-5";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

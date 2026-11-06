@@ -1034,6 +1034,15 @@
 
   /* 전체화면: 오른쪽 페이지 서랍 */
   .focusPages, .focusPen{display:none;}
+  /* 전체화면: 하단 막대·펜 탭·페이지 탭이 악보를 덮지 않게 그만큼 비워 둔다 (비율이 잘리던 문제) */
+  .app-layout.focusMode .sheetViewport{padding-bottom:calc(84px + var(--dock-space, 0px)) !important;}
+  .app-layout.focusMode.penOpen .sheetViewport{padding-left:78px !important;}
+  .app-layout.focusMode.pagesOpen .sheetViewport{padding-right:106px !important;}
+  .app-layout.focusMode .focusPenBody, .app-layout.focusMode .focusPagesList{max-height:calc(100vh - 190px);}
+  .fbHide{display:none !important;}
+  .app-layout.focusMode .focusBar{max-width:calc(100vw - 16px); flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; box-sizing:border-box;} .app-layout.focusMode .focusBar::-webkit-scrollbar{display:none;}
+  .focusBar #focusExitBtn{flex:none; position:sticky; right:0;}
+
   .app-layout.focusMode .focusPages{
     display:flex; position:fixed; right:0; top:50%; transform:translateY(-50%); z-index:25; align-items:center;
   }
@@ -1789,13 +1798,19 @@
     </div>
     <div class="libraryBody">
       <div class="libTabs">
-        <button class="active" id="tabCloud" data-tab="cloud">클라우드</button>
-        <button id="tabLocal" data-tab="local">iCloud</button>
-        <button id="tabSetlist" data-tab="setlist">셋리스트</button>
+        <button class="active" id="tabRecent" data-tab="recent">최근 파일</button>
+        <button id="tabLocal" data-tab="local">iCloud 저장 · 열기</button>
         <button id="tabExport" data-tab="export">내보내기</button>
+        <button id="tabCloud" data-tab="cloud" hidden style="display:none">클라우드</button>
+        <button id="tabSetlist" data-tab="setlist" hidden style="display:none">셋리스트</button>
       </div>
 
-      <div id="cloudSection">
+      <div id="recentSection">
+        <button class="primary" id="recentOpenBtn" style="width:100%; margin-bottom:12px;">📂 파일 열기 (iCloud · 파일 앱)</button>
+        <div id="recentList"></div>
+      </div>
+
+      <div id="cloudSection" style="display:none;">
         <div class="saveRow">
           <input type="text" id="projectNameInput" placeholder="프로젝트 이름 입력">
           <button class="primary" id="saveProjectBtn" disabled>확인 중…</button>
@@ -2608,11 +2623,54 @@ function setProjectNameInputs(){
   document.getElementById("localProjectNameInput").value = currentProjectName || "";
   document.getElementById("fallbackProjectNameInput").value = currentProjectName || "";
 }
+/* ---------- 최근 파일: 열거나 저장한 프로젝트를 이 기기에 남겨 두고 보관함에서 바로 다시 연다 ---------- */
+const RECENT_MAX = 12;
+function recentKey(fileName){ return String(fileName || "").replace(/\.mlsproj\.json$/i, "").replace(/\.json$/i, "").trim() || "프로젝트"; }
+async function recordRecent(fileName, text, pages){
+  try{
+    const key = recentKey(fileName);
+    let list = (await idbGet("recents")) || [];
+    list = list.filter(r=> r.key !== key);
+    list.unshift({key, fileName: fileName || key + ".mlsproj.json", at: Date.now(), pages: pages || 0});
+    const drop = list.slice(RECENT_MAX); list = list.slice(0, RECENT_MAX);
+    await idbPut("recent:" + key, text);
+    await idbPut("recents", list);
+    for(const d of drop){ try{ await idbPut("recent:" + d.key, null); }catch(e){} }
+  }catch(err){ console.warn("recordRecent", err); }
+}
+async function renderRecentList(){
+  const box = document.getElementById("recentList"); if(!box) return;
+  const list = (await idbGet("recents")) || [];
+  box.innerHTML = "";
+  if(!list.length){ box.innerHTML = '<div class="libraryEmpty">아직 연 파일이 없어요. 위의 "파일 열기"로 iCloud 프로젝트를 열면 여기에 바로 나타나요.</div>'; return; }
+  list.forEach(r=>{
+    const item = document.createElement("div"); item.className = "projectItem"; item.style.cursor = "pointer";
+    const when = new Date(r.at).toLocaleString("ko-KR", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"});
+    item.innerHTML = `<div class="projectMeta"><div class="pname">${escapeHtml(r.key)}${r.key === currentProjectName ? " · 현재" : ""}</div><div class="pinfo">${when} · ${r.pages || 0}페이지</div></div>`;
+    const actions = document.createElement("div"); actions.className = "projectActions";
+    const open = document.createElement("button"); open.className = "icon"; open.textContent = "열기";
+    const del = document.createElement("button"); del.className = "icon"; del.textContent = "✕"; del.title = "목록에서 지우기 (iCloud 파일은 그대로)";
+    actions.append(open, del); item.appendChild(actions); box.appendChild(item);
+    const doOpen = async ()=>{
+      const text = await idbGet("recent:" + r.key);
+      if(!text){ showToast("이 파일은 기기에서 지워졌어요. 파일 앱에서 다시 열어 주세요"); return; }
+      let data; try{ data = JSON.parse(text); }catch(e){ showToast("파일을 읽지 못했어요"); return; }
+      await openProjectData(data, r.fileName);
+    };
+    item.addEventListener("click", (e)=>{ if(e.target === del) return; doOpen(); });
+    del.addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      const l2 = ((await idbGet("recents")) || []).filter(x=> x.key !== r.key);
+      await idbPut("recents", l2); await idbPut("recent:" + r.key, null); renderRecentList();
+    });
+  });
+}
+document.getElementById("recentOpenBtn").addEventListener("click", ()=> openProjectFromPicker());
 function openLibrary(){
   document.getElementById("libraryOverlay").hidden = false;
   setProjectNameInputs();
   renderICloudHint();
-  if(!cloudReady) document.getElementById("tabLocal").click();
+  document.getElementById("tabRecent").click();
   if(folderHandle) refreshLocalFileList();
   if(cloudReady) renderProjectList();
 }
@@ -2636,6 +2694,8 @@ document.querySelectorAll(".libTabs button").forEach(btn=>{
   btn.addEventListener("click", ()=>{
     document.querySelectorAll(".libTabs button").forEach(b=>b.classList.toggle("active", b===btn));
     const tab = btn.dataset.tab;
+    document.getElementById("recentSection").style.display = tab==="recent" ? "block" : "none";
+    if(tab==="recent") renderRecentList();
     document.getElementById("cloudSection").style.display = tab==="cloud" ? "block" : "none";
     document.getElementById("localSection").style.display = tab==="local" ? "block" : "none";
     document.getElementById("exportSection").style.display = tab==="export" ? "block" : "none";
@@ -2881,6 +2941,7 @@ async function saveProjectAsFile(name, opts){
     const ok = await deliverProjectFile(filename, text);
     if(!ok) return false;
     currentProjectName = name;
+    recordRecent(filename, text, state.sheets.length);
     updateCurrentProjectLabel();
     setProjectNameInputs(); markProjectSaved();
     if(!opts.silent) showToast(`☁️ '${name}' 저장됨`);
@@ -3093,6 +3154,7 @@ async function readProjectFile(file){
 async function openProjectData(data, fileName, opts){
   opts = opts || {};
   if(!(await confirmSwitchAway({quietIfUnnamed:true}))) return false;
+  let recentText = null; try{ recentText = JSON.stringify(data); }catch(e){}
   try{
     await flushCurrentProject();
     await applyProjectFileData(data);
@@ -3106,6 +3168,7 @@ async function openProjectData(data, fileName, opts){
     else clearLink();
     updateCurrentProjectLabel();
     markProjectSaved();
+    if(recentText && fileName) recordRecent(fileName, recentText, state.sheets.length);
     closeLibrary();
     renderSyncStatus();
     const when = data.savedAt ? new Date(data.savedAt).toLocaleString("ko-KR", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"}) : "";
@@ -3172,8 +3235,10 @@ async function hasWritePermission(h, interactive){
 async function writeProjectToHandle(h, name){
   const data = await buildProjectFileData(name);
   const w = await h.createWritable();
-  await w.write(JSON.stringify(data));
+  const txt = JSON.stringify(data);
+  await w.write(txt);
   await w.close();
+  recordRecent(h.name || (name + ".mlsproj.json"), txt, state.sheets.length);
   return (await h.getFile()).lastModified;
 }
 
@@ -6994,6 +7059,7 @@ function renderFocusPages(){
   const wrap = document.getElementById("focusPages");
   const list = document.getElementById("focusPagesList");
   wrap.classList.toggle("collapsed", !state.focusPagesOpen);
+  { const al = document.querySelector(".app-layout"); if(al){ const was = al.classList.contains("pagesOpen"); al.classList.toggle("pagesOpen", !!state.focusPagesOpen); if(was !== !!state.focusPagesOpen) setTimeout(()=>{ try{ applyZoom(); }catch(e){} }, 30); } }
   list.innerHTML = "";
   state.sheets.forEach((sheet, i)=>{
     const item = document.createElement("button");
@@ -7030,6 +7096,7 @@ function renderFocusPen(){
   const wrap = document.getElementById("focusPen");
   const body = document.getElementById("focusPenBody");
   wrap.classList.toggle("collapsed", !state.focusPenOpen);
+  { const al = document.querySelector(".app-layout"); if(al){ const was = al.classList.contains("penOpen"); al.classList.toggle("penOpen", !!state.focusPenOpen); if(was !== !!state.focusPenOpen) setTimeout(()=>{ try{ applyZoom(); }catch(e){} }, 30); } }
   body.innerHTML = "";
   const mk = (html, title, onClick, cls)=>{
     const b = document.createElement("button");
@@ -7537,18 +7604,20 @@ const penActive = ()=> penIsDown && performance.now() - penNearAt < 3000;   // �
 const penLocked = ()=> penActive() || performance.now() - penNearAt < PEN_LOCK_MS;
 const palmLocked = ()=> performance.now() - palmAt < PALM_LOCK_MS;
 const gestureBlocked = ()=> penLocked() || palmLocked();
-const isPalmPointer = (e)=> e.pointerType === "touch" && (e.width > 90 || e.height > 90);       // 손가락 끝은 보통 이보다 작다
+const isPalmPointer = (e)=> e.pointerType === "touch" && (e.width > 150 || e.height > 150);       // 손가락 끝은 보통 이보다 작다
 const isPalmPen = (e)=> e.pointerType === "pen" && (e.width > 15 || e.height > 15);            // 펜촉은 아주 작다 → 크면 손바닥
 /* 진단 화면: 주소 끝에 ?diag=1 을 붙이면 왼쪽 아래에 터치 이벤트와 스와이프가 막힌 이유가 표시된다 */
 const DIAG_ON = /[?&]diag=1/.test(location.search) || (()=>{ try{ return localStorage.getItem("mls-diag") === "1"; }catch(e){ return false; } })();
 let dgEl = null; const dgLines = [];
+const IN_APP = location.hostname === "127.0.0.1" && location.port === "38765";   // iPad 앱 안: 진단 기록을 앱 파일(diag.log)에 남긴다
 function dg(msg){
+  if(IN_APP){ try{ fetch("/log", {method:"POST", body: new Date().toISOString().slice(11, 23) + " " + msg, keepalive:true}); }catch(e){} }
   if(!DIAG_ON) return;
   if(!dgEl){ dgEl = document.createElement("pre"); dgEl.style.cssText = "position:fixed;left:6px;bottom:90px;z-index:99999;max-width:92vw;margin:0;padding:6px 8px;border-radius:8px;background:rgba(0,0,0,.78);color:#7CFC9A;font:11px/1.35 ui-monospace,Menlo,monospace;pointer-events:none;white-space:pre-wrap;"; document.body.appendChild(dgEl); }
   dgLines.push(msg); while(dgLines.length > 9) dgLines.shift(); dgEl.textContent = dgLines.join("\n");
 }
-if(DIAG_ON){
-  ["pointerdown","pointercancel"].forEach(t=> window.addEventListener(t, e=> dg(t + " " + e.pointerType + " w" + Math.round(e.width) + "h" + Math.round(e.height) + " " + ((e.target && (e.target.id || e.target.className)) + "").slice(0, 28)), true));
+if(DIAG_ON || IN_APP){
+  ["pointerdown","pointerup","pointercancel"].forEach(t=> window.addEventListener(t, e=> dg(t + " " + e.pointerType + " w" + Math.round(e.width) + "h" + Math.round(e.height) + " " + ((e.target && (e.target.id || e.target.className)) + "").slice(0, 28)), true));
   ["touchstart","touchend","touchcancel"].forEach(t=> window.addEventListener(t, e=> dg(t + " n" + e.touches.length), true));
   setTimeout(()=> dg("diag on · build " + APP_BUILD + " · PE:" + (!!window.PointerEvent) + " TE:" + ("ontouchstart" in window) + " glock:" + gestureLock + " " + innerWidth + "x" + innerHeight), 1200);
 }
@@ -7571,9 +7640,9 @@ if(DIAG_ON){
   const guard = (e)=>{
     const t = e.touches && e.touches[0];
     if(t && t.touchType === "stylus") return;                                   // 펜 자체는 막지 않는다 (필기용)
-    const palmTouch = Array.from(e.touches || []).some(x=> (x.radiusX || 0) > 30 || (x.radiusY || 0) > 30);
+    const palmTouch = Array.from(e.touches || []).some(x=> (x.radiusX || 0) > 80 || (x.radiusY || 0) > 80);   // 손가락 끝도 30~45 는 흔하다 → 손바닥(70+)만 걸러낸다
     if(palmTouch && !penLocked()) palmAt = performance.now();
-    if(gestureBlocked() && !e.target.closest(IGN)){ e.preventDefault(); e.stopImmediatePropagation(); }
+    if(gestureBlocked() && !e.target.closest(IGN)){ if(e.type === "touchstart") dg("GUARD blocked pen" + penLocked() + " palm" + palmLocked() + " r" + Math.round((e.touches[0] || {}).radiusX || 0)); e.preventDefault(); e.stopImmediatePropagation(); }
   };
   viewport.addEventListener("touchstart", guard, {capture:true, passive:false});
   viewport.addEventListener("touchmove", guard, {capture:true, passive:false});
@@ -7615,7 +7684,7 @@ if(DIAG_ON){
   viewport.addEventListener("touchstart", (e)=>{
     if(e.touches.length === 2){
       const ts = Array.from(e.touches);
-      if(strokeInProgress || penIsDown || gestureBlocked() || ts.some(t=> t.touchType === "stylus" || (t.radiusX || 0) > 30 || (t.radiusY || 0) > 30)){ pinch = null; dbl = null; return; }   // 필기 중·손바닥 → 확대 안 함
+      if(strokeInProgress || penActive() || gestureBlocked() || ts.some(t=> t.touchType === "stylus" || (t.radiusX || 0) > 80 || (t.radiusY || 0) > 80)){ pinch = null; dbl = null; return; }   // 필기 중·손바닥 → 확대 안 함
       pinch = {d0: Math.max(10, tdist(e.touches[0], e.touches[1])), s0: scale, live:false};
       dbl = null; return;
     }
@@ -7631,14 +7700,14 @@ if(DIAG_ON){
   viewport.addEventListener("touchmove", (e)=>{
     if(pinch && e.touches.length === 2){
       e.preventDefault();
-      if(strokeInProgress || penIsDown){ pinch = null; return; }
+      if(strokeInProgress || penActive()){ pinch = null; return; }
       const a = e.touches[0], b = e.touches[1];
       if(!pinch.live){ if(Math.abs(tdist(a, b) - pinch.d0) < 22) return; pinch.live = true; pinch.d0 = Math.max(10, tdist(a, b)); pinch.s0 = scale; return; }   // 손가락이 22px 이상 벌어지거나 모일 때만 시작 (살짝 닿은 것은 무시)
       setScale(pinch.s0 * tdist(a, b) / pinch.d0, (a.clientX + b.clientX)/2, (a.clientY + b.clientY)/2);
       return;
     }
     if(dbl && e.touches.length === 1){
-      if(strokeInProgress || penIsDown || gestureBlocked()){ dbl = null; return; }
+      if(strokeInProgress || penActive() || gestureBlocked()){ dbl = null; return; }
       const t = e.touches[0], dy = t.clientY - dbl.y0;
       if(!dbl.moved && Math.abs(dy) < 8) return;
       dbl.moved = true; e.preventDefault();
@@ -7661,7 +7730,7 @@ if(DIAG_ON){
     const n = e.touches.length;
     if(n >= 2 && n <= 3 && !e.target.closest(IGN) && !strokeInProgress && !penIsDown && !gestureBlocked()){
       const ts = Array.from(e.touches);
-      if(ts.some(t=> t.touchType === "stylus" || (t.radiusX || 0) > 30 || (t.radiusY || 0) > 30)){ tapG = null; return; }
+      if(ts.some(t=> t.touchType === "stylus" || (t.radiusX || 0) > 80 || (t.radiusY || 0) > 80)){ tapG = null; return; }
       tapG = {n: Math.max(n, tapG ? tapG.n : 0), t: tapG ? tapG.t : Date.now(), pts: ts.map(t=>[t.clientX, t.clientY]), moved:false};
     } else if(n > 3) tapG = null;
   }, {passive:true});
@@ -7811,6 +7880,7 @@ if(DIAG_ON){
     const dx = e.clientX - s0.x, dy = e.clientY - s0.y, dt = Date.now() - s0.time;
     if(cancelled || gestureLock || Math.abs(viewport.scrollLeft - s0.sl) > 2 || dt > 1500){ if(s0.slid) settleStage(); return; }
     const flick = Math.abs(dx) >= FLICK_MIN && Math.abs(dx) / Math.max(dt, 1) >= FLICK_SPEED;
+    dg("swipe? dx" + Math.round(dx) + " dy" + Math.round(dy) + " dt" + dt + " h" + s0.h + " slid" + s0.slid + " canSlide" + canSlide() + " glock" + gestureLock);
     if((Math.abs(dx) >= SWIPE_THRESHOLD || flick) && Math.abs(dx) > Math.abs(dy) * 1.2){
       if(Date.now() - swipeAt < 500){ if(s0.slid) settleStage(); return; }
       const dir = dx < 0 ? 1 : -1;
@@ -7912,6 +7982,18 @@ document.getElementById("navEdgeLeft").addEventListener("click", goPrevPage);
 document.getElementById("navEdgeRight").addEventListener("click", goNextPage);
 
 let focusMode = false;
+/* 하단 막대가 화면보다 넓으면 덜 중요한 칸부터 접어서 '나가기'가 늘 보이게 한다 */
+function fitFocusBar(){
+  const bar = document.getElementById("focusBar"); if(!bar) return;
+  const cs = getComputedStyle(bar); if(cs.display === "none") return;
+  const opt = ["#focusMiniDots", "#focusBpmLabel", "#focusSongLbl", "[data-key-ctl]", "#focusStepBtn", "#focusSpreadBtn", "#focusFitBtn", "#focusLockBtn"].map(q=> bar.querySelector(q)).filter(Boolean);
+  opt.forEach(e=> e.classList.remove("fbHide"));
+  for(const e of opt){ if(bar.scrollWidth <= bar.clientWidth + 1) break; e.classList.add("fbHide"); }
+}
+window.addEventListener("resize", ()=>{ fitFocusBar(); setTimeout(fitFocusBar, 250); });
+window.addEventListener("orientationchange", ()=> setTimeout(fitFocusBar, 400));
+new MutationObserver(()=> setTimeout(fitFocusBar, 60)).observe(document.body, {attributes:true, attributeFilter:["class"]});
+setInterval(fitFocusBar, 1500);
 function updateFocusBar(){
   document.getElementById("focusPageLabel").textContent = document.getElementById("pageLabel").textContent;
   document.getElementById("focusPlayBtn").textContent = isPlaying ? "■" : "▶";
@@ -10109,7 +10191,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.06-2";
+const APP_BUILD = "2026.11.07-1";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

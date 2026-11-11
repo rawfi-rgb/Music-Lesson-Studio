@@ -7870,10 +7870,10 @@ if(DIAG_ON || IN_APP){
   }, {passive:true});
   viewport.addEventListener("touchcancel", ()=>{ tapG = null; }, {passive:true});
 
-  // 마우스: ⌥(Option)을 누른 채 악보를 위아래로 끌면 확대·축소 (맥 트랙패드 핀치와 ⌘+휠은 그대로)
+  // 마우스: ⌘(Command) 또는 ⌥(Option)을 누른 채 악보를 위아래로 끌면 확대·축소 (위 = 확대, 아래 = 축소) (맥 트랙패드 핀치와 ⌘+휠은 그대로)
   let mz = null;
   viewport.addEventListener("pointerdown", (e)=>{
-    if(e.pointerType !== "mouse" || !e.altKey || e.target.closest(IGN)) return;
+    if(e.pointerType !== "mouse" || !(e.altKey || e.metaKey) || e.button !== 0 || e.target.closest(IGN)) return;
     mz = {y0:e.clientY, s0:scale, x:e.clientX, y:e.clientY}; e.preventDefault(); e.stopPropagation();
     try{ viewport.setPointerCapture(e.pointerId); }catch(err){}
   }, true);
@@ -10374,7 +10374,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.12-1";
+const APP_BUILD = "2026.11.12-2";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

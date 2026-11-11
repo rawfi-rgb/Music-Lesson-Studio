@@ -7382,9 +7382,33 @@ function onPointerDown(e){
     points: [{x,y}],
   };
   if(hl) strokeInProgress.hl = true;
+  startPanHold(e);
 }
 
+/* 필기 중 꾹 누르고 움직이면 악보 이동: 펜·마우스를 0.45초 움직이지 않고 누르고 있으면 그 점은 지우고 '이동 모드'가 된다.
+ * 확대해서 악보가 화면보다 클 때만 (옮길 수 없는 크기면 평소처럼 필기). 필기하다 위치를 옮기고 싶을 때 도구를 바꾸지 않아도 된다. */
+let panHold = null, panState = null;
+const PAN_HOLD_MS = 450, PAN_HOLD_SLOP = 7;
+function startPanHold(e){
+  clearTimeout(panHold && panHold.t);
+  const vp = document.getElementById("sheetViewport");
+  panHold = {x:e.clientX, y:e.clientY, id:e.pointerId, t:setTimeout(()=>{
+    if(!panHold || !strokeInProgress || strokeInProgress.points.length > 3) return;
+    if(!(vp.scrollWidth > vp.clientWidth + 2 || vp.scrollHeight > vp.clientHeight + 2)) return;
+    const h = panHold; panHold = null;
+    strokeInProgress = null; strokePid = null; redrawAnnotations();                // 누르면서 찍힌 점은 남기지 않는다
+    panState = {id:h.id, x:h.x, y:h.y, sl:vp.scrollLeft, st:vp.scrollTop};
+    vp.style.cursor = "grabbing"; haptic(14);
+  }, PAN_HOLD_MS)};
+}
+function endPanHold(){ if(panHold){ clearTimeout(panHold.t); panHold = null; } if(panState){ panState = null; const vp = document.getElementById("sheetViewport"); vp.style.cursor = ""; } }
+
 function onPointerMove(e){
+  if(panState){
+    if(e.pointerId === panState.id){ const vp = document.getElementById("sheetViewport"); vp.scrollLeft = panState.sl - (e.clientX - panState.x); vp.scrollTop = panState.st - (e.clientY - panState.y); }
+    return;
+  }
+  if(panHold && e.pointerId === panHold.id && Math.hypot(e.clientX - panHold.x, e.clientY - panHold.y) > PAN_HOLD_SLOP){ clearTimeout(panHold.t); panHold = null; }
   if(laserHeld){ laserMove(e); return; }
   if(!strokeInProgress) return;
   if(e.pointerType === "touch" || isPalmPen(e)) return;            // 필기 중 손바닥·손가락 이동은 획에 섞지 않는다
@@ -7411,6 +7435,7 @@ function onPointerMove(e){
 }
 
 function onPointerUp(){
+  if(panState || panHold){ const wasPan = !!panState; endPanHold(); if(wasPan) return; }
   if(laserHeld){ laserUp(); return; }
   if(!strokeInProgress) return;
   if(strokeInProgress.points.length === 1){   // 한 번 찍기(점·지우개 톡)도 한 획으로 남겨 ⌘Z 가 되게
@@ -10349,7 +10374,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.11-1";
+const APP_BUILD = "2026.11.12-1";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

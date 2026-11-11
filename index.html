@@ -401,20 +401,24 @@
   .formTypeBtn .dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
   .formTypeBtn.armed{color:#fff; border-color:transparent; box-shadow:0 0 0 2px var(--text) inset;}
 
-  .textBoxWrap{position:absolute; transform:translate(-50%,-50%); z-index:6;}
+  .textBoxWrap{position:absolute; transform:translate(-50%,-50%); z-index:6; touch-action:none; max-width:96%;}
+  .textBoxWrap:not(.selected) .textBoxEl{cursor:grab;}
+  .textBoxWrap .tbResize{position:absolute; right:-14px; bottom:-14px; width:28px; height:28px; border-radius:8px; background:var(--accent); color:#fff; border:2px solid #fff; display:none; z-index:7; cursor:nwse-resize; font-size:15px; line-height:24px; text-align:center; touch-action:none; box-shadow:0 1px 4px rgba(0,0,0,.35);}
+  .textBoxWrap.selected .tbResize{display:block;}
   .textBoxEl{
     min-width:40px; min-height:1.4em; padding:4px 8px; outline:none; cursor:text;
     white-space:pre-wrap; background:rgba(255,255,255,0.001); line-height:1.3; border-radius:4px;
   }
   .textBoxWrap.selected .textBoxEl{box-shadow:0 0 0 2px var(--accent); background:rgba(255,255,255,0.8); color:#000;}
   .textBoxWrap .tbHandle{
-    position:absolute; top:-10px; left:-10px; width:18px; height:18px; border-radius:50%;
-    background:var(--accent); cursor:grab; display:none; z-index:7; border:2px solid #fff;
+    position:absolute; top:-16px; left:-16px; width:30px; height:30px; border-radius:50%;
+    background:var(--accent); cursor:grab; display:none; z-index:7; border:2px solid #fff; touch-action:none;
+    color:#fff; font-size:15px; line-height:26px; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,.35);
   }
   .textBoxWrap.selected .tbHandle{display:block;}
   .textBoxWrap .tbDel{
-    position:absolute; top:-10px; right:-10px; width:18px; height:18px; border-radius:50%;
-    background:var(--danger); color:#fff; font-size:10px; line-height:18px; text-align:center;
+    position:absolute; top:-16px; right:-16px; width:30px; height:30px; border-radius:50%;
+    background:var(--danger); color:#fff; font-size:13px; line-height:26px; text-align:center;
     cursor:pointer; display:none; z-index:7; border:2px solid #fff;
   }
   .textBoxWrap.selected .tbDel{display:block;}
@@ -2057,10 +2061,47 @@ function flushSaveNow(){
 }
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "hidden") flushSaveNow(); });
 window.addEventListener("pagehide", flushSaveNow);
+/* ---------- 자동 백업 · 비정상 종료 복구 ----------
+ * 앱이 갑자기 꺼지거나(iPad 는 메모리가 모자라면 Safari 가 페이지를 그냥 끝낸다) 저장소가 비어 시작해도
+ * 직전 작업을 되살릴 수 있게, 10분마다 두 세대(backup1·backup2)를 따로 남긴다.
+ * 작업이 비어 있는 상태로 덮어쓰기 직전에는 지금 저장돼 있는 내용을 먼저 backup1 로 옮긴다. */
+let lastBackupAt = 0, lastBackupSig = "";
+const backupSig = ()=> state.sheets.length + ":" + state.sheets.map(sh=> sh.id + "/" + (sh.annotations || []).length + "/" + (sh.textBoxes || []).length + "/" + (sh.chords || []).length).join(",") + ":" + (state.notes || "").length;
+async function maybeBackup(){
+  if(!state.sheets.length) return;
+  const now = Date.now(), sig = backupSig();
+  if(now - lastBackupAt < 10 * 60 * 1000 || sig === lastBackupSig) return;
+  lastBackupAt = now; lastBackupSig = sig;
+  try{ const prev = await idbGet("backup1"); if(prev && prev.state && prev.state.sheets && prev.state.sheets.length) await idbPut("backup2", prev); await idbPut("backup1", {at:now, state}); }
+  catch(err){ console.warn("backup", err); }
+}
+async function protectBeforeEmptyWrite(){
+  if(state.sheets.length) return;
+  try{ const prev = await idbGet("state"); if(prev && Array.isArray(prev.sheets) && prev.sheets.length){ await idbPut("backup1", {at:Date.now(), state:prev}); } }catch(e){}
+}
+async function checkRecovery(){
+  let crashed = false;
+  try{ crashed = localStorage.getItem("mls-alive") === "1"; localStorage.setItem("mls-alive", "1"); }catch(e){}
+  window.addEventListener("pagehide", ()=>{ try{ localStorage.setItem("mls-alive", "0"); }catch(e){} });
+  document.addEventListener("visibilitychange", ()=>{ try{ localStorage.setItem("mls-alive", document.visibilityState === "hidden" ? "0" : "1"); }catch(e){} });
+  const empty = !state.sheets.length;
+  if(!empty && !crashed) return;
+  const cands = [await idbGet("backup1"), await idbGet("backup2")].filter(b=> b && b.state && Array.isArray(b.state.sheets) && b.state.sheets.length);
+  if(!cands.length){ if(crashed && empty) showToast("이전에 앱이 비정상 종료된 기록이 있어요 · 복구할 백업은 없었어요", {ms:6000}); return; }
+  const b = cands[0], when = new Date(b.at).toLocaleString("ko-KR", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"});
+  if(!empty && state.sheets.length >= b.state.sheets.length) return;   // 지금 작업이 백업보다 적지 않으면 그대로 둔다
+  showToast(`${empty ? "저장된 작업이 비어 있어요" : "앱이 비정상 종료됐었어요"} · ${when} 백업(${b.state.sheets.length}페이지)이 있어요`, {ms:30000, actions:[{label:"백업 복구", fn:async ()=>{
+    state.sheets = b.state.sheets; state.notes = b.state.notes || state.notes || ""; state.currentIndex = Math.min(b.state.currentIndex || 0, b.state.sheets.length - 1);
+    try{ await restorePdfBuffers(); }catch(e){}
+    refreshUiFromState(); notesArea.value = state.notes || ""; renderSheet(); scheduleSave(); showToast("백업에서 복구했어요");
+  }}]});
+}
 async function doSave(){
   saveTimer = null;
   try{ await persistPdfBuffers(); }catch(e){}
+  try{ await protectBeforeEmptyWrite(); }catch(e){}
   await idbPut("state", state);
+  maybeBackup();
   const t = new Date().toLocaleTimeString("ko-KR",{hour12:false});
   let statusText = "자동 저장됨 · " + t;
   if(cloudReady && currentProjectId){
@@ -4491,7 +4532,7 @@ function scopeLabel(scope){
   const n = scopeSheets(scope).length;
   return scope === "all" ? `전체 ${n}페이지` : scope === "song" ? `같은 곡 ${n}페이지` : `이 페이지(${state.currentIndex + 1}p)`;
 }
-if(location.hostname === "localhost") window.__mlsDebug = {getKorWorker, findTitleCrops, titleFromFileName, cleanTitle, detectPdfTitle, ocrTitleOfSheet, fileToPages, ocrSheetTokens, pickChords, pdfPageTokens, getPdfDoc, pdfBuffers: ()=>pdfBuffers, getState: ()=>state, currentSheet: ()=>currentSheet(), getOcrWorker, parse: parseChord, fix: fixOcrChord, findStaves, grayOf, otsu};   // 로컬 테스트 전용
+if(location.hostname === "localhost") window.__mlsDebug = {pickSongTitle, titleSim, getKorWorker, findTitleCrops, titleFromFileName, cleanTitle, detectPdfTitle, ocrTitleOfSheet, fileToPages, ocrSheetTokens, pickChords, pdfPageTokens, getPdfDoc, pdfBuffers: ()=>pdfBuffers, getState: ()=>state, currentSheet: ()=>currentSheet(), getOcrWorker, parse: parseChord, fix: fixOcrChord, findStaves, grayOf, otsu};   // 로컬 테스트 전용
 function chordsInReadingOrder(sheets){
   const out = [];
   sheets.forEach(s=>{
@@ -5782,16 +5823,41 @@ function detectPdfTitle(items){
     if(l){ l.toks.push(t); l.h = Math.max(l.h, t.h); } else lines.push({y:t.y, h:t.h, toks:[t]});
   });
   const cand = lines.map(l=>{ const toks = l.toks.sort((a, b)=> a.x - b.x); return {y:l.y, h:l.h, text:toks.map(t=> t.t).join(" ").replace(/\s+/g, " ").trim(), toks}; }).filter(l=>
-    l.h >= med * 1.3 && l.text.length >= 2 && l.text.length <= 50 && /[가-힣A-Za-z]{2}/.test(l.text) && !/[©@]|^(key|bpm|capo|tempo|\(?c\)|words|music|www\.)/i.test(l.text) && !l.toks.every(t=> CHORD_TOKEN_RE.test(t.t)));
+    l.h >= med * 1.12 && l.text.length >= 2 && l.text.length <= 50 && /[가-힣A-Za-z]{2}/.test(l.text) && !TITLE_BAD_RE.test(l.text) && !l.toks.every(t=> CHORD_TOKEN_RE.test(t.t)));
   if(!cand.length) return null;
-  const mx = Math.max(...cand.map(c=> c.h)), best = cand.filter(c=> c.h >= mx * 0.9).sort((a, b)=> a.y - b.y)[0];
+  // 점수: 글자가 클수록 · 위에 있을수록 · 가운데 가까울수록 높게 (큰 글씨가 비슷하면 가장 위)
+  const mx = Math.max(...cand.map(c=> c.h)), W = Math.max(...its.map(t=> t.x + (t.w || 0)), 1);
+  cand.forEach(c=>{ const cx = c.toks.reduce((a, t)=> a + t.x, 0) / c.toks.length; c.score = (c.h / mx) * 3 + (c.y < 12 ? 1.2 : c.y < 22 ? 0.6 : 0) + (1 - Math.min(1, Math.abs(cx / W - 0.5) * 2)) * 0.4 - c.y / 100; });
+  const best = cand.sort((a, b)=> b.score - a.score)[0];
   return cleanTitle(best.text);
 }
 /* 곡 제목 정리: 번호·키·괄호 속 작곡자·"악보" 같은 꼬리를 떼어낸다 */
 function cleanTitle(t){
   t = (t || "").replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
-  t = t.replace(/^[\d.\s)\-]+(?=[가-힣A-Za-z])/, "");
+  t = t.replace(/^(no\.?|#)?\s*\d{1,3}\s*[.)\-:]\s*(?=[가-힣A-Za-z])/i, "").replace(/^[\d.\s)\-]+(?=[가-힣A-Za-z])/, "");
+  t = t.replace(/\s*[\(\[]?\s*(key|키)\s*[:=]?\s*[A-G][#b♯♭]?m?\s*[\)\]]?\s*$/i, "")            // 끝의 Key G · (Key: Am)
+       .replace(/\s*[\(\[]?\s*\d{2,3}\s*bpm\s*[\)\]]?/i, "")                                  // 72 BPM
+       .replace(/\s*[\(\[]\s*[A-G][#b♯♭]?m?\s*[\)\]]\s*$/, "")                                  // (G)
+       .replace(/\s*[-–|/]\s*(악보|코드\s*악보|chord\s*chart|lead\s*sheet)\s*$/i, "").replace(/\s+/g, " ").trim();
   return t.length >= 2 ? t : null;
+}
+const TITLE_BAD_RE = /[©ⓒ@]|^(key|bpm|capo|tempo|\(?c\)|words|music|www\.|lyrics|copyright|page\b)|^(작사|작곡|편곡|번역|출처|악보|찬양|예배)\s*[:：]|(작사|작곡|편곡)\s*[:：]|^\d+\s*\/\s*\d+$|^\d{4}[.\-/]\d{1,2}|^(p\.?\s*\d+)$/i;
+const SETLIST_NAME_RE = /콘티|셋리스트|set\s*list|모음|목록|합본|스캔|scan|악보집|예배\s*순서/i;
+function titleSim(a, b){
+  const na = normTitle(a), nb = normTitle(b); if(!na || !nb) return 0;
+  if(Math.min(na.length, nb.length) >= 2 && (na.includes(nb) || nb.includes(na))) return 1;
+  const A = new Set(na), B = new Set(nb); let inter = 0; A.forEach(c=>{ if(B.has(c)) inter++; });
+  return inter / Math.max(A.size, B.size);
+}
+/* 악보 안에서 읽은 제목(det)과 파일 이름 중 더 믿을 만한 쪽을 고른다.
+ * 파일 이름은 사용자가 직접 붙인 곡 이름인 경우가 많아서, 한 곡짜리 파일에서 둘이 크게 다르면 파일 이름을 우선한다. */
+function pickSongTitle(det, fileTitle, single){
+  const fileOk = !!fileTitle && !GENERIC_NAME_RE.test(fileTitle) && !SETLIST_NAME_RE.test(fileTitle) && normTitle(fileTitle).length >= 2;
+  if(det && fileOk){
+    if(titleSim(det, fileTitle) >= 0.5) return (normTitle(det).length > normTitle(fileTitle).length + 4 && normTitle(det).includes(normTitle(fileTitle))) ? fileTitle : det;   // 악보 제목에 작곡자 등이 붙어 있으면 파일 이름
+    return single ? fileTitle : det;
+  }
+  return det || (fileOk ? fileTitle : null);
 }
 const GENERIC_NAME_RE = /^(image|img|이미지|사진|photo|scan|스캔|dsc|붙여넣기|pasted|blob|score|unnamed|무제|untitled)[\s\d().,_-]*$|^(스크린샷|screenshot|screen ?shot|캡처|화면 ?캡처|화면 ?기록|simulator screen)|^[\d\s._-]+$/i;
 function titleFromFileName(name){
@@ -5928,9 +5994,9 @@ async function handleIncomingFiles(fileList, {forceReplace, insertAt}={}){
         const b = si + 1 < starts.length ? starts[si + 1] : pg.length;
         const col = SONG_PAL[(SONG_PAL.indexOf(prevCol) + 1) % SONG_PAL.length]; prevCol = col;
         for(let k = a; k < b; k++) if(!pg[k].songColor) pg[k].songColor = col;
-        const det = pg[a]._title;
-        if(!pg[a].songName) pg[a].songName = det || (si === 0 ? fileTitle : "곡 " + (si + 1));   // 악보 안의 제목 > 파일 이름
-        if(!det) pg[a]._fileTitle = pg[a].songName;
+        const det = pg[a]._title, picked = pickSongTitle(det, si === 0 ? titleFromFileName(f.name) : null, starts.length === 1);
+        if(!pg[a].songName) pg[a].songName = picked || (si === 0 ? fileTitle : "곡 " + (si + 1));   // 악보 안의 제목 · 파일 이름 중 더 믿을 만한 쪽
+        if(!det || picked !== det) pg[a]._fileTitle = pg[a].songName;
       });
       pg.forEach(x=>{ delete x._title; });
       newPages = newPages.concat(pg);
@@ -6622,7 +6688,7 @@ async function ocrTitleOfSheet(sh){                      // → {text, conf} 또
 }
 /* ===== 곡 자동 나누기: 페이지마다 맨 위 제목을 읽어, 새 제목이 나오는 페이지에서 곡을 가른다 ===== */
 const SECTION_WORD_RE = /^(intro|verse|chorus|bridge|outro|interlude|pre-?chorus|coda|tag|ending|v\d|c\d|1절|2절|3절|후렴|간주|전주|후주|rit|a tempo|tempo|moderato|allegro|andante|♩|=|bpm)(\s|$|\d)/i;
-const normTitle = t=> (t || "").toLowerCase().replace(/[^0-9a-z가-힣]/g, "");
+function normTitle(t){ return (t || "").toLowerCase().replace(/[^0-9a-z가-힣]/g, ""); }
 async function pageTitleFor(sh, useOcr){                          // → 제목 문자열 또는 null
   let items = sh.textItems;
   if(!items && sh.kind === "pdf" && sh.pdfSourceId && pdfBuffers.has(sh.pdfSourceId)){ try{ items = await pdfPageTokens(await getPdfDoc(sh.pdfSourceId), sh.pageNumber); }catch(e){} }
@@ -6699,6 +6765,27 @@ function deleteSong(sg){
   showToast(`"${sg.name || "곡 " + sg.no}" 삭제 (${sg.pages.length}페이지)`, {actions:[{label:"되돌리기", fn:undoPageOp}], ms:6000});
 }
 function closeSongCtx(){ const m = document.getElementById("songCtx"); if(m) m.remove(); }
+/* 곡 이름 바로 고치기: 상단 탭이나 콘티 카드를 더블클릭(터치는 빠르게 두 번 탭)하면 그 자리에서 입력칸이 열린다. Enter = 저장, Esc = 취소 */
+function inlineRenameSong(anchorEl, getSong){
+  const sg = getSong(); if(!sg || document.getElementById("inlineRenameInp")) return;
+  const old = sg.name || "", r = anchorEl.getBoundingClientRect();
+  const inp = document.createElement("input"); inp.type = "text"; inp.id = "inlineRenameInp"; inp.value = old; inp.placeholder = "곡 제목";
+  inp.style.cssText = `position:fixed; z-index:9999; left:${Math.max(6, r.left)}px; top:${r.top}px; width:${Math.max(150, Math.min(innerWidth - r.left - 8, r.width))}px; height:${Math.max(34, r.height)}px; box-sizing:border-box; padding:0 12px; font:inherit; font-size:15px; font-weight:700; border-radius:10px; border:2px solid var(--accent); background:var(--panel); color:var(--text); outline:none; box-shadow:0 6px 20px rgba(0,0,0,.35);`;
+  document.body.appendChild(inp); inp.focus(); inp.select();
+  let done = false;
+  const finish = (save)=>{
+    if(done) return; done = true;
+    const v = inp.value.trim(); inp.remove();
+    if(save && v !== old){ state.sheets[sg.pages[0]].songName = v || null; scheduleSave(); }
+    updateSongHL(); if(document.getElementById("contiPanel")) renderContiBody();
+  };
+  inp.addEventListener("keydown", (e)=>{ e.stopPropagation(); if(e.key === "Enter" && !e.isComposing){ e.preventDefault(); finish(true); } else if(e.key === "Escape"){ e.preventDefault(); finish(false); } });
+  inp.addEventListener("blur", ()=> finish(true));
+  ["pointerdown", "click", "dblclick"].forEach(t=> inp.addEventListener(t, (e)=> e.stopPropagation()));
+}
+// 터치에서는 dblclick 이 안 오는 경우가 있어 '빠르게 두 번 탭'도 같은 동작으로 본다
+const _tap = {k:null, at:0};   // 첫 탭에서 화면이 다시 그려져도 알아보도록 요소가 아닌 이름표로 기억한다
+function isDoubleTap(key){ const now = Date.now(), is = _tap.k === key && now - _tap.at < 380; _tap.k = is ? null : key; _tap.at = now; return is; }
 function showSongCtx(sg, x, y){
   closeSongCtx();
   const m = document.createElement("div"); m.id = "songCtx";
@@ -6814,9 +6901,9 @@ function renderSetlistBar(){
     b.className = "sbChip" + (i === ci ? " cur" : i === ci + 1 ? " next" : ""); b.style.setProperty("--sc", sg.color || "var(--border)");
     b.innerHTML = `<b>${String(sg.no).padStart(2, "0")}</b>${i === ci || !sg.color ? "" : "<i></i>"}<span></span>${i === ci + 1 ? "<em>NEXT</em>" : ""}`;
     b.querySelector("span").textContent = sg.name || "곡 " + sg.no;
-    b.title = "탭: 이 곡으로 이동 · 두 번 탭: 제목 바꾸기";
-    b.addEventListener("click", ()=> selectSong(sg, true)); bindSongCtx(b, ()=> computeContiSongs()[i]); wireChipDrag(b, i, bar);
-    b.addEventListener("dblclick", ()=>{ const t = window.prompt("곡 제목", sg.name || ""); if(t !== null){ state.sheets[sg.pages[0]].songName = t.trim() || null; scheduleSave(); updateSongHL(); if(document.getElementById("contiPanel")) renderContiBody(); } });
+    b.title = "탭: 이 곡으로 이동 · 두 번 탭: 제목 바로 고치기 · 꾹 눌러 끌기: 순서 바꾸기";
+    b.addEventListener("click", ()=>{ if(isDoubleTap("tab" + i)){ inlineRenameSong(b, ()=> computeContiSongs()[i]); return; } selectSong(sg, true); }); bindSongCtx(b, ()=> computeContiSongs()[i]); wireChipDrag(b, i, bar);
+    b.addEventListener("dblclick", ()=> inlineRenameSong(b, ()=> computeContiSongs()[i]));
     bar.appendChild(b);
   });
   const c = bar.querySelector(".sbChip.cur"); if(c) bar.scrollLeft = Math.max(0, c.offsetLeft - 24);
@@ -6913,7 +7000,8 @@ function renderContiBody(){
       card.appendChild(fl);
       wireSongDrag(card.querySelector(".slHandle"), card, idx, songs);
       if(sg.note){ const n = document.createElement("div"); n.className = "slNote"; n.textContent = "↪ " + sg.note; card.appendChild(n); }
-      card.addEventListener("click", ()=>{ selectSong(sg); renderContiBody(); });
+      card.addEventListener("click", ()=>{ if(isDoubleTap("card" + idx)){ inlineRenameSong(card.querySelector(".slTitle") || card, ()=> computeContiSongs()[idx]); return; } selectSong(sg); renderContiBody(); });
+      card.addEventListener("dblclick", ()=> inlineRenameSong(card.querySelector(".slTitle") || card, ()=> computeContiSongs()[idx]));
     } else {
       card.draggable = true; card.dataset.idx = idx;
       card.addEventListener("dragstart", (e)=>{ card.classList.add("drag"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/mls-song", String(idx)); });
@@ -7383,9 +7471,10 @@ function isTextEntry(el){
   return isTypingTarget(el);
 }
 document.addEventListener("keydown", (e)=>{
-  if(isTextEntry(document.activeElement)) return;
   const mod = e.metaKey || e.ctrlKey;
   if(!mod) return;
+  // 글을 쓰던 칸이면 브라우저의 글자 되돌리기를 쓰고, 막 눌러서 아직 아무것도 안 썼으면 필기·텍스트·페이지 되돌리기로 넘긴다
+  if(isTextEntry(document.activeElement) && activeTyped) return;
   const key = e.key.toLowerCase();
   if(key==="z" && !e.shiftKey){
     e.preventDefault();
@@ -7395,10 +7484,19 @@ document.addEventListener("keydown", (e)=>{
 });
 // 가장 최근에 한 일부터: 방금 필기했으면 필기, 아니면 악보 가져오기·삭제 (키보드 ⌘Z · 두 손가락 탭 · 하단 ↺ 버튼이 같은 동작)
 function smartUndo(){
-  const top = pageUndo[pageUndo.length - 1], sh = currentSheet();
-  if(top && (!(sh && sh.annotations.length) || top.at >= lastAnnotAt)) undoPageOp(); else undoAnnotation();
+  const pt = pageUndo[pageUndo.length - 1], tt = textUndo[textUndo.length - 1], sh = currentSheet();
+  const hasAnn = !!(sh && sh.annotations.length);
+  const t = {page: pt ? pt.at : -1, text: tt ? tt.at : -1, ann: hasAnn ? lastAnnotAt : -1};
+  const best = Object.keys(t).sort((a, b)=> t[b] - t[a])[0];
+  if(t[best] < 0){ undoAnnotation(); return; }                       // 되돌릴 게 없으면 기존 동작(안내 메시지)
+  if(best === "text"){ undoText(); return; }
+  lastUndoKind = best;
+  if(best === "page") undoPageOp(); else undoAnnotation();
 }
-function smartRedo(){ if(pageRedo.length) redoPageOp(); else redoAnnotation(); }
+function smartRedo(){
+  if(lastUndoKind === "text" && textRedo.length){ redoText(); return; }
+  if(pageRedo.length) redoPageOp(); else redoAnnotation();
+}
 
 function renderColorSwatches(){
   const wrap = document.getElementById("colorSwatches"); wrap.innerHTML = "";
@@ -8285,6 +8383,9 @@ function turnerDirection(e){
 }
 // 노트에 막 타이핑하던 중이 아니면, 글자 칸에 커서가 있어도 페달은 페이지 넘김으로 쓴다
 // (아이패드에서 노트를 한 번 눌러 두면 페달 신호가 전부 글자 칸으로 들어가 넘어가지 않던 문제)
+const customTurnerKey = (e)=> turnerCustom.next.includes(turnerSig(e)) || turnerCustom.prev.includes(turnerSig(e));
+// 악보(화면)를 누르면 노트에 있던 커서를 거두어, 그 뒤의 페달·키보드 신호가 페이지 넘김으로 간다
+document.addEventListener("pointerdown", (e)=>{ const a = document.activeElement; if(a && isTextEntry(a) && e.target.closest && e.target.closest("#sheetViewport") && !e.target.closest(".textBoxWrap")) a.blur(); }, true);
 let lastTypingAt = 0;
 document.addEventListener("input", (e)=>{ if(isTypingTarget(e.target)) lastTypingAt = Date.now(); }, true);
 let lastTurnerKey = "";
@@ -8310,7 +8411,7 @@ window.addEventListener("keydown", (e)=>{
   if(!dir) return;
   const t = document.activeElement;
   const typing = isTypingTarget(t);
-  if(typing && !focusMode && Date.now() - lastTypingAt < 8000) return;   // 정말 글을 쓰는 중
+  if(isTextEntry(t) && !customTurnerKey(e)) return;   // 노트·텍스트 칸에 커서가 있으면 스페이스·엔터·방향키는 항상 글쓰기용 (직접 등록한 페달 신호만 예외)
   if((e.key === " " || e.key === "Enter") && t && t.tagName === "BUTTON" && !focusMode) return;  // 버튼 누르기
   if(t && t.tagName === "SELECT") return;
   e.preventDefault();
@@ -8326,7 +8427,7 @@ window.addEventListener("keyup", (e)=>{
   const sg = turnerSig(e);
   if(lastDownAt[sg] && Date.now() - lastDownAt[sg] < 3000) return;
   const t = document.activeElement;
-  if(isTypingTarget(t) && !focusMode && Date.now() - lastTypingAt < 8000) return;
+  if(isTextEntry(t) && !customTurnerKey(e)) return;
   if(t && (t.tagName === "SELECT" || (t.tagName === "BUTTON" && !focusMode && (e.key === " " || e.key === "Enter")))) return;
   lastDownAt[sg] = Date.now();
   lastTurnerKey = `${e.key || "?"} · ${e.code || "?"} · ${e.keyCode || 0} (keyup)`;
@@ -8733,6 +8834,30 @@ function setPlacingText(on){
 }
 document.getElementById("textTool").addEventListener("click", ()=> setPlacingText(!placingText));
 
+/* ---------- 텍스트 상자 · 노트 되돌리기 (⌘Z / ⇧⌘Z): 필기·페이지 되돌리기와 한 줄로 이어진다 ---------- */
+const textUndo = [], textRedo = []; let lastUndoKind = "";
+function tbSnap(){ const sh = currentSheet(); return sh ? {kind:"tb", sheetId:sh.id, json:JSON.stringify(sh.textBoxes)} : null; }
+function pushTextUndo(snap){ if(!snap) return; textUndo.push(Object.assign({at:Date.now()}, snap)); if(textUndo.length > 100) textUndo.shift(); textRedo.length = 0; }
+function applyTextSnap(snap){
+  if(snap.kind === "notes"){
+    const cur = {kind:"notes", text:state.notes || ""}; state.notes = snap.text; notesArea.value = snap.text; scheduleSave(); return cur;
+  }
+  const sh = state.sheets.find(x=> x.id === snap.sheetId); if(!sh) return null;
+  const cur = {kind:"tb", sheetId:sh.id, json:JSON.stringify(sh.textBoxes)};
+  sh.textBoxes = JSON.parse(snap.json);
+  if(currentSheet() === sh){ deselectTextBox(); renderTextBoxes(); }
+  scheduleSave(); return cur;
+}
+function undoText(){ const e = textUndo.pop(); if(!e) return false; const cur = applyTextSnap(e); if(cur) textRedo.push(Object.assign({at:Date.now()}, cur)); lastUndoKind = "text"; showToast(e.kind === "notes" ? "노트를 되돌렸어요" : "텍스트를 되돌렸어요", {ms:900}); return true; }
+function redoText(){ const e = textRedo.pop(); if(!e) return false; const cur = applyTextSnap(e); if(cur) textUndo.push(Object.assign({at:Date.now()}, cur)); return true; }
+// 노트: 칸을 벗어날 때 바뀐 내용이 있으면 한 번의 되돌리기 단위로 기록
+(function(){ let before = null; const na = document.getElementById("notesArea");
+  na.addEventListener("focus", ()=>{ before = na.value; });
+  na.addEventListener("blur", ()=>{ if(before !== null && before !== na.value) pushTextUndo({kind:"notes", text:before}); before = null; });
+})();
+let activeTyped = false;
+document.addEventListener("focusin", ()=>{ activeTyped = false; }, true);
+document.addEventListener("input", ()=>{ activeTyped = true; }, true);
 function findTextBox(id){ const sheet = currentSheet(); return sheet ? sheet.textBoxes.find(t=>t.id===id) : null; }
 
 function selectTextBox(id){
@@ -8756,6 +8881,7 @@ function deselectTextBox(){
 function createTextBoxAt(xPct, yPct){
   const sheet = currentSheet(); if(!sheet) return;
   const tb = {id:uid(), xPct, yPct, text:"", fontSize:16, fontFamily:"inherit"};
+  pushTextUndo(tbSnap());
   sheet.textBoxes.push(tb);
   renderTextBoxes(); scheduleSave();
   const wrap = document.querySelector(`.textBoxWrap[data-id="${tb.id}"]`);
@@ -8764,6 +8890,7 @@ function createTextBoxAt(xPct, yPct){
 
 function deleteTextBox(id){
   const sheet = currentSheet(); if(!sheet) return;
+  pushTextUndo(tbSnap());
   sheet.textBoxes = sheet.textBoxes.filter(t=>t.id!==id);
   if(selectedTextBoxId===id) deselectTextBox();
   renderTextBoxes(); scheduleSave();
@@ -8778,6 +8905,7 @@ function renderTextBoxes(){
     wrap.className = "textBoxWrap" + (tb.id===selectedTextBoxId ? " selected" : "");
     wrap.dataset.id = tb.id;
     wrap.style.left = tb.xPct+"%"; wrap.style.top = tb.yPct+"%";
+    if(tb.wPct) wrap.style.width = tb.wPct+"%";
 
     const el = document.createElement("div");
     el.className = "textBoxEl";
@@ -8788,18 +8916,41 @@ function renderTextBoxes(){
     el.textContent = tb.text;
 
     const handle = document.createElement("div");
-    handle.className = "tbHandle";
+    handle.className = "tbHandle"; handle.textContent = "✥"; handle.title = "끌어서 옮기기";
+    const rz = document.createElement("div"); rz.className = "tbResize"; rz.textContent = "⤡"; rz.title = "끌어서 크기 조절";
     const del = document.createElement("div");
     del.className = "tbDel"; del.textContent = "✕";
 
-    wrap.appendChild(handle); wrap.appendChild(del); wrap.appendChild(el);
+    wrap.appendChild(handle); wrap.appendChild(rz); wrap.appendChild(del); wrap.appendChild(el);
 
-    el.addEventListener("focus", ()=> selectTextBox(tb.id));
+    let textBefore = null;
+    el.addEventListener("focus", ()=>{ selectTextBox(tb.id); textBefore = tbSnap(); });
+    el.addEventListener("blur", ()=>{ const n = tbSnap(); if(textBefore && n && textBefore.json !== n.json) pushTextUndo(textBefore); textBefore = null; });
     el.addEventListener("input", ()=>{ tb.text = el.textContent; scheduleSave(); });
     del.addEventListener("pointerdown", (ev)=>{ ev.stopPropagation(); ev.preventDefault(); deleteTextBox(tb.id); });
     handle.addEventListener("pointerdown", (ev)=>{
       ev.stopPropagation(); ev.preventDefault(); selectTextBox(tb.id);
-      dragTextBox = {tb, stageRect: stage.getBoundingClientRect()};
+      dragTextBox = {tb, wrap, stageRect: stage.getBoundingClientRect(), snap:tbSnap()};
+    });
+    rz.addEventListener("pointerdown", (ev)=>{
+      ev.stopPropagation(); ev.preventDefault(); selectTextBox(tb.id);
+      const r = stage.getBoundingClientRect(), w0 = wrap.getBoundingClientRect().width;
+      dragTextBox = {tb, wrap, el, resize:true, stageRect:r, x0:ev.clientX, w0, f0:tb.fontSize, snap:tbSnap()};
+    });
+    // 글자 칸 자체를 끌어도 옮겨진다 (살짝 움직이면 이동, 그냥 누르면 글쓰기)
+    el.addEventListener("pointerdown", (ev)=>{
+      if(ev.button > 0) return;
+      const sx = ev.clientX, sy = ev.clientY, startedFocused = document.activeElement === el;
+      const r = stage.getBoundingClientRect();
+      const mv = (e2)=>{
+        if(Math.hypot(e2.clientX - sx, e2.clientY - sy) < 7) return;
+        window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up);
+        if(startedFocused && ev.pointerType === "mouse") return;      // 글을 쓰는 중 마우스로 글자를 드래그해 선택하는 동작은 그대로 둔다
+        try{ el.blur(); }catch(_){} window.getSelection && window.getSelection().removeAllRanges();
+        selectTextBox(tb.id); dragTextBox = {tb, wrap, stageRect:r, snap:tbSnap()};
+      };
+      const up = ()=>{ window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); };
+      window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
     });
     stage.appendChild(wrap);
   });
@@ -8808,16 +8959,23 @@ function renderTextBoxes(){
 
 window.addEventListener("pointermove", (e)=>{
   if(!dragTextBox) return;
-  const rect = dragTextBox.stageRect;
+  const d = dragTextBox, rect = d.stageRect, tb = d.tb;
+  if(d.resize){
+    const w = Math.max(48, d.w0 + (e.clientX - d.x0) * 2), k = w / d.w0;      // 가운데 기준 → 모서리가 손가락을 따라온다
+    tb.wPct = Math.min(96, Math.max(5, w / rect.width * 100));
+    tb.fontSize = Math.round(Math.max(8, Math.min(120, d.f0 * k)));
+    d.wrap.style.width = tb.wPct + "%"; d.el.style.fontSize = tb.fontSize + "px";
+    const lbl = document.getElementById("fontSizeLabel"); if(lbl) lbl.textContent = tb.fontSize;
+    return;
+  }
   let xPct = ((e.clientX-rect.left)/rect.width)*100;
   let yPct = ((e.clientY-rect.top)/rect.height)*100;
   xPct = Math.max(0,Math.min(100,xPct)); yPct = Math.max(0,Math.min(100,yPct));
-  dragTextBox.tb.xPct = xPct; dragTextBox.tb.yPct = yPct;
-  snapTextToGuides(dragTextBox.tb);
-  renderTextBoxes();
-  snapTextToGuides(dragTextBox.tb);   // 다시 그린 뒤 강조선 표시
+  tb.xPct = xPct; tb.yPct = yPct;
+  snapTextToGuides(tb);
+  if(d.wrap){ d.wrap.style.left = tb.xPct + "%"; d.wrap.style.top = tb.yPct + "%"; }
 });
-window.addEventListener("pointerup", ()=>{ if(dragTextBox){ dragTextBox=null; scheduleSave(); } });
+window.addEventListener("pointerup", ()=>{ if(dragTextBox){ const d = dragTextBox, now = tbSnap(); dragTextBox=null; if(d.snap && now && d.snap.json !== now.json) pushTextUndo(d.snap); scheduleSave(); } });
 
 document.getElementById("fontFamilySel").addEventListener("change", (e)=>{
   const tb = findTextBox(selectedTextBoxId); if(!tb) return;
@@ -9130,7 +9288,7 @@ window.addEventListener("keydown", (e)=>{
   if(spaceMode() !== "play" || turnerLearn) return;
   if(turnerCustom.next.includes(turnerSig(e)) || turnerCustom.prev.includes(turnerSig(e))) return;
   const t = document.activeElement;
-  if(isTypingTarget(t) && Date.now() - lastTypingAt < 8000) return;
+  if(isTextEntry(t)) return;
   if(t && (t.tagName === "SELECT" || t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && /^(text|number|search|email|url|tel|password)$/i.test(t.type || "text")))) return;
   if(t && t.tagName === "BUTTON" && !focusMode) return;
   e.preventDefault();
@@ -10191,7 +10349,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.07-1";
+const APP_BUILD = "2026.11.11-1";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외
@@ -10249,6 +10407,7 @@ async function init(){
   applyZoom();
   renderKeyControls();
   renderSheet();
+  checkRecovery().catch(err=> console.warn("recovery", err));
 
   document.getElementById("timbreSel").value = state.timbre;
   document.getElementById("drumKitSel").value = state.drumKit;

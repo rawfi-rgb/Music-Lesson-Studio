@@ -1,7 +1,7 @@
 {
-  "name": "Music Lesson Studio",
-  "short_name": "Lesson Studio",
-  "description": "악보 · 메트로놈 · 노트를 한 화면에서",
+  "name": "SetStand",
+  "short_name": "SetStand",
+  "description": "콘티 · 악보 · 메트로놈을 한 화면에서",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

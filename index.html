@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Music Lesson Studio Pro</title>
+<title>SetStand</title>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-v2-32.png">
 <link rel="apple-touch-icon" href="icon-v2-180.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-v2-180.png">
@@ -12,8 +12,8 @@
 <link rel="manifest" href="manifest-v2.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Lesson Studio">
-<meta name="application-name" content="Lesson Studio">
+<meta name="apple-mobile-web-app-title" content="SetStand">
+<meta name="application-name" content="SetStand">
 <meta name="theme-color" content="#171a22">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -820,6 +820,23 @@
   #miniCtl button.on{background:var(--accent); color:var(--on-accent); border-color:transparent; box-shadow:var(--glow);}
   #miniCtl .mcLed{width:12px; height:12px; border-radius:50%; background:color-mix(in srgb, var(--text-muted) 35%, transparent); flex:none;} #miniCtl .mcLed.on{background:var(--beat-accent); box-shadow:0 0 10px var(--beat-accent);}
 
+  /* ============ 콘티 텍스트로 만들기 ============ */
+  .ctBox{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:18px; width:560px; max-width:94vw; max-height:88vh; display:flex; flex-direction:column; gap:12px; box-shadow:0 20px 60px rgba(0,0,0,.45);}
+  .ctHead{display:flex; align-items:center; gap:8px; font-size:15px;} .ctHead b{flex:1;}
+  .ctHint{font-size:12.5px; color:var(--text-dim); line-height:1.6;}
+  .ctText{width:100%; min-height:220px; resize:vertical; font-size:15px; line-height:1.7; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--panel-alt); color:var(--text); box-sizing:border-box;}
+  .ctLib{font-size:12.5px; color:var(--text-dim); display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .ctLib .ctLibAdd{font-size:12px; padding:4px 10px;}
+  .ctRow{display:flex; gap:8px; justify-content:flex-end; align-items:center; flex-wrap:wrap;}
+  .ctList{overflow:auto; display:flex; flex-direction:column; gap:6px; min-height:0;}
+  .ctItem{display:flex; gap:10px; align-items:flex-start; padding:9px 10px; border-radius:10px; border:1px solid var(--border); background:var(--panel-alt); border-left:4px solid #c0577a;}
+  .ctItem.ok{border-left-color:#7c8f5e;}
+  .ctNo{font-weight:800; min-width:18px; text-align:right; padding-top:2px;}
+  .ctMain{flex:1; min-width:0; display:flex; flex-direction:column; gap:6px;}
+  .ctTitle{font-weight:700; font-size:14px;} .ctKey{font-size:11px; font-weight:700; padding:1px 6px; border-radius:6px; background:var(--panel); border:1px solid var(--border);}
+  .ctSel{width:100%; font-size:13px; padding:6px 8px; border-radius:8px;}
+  .ctFile{font-size:12.5px; display:flex; align-items:center; gap:6px;}
+  .ctFill{display:flex; gap:6px; flex-wrap:wrap;} .ctFill button{font-size:12px; padding:5px 10px;}
   /* ============ Worship 콘티 드로어 · 헤더 하이라이트 ============ */
   #songHL{display:none; align-items:center; gap:10px; min-width:0; flex:1; overflow:hidden; white-space:nowrap;}
   header.hasSong #songHL{display:flex;}
@@ -1365,7 +1382,7 @@
   <button class="fileBtn" id="setlistBtn" title="콘티 — 곡 순서 · Key · BPM · 송폼 · 연결 메모"><span>🎼 콘티</span></button>
   <h1>
     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-    <span class="appTitle">Music Lesson Studio</span>
+    <span class="appTitle">SetStand</span>
     <span class="logo-badge">PRO</span>
   </h1>
   <div id="songHL" aria-live="polite"></div>
@@ -1667,6 +1684,7 @@
           <div style="font-size:13px; color:var(--text-dim); max-width:320px; line-height:1.6;">이미지나 PDF를 끌어다 놓으면 페이지가 만들어집니다. 그 위에 펜으로 표시하고, 송폼 마커를 찍고, 노트를 함께 남길 수 있습니다.</div>
           <button class="primary" id="emptyStateUploadBtn">파일 선택</button>
           <div class="hint" style="padding:0;">JPG · PNG · PDF</div>
+          <button class="icon" id="emptyStateContiBtn">📝 콘티 텍스트로 시작</button>
           <button class="icon" id="emptyStateLibraryBtn" style="background:transparent; border-color:transparent; color:var(--text-dim); text-decoration:underline;">보관함에서 열기</button>
           <div class="emptyRecent" id="emptyRecent"></div>
         </div>
@@ -2675,6 +2693,7 @@ async function recordRecent(fileName, text, pages){
     list.unshift({key, fileName: fileName || key + ".mlsproj.json", at: Date.now(), pages: pages || 0});
     const drop = list.slice(RECENT_MAX); list = list.slice(0, RECENT_MAX);
     await idbPut("recent:" + key, text);
+    setTimeout(()=>{ try{ indexProjectData(JSON.parse(text), fileName); }catch(e){} }, 0);   // 곡 보관함에도 담는다
     await idbPut("recents", list);
     for(const d of drop){ try{ await idbPut("recent:" + d.key, null); }catch(e){} }
   }catch(err){ console.warn("recordRecent", err); }
@@ -3188,7 +3207,7 @@ async function readProjectFile(file){
   catch(err){
     throw new Error(`프로젝트 파일이 아니거나 저장 도중 잘린 파일이에요. (${file.name || "이름 없음"}, ${Math.round((file.size||0)/1024)}KB)`);
   }
-  if(!data || !Array.isArray(data.pages)) throw new Error("Music Lesson Studio 프로젝트 파일이 아니에요.");
+  if(!data || !Array.isArray(data.pages)) throw new Error("SetStand 프로젝트 파일이 아니에요.");
   return data;
 }
 
@@ -3412,7 +3431,7 @@ async function openProjectFromPicker(){
     let h = null;
     try{
       [h] = await window.showOpenFilePicker({id:"mls-icloud", multiple:false,
-        types:[{description:"Music Lesson Studio 프로젝트", accept:{"application/json":[".json"]}}]});
+        types:[{description:"SetStand 프로젝트", accept:{"application/json":[".json"]}}]});
     }catch(err){
       if(err && err.name === "AbortError") return;     // 사용자가 닫음
       ilog("showOpenFilePicker 실패 → 일반 파일 고르기로 전환: " + errText(err));   // 내장 화면(iframe)에서는 SecurityError
@@ -3465,7 +3484,7 @@ async function quickSave(){
     try{
       h = await window.showSaveFilePicker({id:"mls-icloud",
         suggestedName: sanitizeFilename(currentProjectName || "새 프로젝트") + ".mlsproj.json",
-        types:[{description:"Music Lesson Studio 프로젝트", accept:{"application/json":[".json"]}}]});
+        types:[{description:"SetStand 프로젝트", accept:{"application/json":[".json"]}}]});
     }catch(err){ return; }
     if(!currentProjectName) currentProjectName = h.name.replace(/\.mlsproj\.json$/i, "").replace(/\.json$/i, "");
     try{
@@ -6303,6 +6322,8 @@ document.addEventListener("paste", (e)=>{
 function wireEmptyStateButtons(){
   const uploadBtn2 = document.getElementById("emptyStateUploadBtn");
   if(uploadBtn2) uploadBtn2.addEventListener("click", ()=>document.getElementById("fileInput").click());
+  const ctBtn2 = document.getElementById("emptyStateContiBtn");
+  if(ctBtn2) ctBtn2.addEventListener("click", ()=> openContiTextBox());
   const libBtn2 = document.getElementById("emptyStateLibraryBtn");
   if(libBtn2) libBtn2.addEventListener("click", openLibrary);
 }
@@ -6350,6 +6371,7 @@ function renderSheet(){
         <div style="font-size:13px; color:var(--text-dim); max-width:320px; line-height:1.6;">이미지나 PDF를 끌어다 놓으면 페이지가 만들어집니다. 그 위에 펜으로 표시하고, 송폼 마커를 찍고, 노트를 함께 남길 수 있습니다.</div>
         <button class="primary" id="emptyStateUploadBtn">파일 선택</button>
         <div class="hint" style="padding:0;">JPG · PNG · PDF</div>
+        <button class="icon" id="emptyStateContiBtn">📝 콘티 텍스트로 시작</button>
         <button class="icon" id="emptyStateLibraryBtn" style="background:transparent; border-color:transparent; color:var(--text-dim); text-decoration:underline;">보관함에서 열기</button>
           <div class="emptyRecent" id="emptyRecent"></div>
       `;
@@ -7122,7 +7144,7 @@ function openConti(){
   const p = document.createElement("div");
   p.id = "contiPanel"; p.className = "contiPanel setlistDrawer";
   if(isNarrow() && (state.leftPanelOpen || state.rightPanelOpen)){ state.leftPanelOpen = false; state.rightPanelOpen = false; applyPanelUI(); }   // 좁은 화면: 한 번에 하나만
-  p.innerHTML = `<div class="slHead"><b>콘티</b><span class="slCount"></span><span class="slMiniLbl" id="slMiniLbl"></span><button type="button" id="slEditBtn" class="slEdit">콘티 편집</button><button type="button" class="icon slFold" id="slFold" title="접기 / 펼치기">—</button><button type="button" class="icon" id="slClose" title="닫기">✕</button></div><div class="contiBody"></div><div class="slFoot"><button type="button" id="slAddSong" class="slAddSong">＋ 악보로 추가</button><button type="button" id="slNewSong" class="slAddSong">＋ 곡 직접 추가</button></div><button type="button" id="slSplitAuto" class="slAddSong slOcr" title="모든 페이지의 맨 위 제목을 읽어, 다른 제목이 나오는 페이지에서 곡을 자동으로 나눠요">✂ 곡 자동 나누기</button><button type="button" id="slOcr" class="slAddSong slOcr" title="스캔 · 사진 악보의 맨 위 제목을 글자 인식으로 읽어 곡 제목을 채워요">🔍 악보에서 제목 인식</button>`;
+  p.innerHTML = `<div class="slHead"><b>콘티</b><span class="slCount"></span><span class="slMiniLbl" id="slMiniLbl"></span><button type="button" id="slEditBtn" class="slEdit">콘티 편집</button><button type="button" class="icon slFold" id="slFold" title="접기 / 펼치기">—</button><button type="button" class="icon" id="slClose" title="닫기">✕</button></div><div class="contiBody"></div><div class="slFoot"><button type="button" id="slAddSong" class="slAddSong">＋ 악보로 추가</button><button type="button" id="slNewSong" class="slAddSong">＋ 곡 직접 추가</button></div><button type="button" id="slFromText" class="slAddSong slOcr" title="곡 제목만 적은 콘티로 보관함의 악보를 찾아 순서대로 불러와요">📝 콘티 텍스트로 만들기</button><button type="button" id="slSplitAuto" class="slAddSong slOcr" title="모든 페이지의 맨 위 제목을 읽어, 다른 제목이 나오는 페이지에서 곡을 자동으로 나눠요">✂ 곡 자동 나누기</button><button type="button" id="slOcr" class="slAddSong slOcr" title="스캔 · 사진 악보의 맨 위 제목을 글자 인식으로 읽어 곡 제목을 채워요">🔍 악보에서 제목 인식</button>`;
   const host = document.querySelector(".app-layout"), mainEl = document.querySelector("main.sheet-panel");
   host.insertBefore(p, mainEl);                                      // 레이아웃 안에 끼워 넣어 악보 영역을 옆으로 민다 (Push)
   p.querySelector("#slClose").addEventListener("click", closeConti);
@@ -7130,6 +7152,7 @@ function openConti(){
   p.querySelector("#slNewSong").addEventListener("click", ()=> openSongForm(p));
   p.querySelector("#slOcr").addEventListener("click", ()=> ocrSongTitles());
   p.querySelector("#slSplitAuto").addEventListener("click", ()=> autoSplitSongs());
+  p.querySelector("#slFromText").addEventListener("click", ()=> openContiTextBox());
   p.querySelector("#slAddSong").addEventListener("click", ()=>{ pendingSongFrom = state.sheets.length; document.getElementById("addPageInput").click(); });
   p.querySelector("#slFold").addEventListener("click", (e)=>{ e.stopPropagation(); setContiMini(!contiMini); });
   p.addEventListener("click", (e)=>{ if(contiMini && !e.target.closest("#slFold")) setContiMini(false); });
@@ -7141,6 +7164,261 @@ document.getElementById("focusSongLbl").addEventListener("click", (e)=>{ e.stopP
 document.getElementById("contiBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
 document.getElementById("setlistBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
 document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && document.getElementById("contiPanel")){ closeConti(); e.stopPropagation(); } }, true);
+
+/* ---------- 악보 보관함 (곡 단위) + 콘티 텍스트로 만들기 ----------
+ * 프로젝트를 열거나 저장할 때마다(recordRecent) 그 안의 곡들을 제목별로 이 기기에 모아 둔다:
+ *   songIndex = [{n:정규화 제목, title, at, file, pages}]   song:<n> = {title, at, file, pages:[프로젝트 파일과 같은 페이지 형식]}
+ * 콘티 텍스트(곡 제목을 한 줄에 하나)를 넣으면 보관함에서 같은 제목을 찾아 순서대로 악보를 만든다.
+ * 못 찾은 곡은 구글 이미지 검색 → 이미지 복사 → 📋, 또는 📁 파일로 그 자리에서 채운다. */
+const SONGLIB_SKIP_RE = /^(곡\s*\d+|붙여넣은 악보\s*\d+)$/;
+let songIndexCache = null;
+async function songIndexGet(){
+  if(!songIndexCache) songIndexCache = (await idbGet("songIndex")) || [];
+  return songIndexCache;
+}
+let songIndexQueue = Promise.resolve();
+function indexProjectData(data, fileName){                           // 한 번에 하나씩 (동시에 쓰면 목록이 덮인다)
+  const run = songIndexQueue.then(()=> indexProjectDataNow(data, fileName));
+  songIndexQueue = run.catch(()=>{});
+  return run;
+}
+async function indexProjectDataNow(data, fileName){
+  if(!data || !Array.isArray(data.pages) || !data.pages.length) return 0;
+  const at = data.savedAt || Date.now(), file = fileName || data.name || "";
+  const groups = [];
+  data.pages.forEach(p=>{
+    const last = groups[groups.length - 1];
+    if(last && (last.color || null) === (p.songColor || null)) last.pages.push(p);
+    else groups.push({color: p.songColor || null, pages:[p]});
+  });
+  const idx = (await songIndexGet()).slice();
+  let added = 0;
+  // 곡 이름이 없는 한 곡짜리 프로젝트(예전 파일)는 프로젝트 이름을 곡 제목으로 쓴다 — 콘티 · 모음 파일은 빼고
+  const projTitle = recentKey(file);
+  for(const g of groups){
+    let title = String(g.pages[0].songName || "").trim();
+    if(!title && groups.length === 1 && !SETLIST_NAME_RE.test(projTitle)) title = projTitle;
+    const n = normTitle(title);
+    if(n.length < 2 || SONGLIB_SKIP_RE.test(title) || GENERIC_NAME_RE.test(title)) continue;
+    if(!g.pages.every(p=> p.image)) continue;                         // 이미지 없는 페이지(아직 안 그려진 PDF)는 담지 않는다
+    const old = idx.find(e=> e.n === n);
+    if(old && old.at > at) continue;                                  // 더 최근에 저장된 같은 곡이 이미 있다
+    await idbPut("song:" + n, {title, at, file, pages:g.pages});
+    const row = {n, title, at, file, pages:g.pages.length};
+    if(old) Object.assign(old, row); else idx.push(row);
+    added++;
+  }
+  if(added){ songIndexCache = idx; await idbPut("songIndex", idx); }
+  return added;
+}
+// 예전에 열었던 최근 파일들로 보관함을 한 번 채운다
+async function backfillSongIndex(){
+  try{
+    if(await idbGet("songIndexV1")) return;
+    for(const r of ((await idbGet("recents")) || [])){
+      const text = await idbGet("recent:" + r.key); if(!text) continue;
+      try{ await indexProjectData(JSON.parse(text), r.fileName); }catch(e){}
+    }
+    await idbPut("songIndexV1", true);
+  }catch(err){ console.warn("backfillSongIndex", err); }
+}
+async function addProjectFilesToSongLib(files){
+  let songs = 0, ok = 0;
+  for(const f of Array.from(files || [])){
+    try{
+      const data = JSON.parse(await f.text());
+      if(!data || !Array.isArray(data.pages)) continue;
+      songs += await indexProjectData(data, f.name); ok++;
+    }catch(err){ console.warn("songlib add", f.name, err); }
+  }
+  return {files:ok, songs};
+}
+
+// 콘티 한 줄 → 곡 제목. 번호·기호·키(G, A→B)·BPM 표기는 떼어 낸다.
+const CONTI_HEAD_RE = /콘티|셋\s*리스트|set\s*list|(예배|찬양)\s*순서|^\d{1,4}\s*[./-]\s*\d{1,2}(\s*[./-]\s*\d{1,2})?(\s|\(|$)|^\d{1,2}\s*월\s*\d{1,2}\s*일/i;   // 제목 줄(날짜 · "주일 콘티")은 곡이 아니다
+const KEY_TOKEN = "[A-G](?:#|b|♯|♭)?(?:m|min)?";
+function parseContiLine(line){
+  let s = String(line || "").replace(/\s+/g, " ").trim();
+  if(!s || CONTI_HEAD_RE.test(s)) return null;
+  s = s.replace(/^(?:\d{1,2}\s*[.)\]:\-]|\d{1,2}\s+(?=\D)|[①-⑳]|[-*•·▶►▷→]+)\s*/, "");
+  let key = null, bpm = null;
+  const bm = s.match(/(\d{2,3})\s*bpm/i); if(bm){ bpm = +bm[1]; s = s.replace(bm[0], " "); }
+  const kre = new RegExp("[\\(\\[]\\s*(" + KEY_TOKEN + "(?:\\s*(?:→|->|-|~|/)\\s*" + KEY_TOKEN + ")*)\\s*(?:key|키)?\\s*[\\)\\]]|(?:^|\\s|-|/)(?:key\\s*:?\\s*)?(" + KEY_TOKEN + "(?:\\s*(?:→|->|~)\\s*" + KEY_TOKEN + ")*)\\s*(?:key|키)?\\s*$", "i");
+  const km = s.match(kre);
+  if(km){ key = (km[1] || km[2]).replace(/\s+/g, ""); s = s.slice(0, km.index) + s.slice(km.index + km[0].length); }
+  s = s.replace(/[\s\-–—|/:,·]+$/, "").replace(/^[\s\-–—|/:,·]+/, "").trim();
+  if(normTitle(s).length < 1) return null;
+  return {raw:String(line).trim(), title:s, key, bpm};
+}
+function parseContiText(text){ return String(text || "").split(/\r?\n/).map(parseContiLine).filter(Boolean); }
+
+function titleSimilarity(a, b){
+  if(!a || !b) return 0;
+  if(a === b) return 1;
+  const s = a.length <= b.length ? a : b, l = s === a ? b : a;
+  if(s.length >= 2 && l.includes(s)) return 0.75 + 0.25 * s.length / l.length;
+  const grams = t=>{ const m = new Map(); for(let i = 0; i < t.length - 1; i++){ const g = t.slice(i, i + 2); m.set(g, (m.get(g) || 0) + 1); } return m; };
+  const ga = grams(a), gb = grams(b); let inter = 0, tot = 0;
+  ga.forEach((v, g)=>{ inter += Math.min(v, gb.get(g) || 0); tot += v; }); gb.forEach(v=>{ tot += v; });
+  return tot ? 2 * inter / tot : 0;
+}
+function matchSongTitle(title, idx){
+  const n = normTitle(title);
+  return idx.map(e=> ({e, score:titleSimilarity(n, e.n)})).filter(x=> x.score >= 0.45)
+    .sort((x, y)=> y.score - x.score || y.e.at - x.e.at).slice(0, 6);
+}
+
+async function songLibPagesToSheets(n){
+  const rec = await idbGet("song:" + n); if(!rec) return [];
+  const out = [];
+  for(const p of rec.pages){
+    const blob = p.image ? await dataUrlToBlob(p.image) : null; if(!blob) continue;
+    const sh = {id:uid(), kind:"image", blob, dirtyImage:true, annotations:p.annotations||[], markers:p.markers||[], textBoxes:p.textBoxes||[], guides:p.guides||[], songMeta:p.songMeta||null, songColor:null, songName:p.songName||null, chords:p.chords||null, textItems:p.textItems||null, key:p.key||null, transpose:p.transpose||0};
+    if(p.srcW) await fitAnnotationsToImage(sh, p.srcW);
+    out.push(sh);
+  }
+  if(out[0]) out[0].songName = rec.title;
+  return out;
+}
+
+function openContiTextBox(){
+  if(document.getElementById("contiTextOv")) return;
+  const ov = document.createElement("div");
+  ov.id = "contiTextOv"; ov.className = "libraryOverlay"; ov.style.cssText = "justify-content:center; align-items:center; z-index:90;";
+  const box = document.createElement("div"); box.className = "ctBox";
+  ov.appendChild(box); document.body.appendChild(ov);
+  ov.addEventListener("click", (e)=>{ if(e.target === ov) close(); });
+  const close = ()=> ov.remove();
+  let rows = [], lastText = "";
+  const libInput = document.createElement("input");
+  libInput.type = "file"; libInput.multiple = true; libInput.accept = ".json,application/json"; libInput.hidden = true;
+  box.appendChild(libInput);
+  libInput.addEventListener("change", async ()=>{
+    const fs = libInput.files; if(!fs || !fs.length) return;
+    showToast("보관함에 담는 중…", {sticky:true});
+    const r = await addProjectFilesToSongLib(fs); libInput.value = "";
+    showToast(`📚 프로젝트 ${r.files}개에서 곡 ${r.songs}개를 보관함에 담았어요`);
+    if(rows.length) await findMatches(lastText); else await renderInput();
+  });
+  const libLine = async ()=>{
+    const n = (await songIndexGet()).length;
+    return `<div class="ctLib">📚 보관함 <b>${n}곡</b> <button type="button" class="ctLibAdd">＋ 프로젝트 파일 더 넣기</button></div>`;
+  };
+  const wireLib = ()=>{ const b = box.querySelector(".ctLibAdd"); if(b) b.addEventListener("click", ()=> libInput.click()); };
+
+  async function renderInput(){
+    box.innerHTML = `<div class="ctHead"><b>📝 콘티 텍스트로 만들기</b><button type="button" class="icon ctX" title="닫기">✕</button></div>
+      <div class="ctHint">곡 제목을 한 줄에 하나씩, 부를 순서대로 적어 주세요. 번호·키(G, A→B)·BPM 은 적어도 괜찮아요.<br>보관함에 저장해 둔 같은 제목의 악보를 찾아 그대로 불러와요.</div>
+      <textarea class="ctText" placeholder="1. 주 품에 (G)&#10;2. 영웅 (A)&#10;3. 은혜 - D"></textarea>
+      ${await libLine()}
+      <div class="ctRow"><button type="button" class="ctCancel">취소</button><button type="button" class="primary ctFind">악보 찾기</button></div>`;
+    box.appendChild(libInput);
+    const ta = box.querySelector(".ctText"); ta.value = lastText;
+    box.querySelector(".ctX").addEventListener("click", close);
+    box.querySelector(".ctCancel").addEventListener("click", close);
+    box.querySelector(".ctFind").addEventListener("click", ()=> findMatches(ta.value));
+    wireLib();
+    setTimeout(()=> ta.focus(), 30);
+  }
+
+  async function findMatches(text){
+    lastText = text;
+    const lines = parseContiText(text);
+    if(!lines.length){ showToast("곡 제목을 한 줄에 하나씩 적어 주세요"); return; }
+    const idx = await songIndexGet();
+    const prev = rows;
+    rows = lines.map((l, i)=>{
+      const cands = matchSongTitle(l.title, idx);
+      const keep = prev[i] && prev[i].title === l.title ? prev[i] : null;
+      return Object.assign({}, l, {cands, pick:keep ? keep.pick : (cands[0] && cands[0].score >= 0.6 ? cands[0].e.n : ""), file:keep ? keep.file : null});
+    });
+    await renderMatches();
+  }
+
+  async function renderMatches(){
+    const found = rows.filter(r=> r.pick || r.file).length;
+    box.innerHTML = `<div class="ctHead"><b>📝 콘티 ${rows.length}곡 · 찾음 ${found}</b><button type="button" class="icon ctX" title="닫기">✕</button></div>
+      <div class="ctList"></div>
+      ${await libLine()}
+      <div class="ctRow"><button type="button" class="ctBack">← 텍스트 고치기</button><span style="flex:1"></span>
+        ${state.sheets.length ? '<button type="button" class="ctAppend">지금 악보 뒤에 붙이기</button>' : ""}
+        <button type="button" class="primary ctMake">새 콘티로 만들기</button></div>`;
+    box.appendChild(libInput);
+    const list = box.querySelector(".ctList");
+    rows.forEach((r, i)=>{
+      const el = document.createElement("div"); el.className = "ctItem" + (r.pick || r.file ? " ok" : "");
+      const opts = r.cands.map(c=> `<option value="${escapeHtml(c.e.n)}"${c.e.n === r.pick ? " selected" : ""}>${escapeHtml(c.e.title)} · ${c.e.pages}쪽${c.score < 1 ? " (" + Math.round(c.score * 100) + "%)" : ""}</option>`).join("");
+      el.innerHTML = `<div class="ctNo">${i + 1}</div><div class="ctMain"><div class="ctTitle">${escapeHtml(r.title)}${r.key ? ` <span class="ctKey">${escapeHtml(r.key)}</span>` : ""}</div>
+        ${r.file ? `<div class="ctFile">📎 ${escapeHtml(r.file.name)} <button type="button" class="icon ctUnfile" title="빼기">✕</button></div>`
+          : `<select class="ctSel"><option value="">${r.cands.length ? "— 보관함 악보 안 씀 —" : "보관함에 없음"}</option>${opts}</select>`}
+        ${r.pick || r.file ? "" : `<div class="ctFill"><button type="button" class="ctGoogle">🔎 구글 이미지</button><button type="button" class="ctPaste">📋 붙여넣기</button><button type="button" class="ctUp">📁 파일</button></div>`}</div>`;
+      list.appendChild(el);
+      const sel = el.querySelector(".ctSel"); if(sel) sel.addEventListener("change", ()=>{ r.pick = sel.value; renderMatches(); });
+      const unf = el.querySelector(".ctUnfile"); if(unf) unf.addEventListener("click", ()=>{ r.file = null; renderMatches(); });
+      const g = el.querySelector(".ctGoogle");
+      if(g) g.addEventListener("click", ()=>{
+        window.open("https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(r.title + " 악보" + (r.key ? " " + r.key + "키" : "")), "_blank", "noopener");
+        showToast("마음에 드는 악보 이미지를 길게 눌러 '복사' → 돌아와서 📋 붙여넣기", {ms:6000});
+      });
+      const ps = el.querySelector(".ctPaste");
+      if(ps) ps.addEventListener("click", async ()=>{
+        let files = null;
+        try{ files = await importFromClipboardApi(); }catch(err){}
+        if(!files || !files.length){ showToast("복사된 악보 이미지가 없어요. 이미지를 길게 눌러 '복사'한 뒤 다시 눌러 주세요", {ms:5000}); return; }
+        r.file = files[0]; renderMatches();
+      });
+      const up = el.querySelector(".ctUp");
+      if(up) up.addEventListener("click", ()=>{
+        const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*,application/pdf,.pdf";
+        inp.addEventListener("change", ()=>{ if(inp.files && inp.files[0]){ r.file = inp.files[0]; renderMatches(); } });
+        inp.click();
+      });
+    });
+    box.querySelector(".ctX").addEventListener("click", close);
+    box.querySelector(".ctBack").addEventListener("click", renderInput);
+    box.querySelector(".ctMake").addEventListener("click", ()=> build(false));
+    const ap = box.querySelector(".ctAppend"); if(ap) ap.addEventListener("click", ()=> build(true));
+    wireLib();
+  }
+
+  async function build(append){
+    const use = rows.filter(r=> r.pick || r.file);
+    if(!use.length){ showToast("불러올 악보가 하나도 없어요"); return; }
+    const missing = rows.filter(r=> !r.pick && !r.file).map(r=> r.title);
+    showToast("콘티 악보를 만드는 중…", {sticky:true});
+    let newPages = [];
+    try{
+      let prevCol = append ? ((state.sheets[state.sheets.length - 1] || {}).songColor || null) : null;
+      for(const r of use){
+        let pg = r.pick ? await songLibPagesToSheets(r.pick) : await fileToPages(r.file);
+        if(!pg.length) continue;
+        const col = SONG_COLORS[(SONG_COLORS.indexOf(prevCol) + 1) % SONG_COLORS.length]; prevCol = col;
+        pg.forEach(x=>{ x.songColor = col; delete x._title; });
+        pg[0].songName = r.title;                                     // 콘티에 적은 이름 그대로
+        newPages = newPages.concat(pg);
+      }
+    }catch(err){ const t = document.getElementById("appToast"); if(t) t.hidden = true; showImportError("콘티 악보를 만드는 도중 멈췄어요.", err, []); return; }
+    if(!append){
+      if(state.sheets.length){
+        ov.style.display = "none"; await newProject();
+        if(state.sheets.length){ ov.style.display = ""; showToast("취소했어요"); return; }
+      }
+      currentProjectName = new Date().toLocaleDateString("ko-KR", {month:"numeric", day:"numeric"}).replace(/\.\s*/g, "/").replace(/\/$/, "") + " 콘티";
+      setProjectNameInputs(); updateCurrentProjectLabel();
+    }
+    const before = pageSnap();
+    pushPageUndo(`콘티 ${use.length}곡 만들기`, before);
+    const at = state.sheets.length;
+    state.sheets.splice(at, 0, ...newPages);
+    state.currentIndex = at;
+    close();
+    renderSheet(); scheduleSave();
+    try{ if(document.getElementById("contiPanel")) renderContiBody(); renderSetlistBar(); }catch(e){}
+    showToast(`🎼 ${use.length}곡 · ${newPages.length}페이지를 불러왔어요` + (missing.length ? ` · 못 찾은 곡: ${missing.join(", ")}` : ""), {ms:missing.length ? 9000 : 4000, actions:[{label:"되돌리기 (⌘Z)", fn:undoPageOp}]});
+  }
+
+  renderInput();
+}
 
 /* ---------- 전체화면: 오른쪽 페이지 서랍 ---------- */
 function renderFocusPages(){
@@ -8481,7 +8759,7 @@ function armMediaTurner(on){
   }
   if(!mediaAudio){ mediaAudio = new Audio(silentWavUrl()); mediaAudio.loop = true; }
   mediaAudio.play().catch(()=>{});
-  try{ navigator.mediaSession.metadata = new MediaMetadata({title:"페이지 터너 대기 중", artist:"Music Lesson Studio"}); navigator.mediaSession.playbackState = "playing"; }catch(err){}
+  try{ navigator.mediaSession.metadata = new MediaMetadata({title:"페이지 터너 대기 중", artist:"SetStand"}); navigator.mediaSession.playbackState = "playing"; }catch(err){}
   const h = {nexttrack:goNextPage, seekforward:goNextPage, previoustrack:goPrevPage, seekbackward:goPrevPage,
     play:()=>{ goNextPage(); }, pause:()=>{ goNextPage(); if(mediaAudio) mediaAudio.play().catch(()=>{}); }};
   Object.keys(h).forEach(a=>{ try{ navigator.mediaSession.setActionHandler(a, ()=>{ lastTurnerKey = "미디어 키 · " + a; h[a](); }); }catch(err){} });
@@ -10374,7 +10652,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.12-2";
+const APP_BUILD = "2026.11.23-1";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외
@@ -10408,6 +10686,7 @@ document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState 
 /* ============ Init ============ */
 async function init(){
   await loadState();
+  setTimeout(backfillSongIndex, 1500);
   customFormTypes = (await idbGet("customFormTypes")) || [];
   customInstruments = (await idbGet("customInstruments")) || [];
   migrateKeyModel();

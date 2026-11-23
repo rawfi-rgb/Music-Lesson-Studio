@@ -853,6 +853,22 @@
   .slibActions{display:flex; gap:8px; align-items:center; flex-wrap:wrap; border-top:1px solid var(--border); padding-top:12px;} .slibActions button{font-size:12.5px; padding:6px 12px;}
   .slLibBtn{margin:0 12px 10px; width:calc(100% - 24px); padding:10px; border-radius:var(--r-control,8px); border:1px solid var(--border); background:var(--panel-alt); color:var(--text); font-weight:700; cursor:pointer;}
   .slLibBtn:hover{border-color:var(--accent, #c67139);}
+  /* 아이패드: 화면 키보드가 올라와도 창이 보이는 높이 안에 있게, 글자 칸은 16px(작으면 Safari 가 확대), 손가락 크기 버튼 */
+  .ctOv{bottom:auto; height:var(--app-h, 100%); overscroll-behavior:contain; padding:max(12px, env(safe-area-inset-top)) 12px 12px; box-sizing:border-box;}
+  .ctOv .ctBox{max-height:100%; box-sizing:border-box;}
+  .ctOv .slibBox{height:min(640px, 100%);}
+  .ctOv .ctList{overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
+  .ctOv input, .ctOv textarea, .ctOv select{font-size:16px;}
+  .ctOv button{-webkit-tap-highlight-color:transparent; touch-action:manipulation;}
+  @media (hover:none){ .slibItem:hover{background:transparent;} .slibItem:active{background:var(--panel-alt);} }
+  @media (pointer:coarse){
+    .ctOv .ctRow button, .ctOv .slibActions button, .ctOv .ctFill button, .ctOv .slibEditBtn{min-height:44px; padding-left:14px; padding-right:14px; font-size:14px;}
+    .ctOv .icon.ctX, .ctOv .icon.slibX, .ctOv .slibRen, .ctOv .slibDel, .ctOv .ctUnfile{min-width:44px; min-height:44px;}
+    .ctOv .slibItem{padding:8px; min-height:64px;}
+    .ctOv .ctSel{min-height:44px;}
+    .ctOv .ctSaveAs{min-height:36px;} .ctOv .ctSaveAs input{width:20px; height:20px;}
+    .slLibBtn{min-height:46px; font-size:14px;}
+  }
   /* ============ Worship 콘티 드로어 · 헤더 하이라이트 ============ */
   #songHL{display:none; align-items:center; gap:10px; min-width:0; flex:1; overflow:hidden; white-space:nowrap;}
   header.hasSong #songHL{display:flex;}
@@ -7180,7 +7196,7 @@ function openConti(){
 document.getElementById("focusSongLbl").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
 document.getElementById("contiBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
 document.getElementById("setlistBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
-document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && document.getElementById("contiPanel")){ closeConti(); e.stopPropagation(); } }, true);
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && document.getElementById("contiPanel") && !document.querySelector(".ctOv")){ closeConti(); e.stopPropagation(); } }, true);
 
 /* ---------- 악보 보관함 (곡 단위) + 콘티 텍스트로 만들기 ----------
  * 곡마다 제목을 붙여 이 기기에 모아 둔다:
@@ -7230,13 +7246,22 @@ async function sheetsToLibPages(sheets){
 }
 function placeholderTitle(t){ return !t || SONGLIB_SKIP_RE.test(t) || GENERIC_NAME_RE.test(t) || SETLIST_NAME_RE.test(t); }
 
+/* 보관함 창들의 키보드: 입력 중인 글자가 악보 단축키(스페이스 재생 · 화살표 넘김 · ⌘Z)로 새지 않게 막고, Esc 는 창만 닫는다 */
+function ctOvKeys(ov, onEsc){
+  ov.addEventListener("keydown", (e)=>{
+    if(e.key === "Escape" && !e.isComposing){ e.preventDefault(); onEsc(); }
+    e.stopPropagation();
+  });
+}
+const enterKey = (e)=> e.key === "Enter" && !e.isComposing && e.keyCode !== 229;   // 한글 조합 중 Enter 는 글자 확정용
+
 /* 저장할 제목 묻기. items: [{sheets, guess}] → 고른 제목 배열(빈칸 = 저장 안 함) 또는 null(안 함) */
 function askSongTitles(items, opts){
   opts = opts || {};
   return new Promise(async resolve=>{
     const idx = await songIndexGet();
     const ov = document.createElement("div");
-    ov.className = "libraryOverlay"; ov.style.cssText = "justify-content:center; align-items:center; z-index:92;";
+    ov.className = "libraryOverlay ctOv"; ov.style.cssText = "justify-content:center; align-items:center; z-index:92;"; ctOvKeys(ov, ()=> done(false));
     const box = document.createElement("div"); box.className = "ctBox";
     box.innerHTML = `<div class="ctHead"><b>${opts.title || "📚 보관함에 저장할 제목"}</b></div>
       <div class="ctHint">콘티에 이 제목을 적으면 언제든 바로 불러와요. 빈칸으로 두면 그 악보는 저장하지 않아요.</div>
@@ -7257,7 +7282,7 @@ function askSongTitles(items, opts){
       const dup = main.querySelector(".stDup");
       const sync = ()=>{ const n = normTitle(inp.value); dup.textContent = n && idx.some(e=> e.n === n) ? " · 같은 제목이 있어 새 악보로 바꿔요" : ""; };
       inp.addEventListener("input", sync); sync();
-      inp.addEventListener("keydown", (e)=>{ if(e.key === "Enter"){ e.preventDefault(); const nx = inputs[inputs.indexOf(inp) + 1]; if(nx) nx.focus(); else done(true); } });
+      inp.addEventListener("keydown", (e)=>{ if(enterKey(e)){ e.preventDefault(); const nx = inputs[inputs.indexOf(inp) + 1]; if(nx) nx.focus(); else done(true); } });
       inputs.push(inp);
       (async ()=>{ try{ const b = it.sheets[0].blob instanceof Blob ? it.sheets[0].blob : await ensurePageBlob(it.sheets[0]); if(b){ const u = URL.createObjectURL(b); urls.push(u); img.src = u; } }catch(e){} })();
     }
@@ -7386,7 +7411,7 @@ function openSongLib(){
   if(document.getElementById("songLibOv")) return;
   songLibEdit = false; songLibQuery = "";
   const ov = document.createElement("div");
-  ov.id = "songLibOv"; ov.className = "libraryOverlay"; ov.style.cssText = "justify-content:center; align-items:center; z-index:88;";
+  ov.id = "songLibOv"; ov.className = "libraryOverlay ctOv"; ov.style.cssText = "justify-content:center; align-items:center; z-index:88;"; ctOvKeys(ov, ()=> close());
   ov.innerHTML = `<div class="ctBox slibBox">
     <div class="ctHead"><b>📚 악보 보관함 <span class="slibCount"></span></b><button type="button" class="slibEditBtn">편집</button><button type="button" class="icon slibX" title="닫기">✕</button></div>
     <input type="search" class="slibSearch" placeholder="곡 제목 검색" autocomplete="off">
@@ -7468,7 +7493,7 @@ async function renderSongLibList(){
         });
         renderSongLibList();
       };
-      inp.addEventListener("keydown", (ev)=>{ if(ev.key === "Enter"){ ev.preventDefault(); commit(); } else if(ev.key === "Escape"){ finished = true; renderSongLibList(); } });
+      inp.addEventListener("keydown", (ev)=>{ if(enterKey(ev)){ ev.preventDefault(); commit(); } else if(ev.key === "Escape"){ ev.stopPropagation(); finished = true; renderSongLibList(); } });
       inp.addEventListener("blur", commit);
     });
   });
@@ -7511,7 +7536,7 @@ function matchSongTitle(title, idx){
 function openContiTextBox(){
   if(document.getElementById("contiTextOv")) return;
   const ov = document.createElement("div");
-  ov.id = "contiTextOv"; ov.className = "libraryOverlay"; ov.style.cssText = "justify-content:center; align-items:center; z-index:90;";
+  ov.id = "contiTextOv"; ov.className = "libraryOverlay ctOv"; ov.style.cssText = "justify-content:center; align-items:center; z-index:90;"; ctOvKeys(ov, ()=> close());
   const box = document.createElement("div"); box.className = "ctBox";
   ov.appendChild(box); document.body.appendChild(ov);
   ov.addEventListener("click", (e)=>{ if(e.target === ov) close(); });

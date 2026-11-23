@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>SetStand</title>
-<link rel="icon" type="image/png" sizes="32x32" href="icon-v2-32.png">
-<link rel="apple-touch-icon" href="icon-v2-180.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-v2-180.png">
-<link rel="apple-touch-icon" sizes="167x167" href="icon-v2-167.png">
-<link rel="apple-touch-icon" sizes="152x152" href="icon-v2-152.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-v3-32.png">
+<link rel="apple-touch-icon" href="icon-v3-180.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-v3-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icon-v3-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-v3-152.png">
 <link rel="manifest" href="manifest-v2.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -10901,7 +10901,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.23-1";
+const APP_BUILD = "2026.11.23-2";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

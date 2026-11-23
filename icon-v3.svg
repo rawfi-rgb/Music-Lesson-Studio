@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c1d22"/>
+      <stop offset="1" stop-color="#0b0b0d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g transform="translate(512 512) scale(1.2) translate(-532 -571)">
+
+  <!-- set list lines + music stand -->
+  <g stroke="#ffffff" stroke-width="58" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <line x1="262" y1="330" x2="520" y2="330"/>
+    <line x1="262" y1="448" x2="430" y2="448"/>
+    <line x1="262" y1="566" x2="520" y2="566"/>
+    <path d="M232 690 H792"/>
+    <path d="M512 690 V858"/>
+    <path d="M404 878 H620"/>
+  </g>
+
+  <!-- small pencil, writing the set list -->
+  <g transform="rotate(-45 492 452)">
+    <path d="M492 452 L522 434 L522 470 Z" fill="#ffffff"/>
+    <rect x="530" y="434" width="104" height="36" rx="4" fill="#ffffff"/>
+    <rect x="642" y="434" width="26" height="36" rx="10" fill="#ffffff"/>
+  </g>
+
+  <!-- the note -->
+  <g fill="#ffffff">
+    <ellipse cx="652" cy="582" rx="78" ry="58" transform="rotate(-22 652 582)"/>
+    <rect x="696" y="236" width="40" height="350" rx="20"/>
+  </g>
+  <path d="M716 256 C716 256 760 300 812 330 C860 358 846 430 800 470" fill="none" stroke="#ffffff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

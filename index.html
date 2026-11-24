@@ -7019,7 +7019,7 @@ function renderSetlistBar(){
     b.addEventListener("dblclick", ()=> inlineRenameSong(b, ()=> computeContiSongs()[i]));
     bar.appendChild(b);
   });
-  const c = bar.querySelector(".sbChip.cur"); if(c) bar.scrollLeft = Math.max(0, c.offsetLeft - 24);
+  const c = bar.querySelector(".sbChip.cur"); if(c){ const pv = c.previousElementSibling && c.previousElementSibling.classList.contains("sbChip") ? c.previousElementSibling : c; bar.scrollLeft += pv.getBoundingClientRect().left - bar.getBoundingClientRect().left - 8; }   // 직전 곡까지 보이게
 }
 function updateSongHL(){
   renderSetlistBar();
@@ -7083,6 +7083,17 @@ function wireSongDrag(handle, card, idx, songs){
     };
     handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
   });
+}
+// 곡이 바뀌면(또는 콘티를 열면) 직전 곡 카드가 맨 위에 오도록: 지나온 곡 하나 + 지금 곡이 함께 보인다
+let contiScrolledFor = -1;
+function scrollContiToCur(body, force){
+  if(!body) return;
+  const cur = body.querySelector(".slCard.cur"); if(!cur) return;
+  const ci = [...body.querySelectorAll(".slCard")].indexOf(cur);
+  if(!force && ci === contiScrolledFor) return;
+  contiScrolledFor = ci;
+  const pv = cur.previousElementSibling && cur.previousElementSibling.classList.contains("slCard") ? cur.previousElementSibling : cur;
+  body.scrollTop += pv.getBoundingClientRect().top - body.getBoundingClientRect().top - 6;
 }
 function renderContiBody(){
   const p = document.getElementById("contiPanel"); if(!p) return;
@@ -7183,6 +7194,7 @@ function renderContiBody(){
     body.appendChild(card);
   });
   body.scrollTop = keep;
+  scrollContiToCur(body);
 }
 /* 전체화면 · Zen 의 플로팅 콘티: 머리글을 잡고 옮긴다 (마우스 · 터치 · 펜), 화면 가장자리 16px 안에 가두고 위치를 기억 */
 const CONTI_MARGIN = 16, CONTI_POS_KEY = "mls-conti-pos";
@@ -7249,7 +7261,7 @@ function openConti(){
   p.addEventListener("click", (e)=>{ if(contiMini && !e.target.closest("#slFold")) setContiMini(false); });
   wireContiDrag(p); applyContiPos(); applyContiMini();
   renderContiBody();
-  const curCard = p.querySelector(".slCard.cur"); if(curCard) curCard.scrollIntoView({block:"nearest"});
+  scrollContiToCur(p.querySelector(".contiBody"), true);
 }
 document.getElementById("focusSongLbl").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
 document.getElementById("contiBtn").addEventListener("click", (e)=>{ e.stopPropagation(); openConti(); });
@@ -10960,7 +10972,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.24-3";
+const APP_BUILD = "2026.11.24-4";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

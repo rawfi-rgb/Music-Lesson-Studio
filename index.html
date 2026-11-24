@@ -1459,6 +1459,12 @@
   :root[data-theme="pro"] .slCard.cur::before{background:var(--rec);}
   :root[data-theme="pro"] .slCard.cur .slTitle, :root[data-theme="pro"] .slCard.cur .slNo{color:var(--rec);}
   :root[data-theme="pro"] .slCard.cur .slNow{background:var(--rec); color:#fff; box-shadow:0 0 10px color-mix(in srgb, var(--rec) 50%, transparent);}
+  /* 태블릿 전체화면: 콘티 곡 탭을 상태 표시줄에서 조금 띄우고, 위쪽으로 번지던 그림자를 없앤다 */
+  body.zen #setlistBar, body.focusMode #setlistBar{box-shadow:0 8px 16px -8px rgba(0,0,0,.35);}
+  @media (pointer:coarse) and (min-width:744px){
+    body.zen #setlistBar, body.focusMode #setlistBar{top:calc(max(10px, env(safe-area-inset-top)) + 14px);}
+    body.hasSetlistBar.zen .sheetViewport, body.hasSetlistBar.focusMode .sheetViewport{padding-top:calc(max(10px, env(safe-area-inset-top)) + 68px) !important;}
+  }
 </style>
 </head>
 <body class="noAnim">
@@ -10954,7 +10960,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.24-2";
+const APP_BUILD = "2026.11.24-3";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

@@ -4,31 +4,32 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>SetStand</title>
-<link rel="icon" type="image/png" sizes="32x32" href="icon-v3-32.png">
-<link rel="apple-touch-icon" href="icon-v3-180.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-v3-180.png">
-<link rel="apple-touch-icon" sizes="167x167" href="icon-v3-167.png">
-<link rel="apple-touch-icon" sizes="152x152" href="icon-v3-152.png">
-<link rel="manifest" href="manifest-v2.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-v4-32.png">
+<link rel="apple-touch-icon" href="icon-v4-180.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-v4-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icon-v4-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-v4-152.png">
+<link rel="manifest" href="manifest-v3.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SetStand">
 <meta name="application-name" content="SetStand">
-<meta name="theme-color" content="#171a22">
+<meta name="theme-color" content="#16140F">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Gowun+Batang:wght@400;700&family=Figtree:wght@400;500;600;700;800&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Nanum+Pen+Script&family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Gowun+Batang:wght@400;700&family=Figtree:wght@400;500;600;700;800&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Nanum+Pen+Script&family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem("mls-theme"),c=localStorage.getItem("mls-theme-chosen")==="1";if(!c)t="pro";if(t&&t!=="warm")document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","pro");}</script>
 <style>
   /* Warm Studio Humanism — cream/terracotta/sage analog-studio palette,
      sampled directly from the Claude Design "1a 목재 콘솔" mockup. */
   :root{
     /* ---- Design tokens (프로 DAW 테마가 이 값을 사용) ---- */
-    --surface-0:#0E0F12; --surface-1:#18191E; --surface-2:#23252C;
-    --accent-primary:#3B82F6; --accent-active:#10B981;
-    --glass-blur:blur(12px); --glass-border:#FFFFFF10; --glass-bg:rgba(24,25,30,0.72);
+    /* Stage 콘솔 팔레트: 따뜻한 차콜 + 앰버(선택·박자) + 레드(녹음 전용) */
+    --surface-0:#16140F; --surface-1:#1F1C16; --surface-2:#2A2620;
+    --accent-primary:#F2A93B; --accent-active:#F2A93B; --rec:#E5484D;
+    --glass-blur:blur(12px); --glass-border:rgba(243,237,226,0.09); --glass-bg:rgba(31,28,22,0.82);
     --r-control:8px; --r-panel:12px;
     --glow:0 0 14px color-mix(in srgb, var(--accent) 38%, transparent);
     --bg:#e7dcc8; --panel:#f9f4ed; --panel-alt:#f3ecdf; --panel-hover:#efe4cf;
@@ -101,6 +102,8 @@
 
   /* SVG Icons inline helper */
   .icon-svg{width:16px; height:16px; fill:currentColor; display:inline-block; vertical-align:middle; flex-shrink:0;}
+  header h1 .appMark{width:24px; height:24px; flex-shrink:0; border-radius:6px;}
+  .ssI{width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; display:inline-block; vertical-align:-3px; flex-shrink:0; margin-right:5px;}
 
   header{
     display:flex; align-items:center; gap:12px; padding:10px 20px; margin:12px 16px 0;
@@ -923,7 +926,7 @@
   .sbChip i{width:8px; height:8px; border-radius:50%; background:var(--sc);}
   .sbChip.cur{background:var(--accent); color:var(--on-accent); border-color:transparent; box-shadow:var(--glow); font-size:15px;} .sbChip.cur b{color:inherit; opacity:.8;}
   .sbChip.next{border-color:var(--accent-active, #10B981); color:var(--text); border-width:2px;}
-  .sbChip em{font-style:normal; font-size:9px; font-weight:800; letter-spacing:.06em; padding:2px 5px; border-radius:5px; background:var(--accent-active, #10B981); color:#fff;}
+  .sbChip em{font-style:normal; font-size:9px; font-weight:800; letter-spacing:.06em; padding:2px 5px; border-radius:5px; background:var(--accent-active, #10B981); color:var(--on-accent, #fff);}
   /* 전체화면 · Zen: 콘티는 악보를 밀지 않고 반투명 HUD 로 얹힌다 */
   body.zen #contiPanel.setlistDrawer, .app-layout.focusMode #contiPanel.setlistDrawer{position:absolute; left:12px; top:60px; bottom:auto; max-height:calc(100% - 80px); width:min(300px, 86vw); z-index:60; background:color-mix(in srgb, var(--panel) 68%, transparent); backdrop-filter:blur(16px) saturate(1.2); -webkit-backdrop-filter:blur(16px) saturate(1.2);}
   body.zen #contiPanel.setlistDrawer .slCard.compact, .app-layout.focusMode #contiPanel.setlistDrawer .slCard.compact{opacity:.8;}
@@ -1335,19 +1338,21 @@
      ============================================================ */
   :root[data-theme="pro"]{
     color-scheme:dark;
-    --bg:var(--surface-0); --panel:var(--surface-1); --panel-alt:#1D1F25; --panel-hover:var(--surface-2);
-    --border:var(--glass-border); --border-focus:rgba(59,130,246,0.6);
-    --text:#E7E9EE; --text-dim:#A3A9B5; --text-muted:#707785;
-    --accent:var(--accent-primary); --accent-hover:#60A5FA; --accent-dim:rgba(59,130,246,0.18);
-    --danger:#F87171; --danger-dim:rgba(248,113,113,0.15);
+    --bg:var(--surface-0); --panel:var(--surface-1); --panel-alt:#24211A; --panel-hover:var(--surface-2);
+    --border:var(--glass-border); --border-focus:rgba(242,169,59,0.6);
+    --text:#F3EDE2; --text-dim:#C9C0B0; --text-muted:#A39A8A;
+    --accent:var(--accent-primary); --accent-hover:#FFC56B; --accent-dim:rgba(242,169,59,0.18);
+    --danger:#FF6B6F; --danger-dim:rgba(229,72,77,0.16);
     --shadow:0 12px 32px rgba(0,0,0,0.55); --shadow-sm:0 2px 10px rgba(0,0,0,0.4);
-    --beat-accent:var(--accent-active); --beat-normal:#3A3F4B; --beat-mute:var(--surface-2);
-    --sage-bg:rgba(16,185,129,0.16); --sage-text:#34D399;
+    --beat-accent:var(--accent-active); --beat-normal:#EDE5D6; --beat-mute:var(--surface-2);
+    --sage-bg:rgba(242,169,59,0.14); --sage-text:#F2C46B;
     --radius-sm:var(--r-control); --radius:var(--r-panel); --radius-lg:var(--r-panel);
-    --on-accent:#ffffff; --ink:#101217; --on-ink:#E7E9EE; --sel-bg:var(--accent-primary); --on-sel:#ffffff;
-    --practice-bg:rgba(59,130,246,0.12); --sage-strong:var(--accent-active); --on-sage:#04130D;
-    --glow:0 0 14px rgba(59,130,246,0.42);
+    --on-accent:#1A160E; --ink:#110F0C; --on-ink:#F3EDE2; --sel-bg:var(--accent-primary); --on-sel:#1A160E;
+    --practice-bg:rgba(242,169,59,0.10); --sage-strong:var(--accent-active); --on-sage:#1A160E;
+    --glow:0 0 14px rgba(242,169,59,0.38);
+    --paper-shadow:0 18px 50px rgba(0,0,0,.6), 0 0 0 1px rgba(243,237,226,.06);
   }
+  :root[data-theme="pro"] body{font-family:'IBM Plex Sans KR','Figtree',"Noto Sans KR",-apple-system,sans-serif;}
   /* 글라스모피즘: 떠 있는 패널은 반투명 + blur(12px) + 1px #FFFFFF10 테두리 */
   :root[data-theme="pro"] header,
   :root[data-theme="pro"] .metroDock, :root[data-theme="pro"] .railFlyout, :root[data-theme="pro"] .toolRail,
@@ -1384,36 +1389,73 @@
   :root[data-theme="pro"] .zoomCtl button, :root[data-theme="pro"] .keyCtl button, :root[data-theme="pro"] .kpScope button{background:transparent; border-color:transparent;}
   :root[data-theme="pro"] .toolbar-group button:hover, :root[data-theme="pro"] .modeSwitch button:hover, :root[data-theme="pro"] .lessonTabsFloat button:hover,
   :root[data-theme="pro"] .zoomCtl button:hover, :root[data-theme="pro"] .keyCtl button:hover{background:var(--surface-2); border-color:var(--glass-border);}
-  :root[data-theme="pro"] button.primary{background:linear-gradient(180deg, #4F94FF, #2F6FE0); border-color:#2F6FE0; box-shadow:0 2px 10px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,.25);}
-  :root[data-theme="pro"] button.primary:hover{background:linear-gradient(180deg, #6AA6FF, #3B82F6); box-shadow:0 0 18px rgba(59,130,246,0.6), inset 0 1px 0 rgba(255,255,255,.3);}
-  :root[data-theme="pro"] button.active{background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 0 12px rgba(59,130,246,0.45);}
+  :root[data-theme="pro"] button.primary{background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:700; box-shadow:0 2px 10px rgba(242,169,59,0.25), inset 0 1px 0 rgba(255,255,255,.25);}
+  :root[data-theme="pro"] button.primary:hover{background:var(--accent-hover); box-shadow:0 0 18px rgba(242,169,59,0.45), inset 0 1px 0 rgba(255,255,255,.3);}
+  :root[data-theme="pro"] button.active{background:var(--accent); border-color:var(--accent); color:var(--on-accent); box-shadow:0 0 12px rgba(242,169,59,0.35);}
   :root[data-theme="pro"] .toolbar-group:has(#penTool){background:var(--ink); border-color:var(--glass-border);}
   :root[data-theme="pro"] .toolbar-group:has(#penTool) input[type=range], .toolbar-group:has(#penTool) input[type=range]{background:transparent;}
-  :root[data-theme="pro"] #playBtn.playing, :root[data-theme="pro"] .dockPlay{background:linear-gradient(180deg,#34D399,#10B981); color:#04130D; box-shadow:0 0 16px rgba(16,185,129,.45);}
-  :root[data-theme="pro"] .beatDot[data-state="accent"]{background:var(--accent-active); border-color:var(--accent-active); color:#04130D; box-shadow:0 0 10px rgba(16,185,129,.5);}
+  :root[data-theme="pro"] #playBtn.playing, :root[data-theme="pro"] .dockPlay{background:#F3EDE2; color:#16140F; box-shadow:0 0 16px rgba(243,237,226,.25);}
+  :root[data-theme="pro"] .beatDot[data-state="accent"]{background:var(--accent-active); border-color:var(--accent-active); color:var(--on-accent); box-shadow:0 0 10px rgba(242,169,59,.5);}
   :root[data-theme="pro"] .beatDot.flash, :root[data-theme="pro"] .miniDot.flash{box-shadow:0 0 12px var(--accent-active); background:var(--accent-active);}
   :root[data-theme="pro"] .dockRing{border-color:var(--accent-active);}
   /* 타이포: DAW 미터 느낌의 숫자 */
-  :root[data-theme="pro"] header h1{font-family:'Figtree',"Noto Sans KR",sans-serif; font-weight:800; letter-spacing:.02em; font-size:15px; text-transform:uppercase;}
-  :root[data-theme="pro"] #bpmInput, :root[data-theme="pro"] .dockBpmNum{font-family:'Figtree',"Noto Sans KR",sans-serif; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.02em; color:#E7E9EE; text-shadow:0 0 14px rgba(59,130,246,.45);}
+  :root[data-theme="pro"] header h1{font-family:'IBM Plex Sans KR','Figtree',sans-serif; font-weight:700; letter-spacing:-.01em; font-size:15px; text-transform:none;}
+  :root[data-theme="pro"] #bpmInput, :root[data-theme="pro"] .dockBpmNum, :root[data-theme="pro"] #mcBpm{font-family:'IBM Plex Mono',ui-monospace,monospace; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.03em; color:var(--accent); text-shadow:0 0 14px rgba(242,169,59,.28);}
+  :root[data-theme="pro"] #bpmLabel, :root[data-theme="pro"] #pageLabel, :root[data-theme="pro"] #mcTime{font-family:'IBM Plex Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums;}
+  :root[data-theme="pro"] #bpmLabel{color:var(--accent);}
   :root[data-theme="pro"] h2{color:var(--text-muted); letter-spacing:.1em;}
-  :root[data-theme="pro"] .sheetStage{border-radius:4px; box-shadow:0 18px 50px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06);}
+  :root[data-theme="pro"] .sheetStage{border-radius:4px; box-shadow:var(--paper-shadow);}
+  :root[data-theme="pro"] .sheetViewport{background:#0F0E0B;}
+  :root[data-theme="pro"] .logo-badge{background:rgba(229,72,77,.16) !important; color:#FF8A8D !important; border-color:transparent !important;}
+  :root[data-theme="pro"] #bigPlayBtn{background:#F3EDE2; color:#16140F;}
+  :root[data-theme="pro"] #floatTools .ftBtn.on{background:var(--accent); color:var(--on-accent); border-color:var(--accent);}
   :root[data-theme="pro"] ::-webkit-scrollbar{width:10px; height:10px;}
-  :root[data-theme="pro"] ::-webkit-scrollbar-thumb{background:#2c2f38; border-radius:6px; border:2px solid transparent; background-clip:padding-box;}
-  :root[data-theme="pro"] ::-webkit-scrollbar-thumb:hover{background:#3a3e49; background-clip:padding-box; border:2px solid transparent;}
+  :root[data-theme="pro"] ::-webkit-scrollbar-thumb{background:#3A352C; border-radius:6px; border:2px solid transparent; background-clip:padding-box;}
+  :root[data-theme="pro"] ::-webkit-scrollbar-thumb:hover{background:#4A443A; background-clip:padding-box; border:2px solid transparent;}
   :root[data-theme="pro"] ::-webkit-scrollbar-track{background:transparent;}
   /* 세로 펜 굵기 슬라이더(전체화면 트레이) */
   .focusPenBody input[type=range]::-webkit-slider-runnable-track{height:auto; width:6px;}
   .focusPenBody input[type=range]::-webkit-slider-thumb{margin-top:0; margin-left:-5px; width:20px; height:14px; background:linear-gradient(180deg, transparent 44%, var(--accent) 44%, var(--accent) 56%, transparent 56%), linear-gradient(90deg, #f5f7fa 0%, #cdd2da 46%, #9aa1ac 54%, #d9dde3 100%);}
+  /* ===== 태블릿 최적화 (iPad mini ~ Pro 12.9, 터치) ===== */
+  @media (pointer:coarse) and (min-width:744px){
+    header{height:52px !important;}
+    header #fileMenuBtn, header #setlistBtn, header .panelToggle, header .settingsBtn{min-height:44px; min-width:44px;}
+    header .modeSwitch button{min-height:38px; padding:0 14px;}
+    #currentProjectLabel{max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .sheetTopBar{min-height:56px;}
+    .sheetTopBar button.icon, .sheetTopBar .toolbar-group button, .sheetTopBar .zoomCtl button, .sheetTopBar .keyCtl button{min-height:40px; min-width:40px;}
+    #bigPlayBtn{width:44px; height:44px; font-size:15px;}
+    #chipAdd{min-width:44px; min-height:40px;}
+    .edgeTab{min-width:38px; min-height:96px;}
+    #floatTools .ftBtn{width:56px; height:54px;}
+  }
+  /* 세로 태블릿: 위 바를 두 줄로 접지 않고 한 줄로 — 넘치면 옆으로 밀어서 */
+  @media (min-width:744px) and (max-width:980px){
+    .sheetTopBar{flex-wrap:nowrap !important; height:auto !important; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; gap:8px !important; padding:6px 12px !important;}
+    .sheetTopBar::-webkit-scrollbar{display:none;}
+    .sheetTopBar > *{flex-shrink:0;}
+    #focusModeBtnLabel{display:none;}
+    #chipBar .chipEmpty{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .sheetTopBar .keyCtl .spellBtn{display:none;}                    /* 표기는 '코드' 팝업 안에도 있음 */
+    .sheetTopBar .zoomCtl > button{display:none;}                    /* 핀치 · % 눌러 세밀 조절로 대신 */
+    .sheetTopBar .zoomCtl .zoomPct{min-width:56px; min-height:40px; display:inline-flex; align-items:center; justify-content:center;}
+  }
+  @media (min-width:744px) and (max-width:800px){ .sheetTopBar #miniDots{display:none;} }
+  /* 가로 태블릿: 악보를 최대한 크게 — 페이지 목록·힌트 줄을 얇게 */
+  @media (pointer:coarse) and (min-width:1024px) and (orientation:landscape){
+    .pageStrip{padding:6px 16px; gap:8px;}
+    .pageThumb{width:40px; height:54px;}
+    .sheetViewport{padding-top:12px !important;}
+  }
 </style>
 </head>
 <body class="noAnim">
 
 <header>
   <button class="fileBtn" id="fileMenuBtn" aria-haspopup="menu" aria-expanded="false" title="파일 메뉴 — 새 프로젝트 · 보관함 · 저장 · 내보내기"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg><span>File</span><svg class="icon-svg caret" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5z"/></svg></button>
-  <button class="fileBtn" id="setlistBtn" title="콘티 — 곡 순서 · Key · BPM · 송폼 · 연결 메모"><span>🎼 콘티</span></button>
+  <button class="fileBtn" id="setlistBtn" title="콘티 — 곡 순서 · Key · BPM · 송폼 · 연결 메모"><span><svg class="ssI" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h7"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="3"/></svg>콘티</span></button>
   <h1>
-    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+    <svg class="appMark" viewBox="0 0 1024 1024" aria-hidden="true"><rect width="1024" height="1024" rx="228" fill="#2A2620"/><path d="M168 360H856M168 432H856M168 504H856M168 576H856M168 648H856" stroke="#EDE5D6" stroke-width="34" stroke-linecap="round"/><path d="M636 560V236C650 318 760 336 764 452" stroke="#EDE5D6" stroke-width="50" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="536" cy="612" r="118" fill="#E5484D" stroke="#2A2620" stroke-width="30"/></svg>
     <span class="appTitle">SetStand</span>
     <span class="logo-badge">PRO</span>
   </h1>
@@ -1623,7 +1665,7 @@
       </div>
       <div class="keyCtl" data-key-ctl data-btn-class="" style="margin-left:auto;" title="키 · 코드 바꾸기"></div>
       <div class="zoomCtl" data-zoom-ctl data-btn-class="" title="악보 크기"></div>
-      <button class="icon" id="fitModeBtn" title="악보 한 장 전체 보기 ↔ 폭 맞춤">↕ 전체 보기</button><button class="icon stepBtn" id="spreadStepBtn" title="두 쪽 보기에서 넘기는 단위">넘김 2쪽</button><button class="icon spreadBtn" id="spreadBtn" title="한 쪽 보기 ↔ 두 쪽 보기 (화면 폭 768px 이상)">📖 1쪽</button>
+      <button class="icon" id="fitModeBtn" title="악보 한 장 전체 보기 ↔ 폭 맞춤">↕ 전체 보기</button><button class="icon stepBtn" id="spreadStepBtn" title="두 쪽 보기에서 넘기는 단위">넘김 2쪽</button><button class="icon spreadBtn" id="spreadBtn" title="한 쪽 보기 ↔ 두 쪽 보기 (화면 폭 768px 이상)"><svg class="ssI" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3.5" width="10" height="17" rx="1.5"/></svg>1쪽</button>
       <button class="icon topToggle" id="toggleToolsBtn" title="마킹 도구 접기/펼치기">도구 ▴</button>
       <button class="icon topToggle" id="toggleStripBtn" title="페이지 목록 접기/펼치기">페이지 ▴</button>
       <button class="icon" id="focusModeBtn" title="전체화면 (연주)">
@@ -1637,7 +1679,7 @@
         <button class="primary" id="uploadBtn">악보 업로드</button>
         <button id="addPageBtn">＋ 페이지</button>
         <button id="pasteBtn" title="굿노트 등 다른 앱에서 복사한 악보(이미지·PDF) 붙여넣기">📋 붙여넣기</button>
-        <button id="contiBtn" title="콘티(곡 순서) 보기 · 이름·색·순서 정하기">🎼 콘티</button>
+        <button id="contiBtn" title="콘티(곡 순서) 보기 · 이름·색·순서 정하기"><svg class="ssI" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h7"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="3"/></svg>콘티</button>
       </div>
       <input type="file" id="fileInput" multiple>
       <input type="file" id="addPageInput" multiple>
@@ -1734,7 +1776,7 @@
         <div class="keyCtl" data-key-ctl data-btn-class="icon" title="키 · 코드 바꾸기"></div>
         <div class="zoomCtl" data-zoom-ctl data-btn-class="icon" title="악보 크기 (％를 좌우로 끌어도 돼요)"></div>
         <button class="icon stepBtn" id="focusStepBtn" title="두 쪽 보기에서 넘기는 단위">넘김 2쪽</button>
-        <button class="icon spreadBtn" id="focusSpreadBtn" title="한 쪽 보기 ↔ 두 쪽 보기">📖 1쪽</button>
+        <button class="icon spreadBtn" id="focusSpreadBtn" title="한 쪽 보기 ↔ 두 쪽 보기"><svg class="ssI" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3.5" width="10" height="17" rx="1.5"/></svg>1쪽</button>
         <button class="icon" id="focusFitBtn" title="폭 맞춤 ↔ 한 장 전체 보기 (악보를 두 번 탭해도 바뀌어요)">↔ 폭맞춤</button>
         <button class="icon glockBtn" id="focusLockBtn" title="제스처 잠금 — 스와이프로 페이지·곡이 넘어가지 않게 (페달·키보드는 그대로)">🔓</button>
         <button class="icon" id="focusExitBtn">✕ 나가기</button>
@@ -1835,14 +1877,14 @@
 </div>
 <div id="fileMenu" role="menu" hidden>
   <button id="newProjectBtn" role="menuitem">📄 새 프로젝트</button>
-  <button id="openLibraryBtn" role="menuitem">📂 보관함 열기</button>
+  <button id="openLibraryBtn" role="menuitem"><svg class="ssI" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>보관함 열기</button>
   <button id="quickSaveBtn" role="menuitem">💾 저장하기 <kbd>⌘S</kbd></button>
   <button id="exportMenuBtn" role="menuitem">📤 내보내기</button>
   <div class="fmSep"></div>
   <button id="fmUpload" role="menuitem">🖼 악보 업로드</button>
   <button id="fmAddPage" role="menuitem">＋ 페이지 추가</button>
   <button id="fmPaste" role="menuitem">📋 붙여넣기</button>
-  <button id="fmConti" role="menuitem">🎼 곡 순서 (콘티)</button>
+  <button id="fmConti" role="menuitem"><svg class="ssI" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h7"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="3"/></svg>곡 순서 (콘티)</button>
 </div>
 <div class="libraryOverlay" id="libraryOverlay" hidden>
   <div class="libraryPanel">
@@ -2264,10 +2306,12 @@ function renderProjectList(){
   });
 }
 
+const SS_ICONS = {"list": "<path d=\"M9 6h11M9 12h11M9 18h7\"/><path d=\"M4.5 6h.01M4.5 12h.01M4.5 18h.01\" stroke-width=\"3\"/>", "chord": "<path d=\"M9 18V5.5l11-2V16\"/><circle cx=\"6.5\" cy=\"18\" r=\"2.5\"/><circle cx=\"17.5\" cy=\"16\" r=\"2.5\"/>", "page1": "<rect x=\"7\" y=\"3.5\" width=\"10\" height=\"17\" rx=\"1.5\"/>", "page2": "<rect x=\"2.5\" y=\"4\" width=\"8.5\" height=\"16\" rx=\"1.2\"/><rect x=\"13\" y=\"4\" width=\"8.5\" height=\"16\" rx=\"1.2\"/>", "cloud": "<path d=\"M7 18.5h10.5a4 4 0 0 0 .4-8A6 6 0 0 0 6.3 9.8 4.4 4.4 0 0 0 7 18.5z\"/>", "laptop": "<rect x=\"4.5\" y=\"5\" width=\"15\" height=\"10.5\" rx=\"1.5\"/><path d=\"M2.5 19h19\"/>", "folder": "<path d=\"M3.5 7.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z\"/>"};
+function ssIcon(k){ return '<svg class="ssI" viewBox="0 0 24 24" aria-hidden="true">' + (SS_ICONS[k]||"") + "</svg>"; }
 function updateCurrentProjectLabel(){
   const el = document.getElementById("currentProjectLabel");
-  if(currentProjectId) el.textContent = "☁️ " + currentProjectName;
-  else if(currentProjectName) el.textContent = (state.folderLink ? "☁️ " : "💻 ") + currentProjectName;
+  if(currentProjectId) el.innerHTML = ssIcon("cloud") + escapeHtml(currentProjectName);
+  else if(currentProjectName) el.innerHTML = ssIcon(state.folderLink ? "cloud" : "laptop") + escapeHtml(currentProjectName);
   else el.textContent = "제목 없음";
 }
 
@@ -4684,7 +4728,7 @@ function renderKeyControls(){
     }
     const spellLabel = {auto:"♯♭ 자동", sharp:"♯ 샵", flat:"♭ 플랫"}[state.chordSpelling || "auto"] || "♯♭ 자동";
     const sb = wrap.querySelector(".spellBtn"); if(sb) sb.textContent = spellLabel;
-    wrap.querySelector(".keyName").textContent = !has ? "🎼 코드" : (t ? `코드 ${t > 0 ? "+" : ""}${t}` : "🎼 코드 0");
+    wrap.querySelector(".keyName").innerHTML = ssIcon("chord") + (!has ? "코드" : (t ? `코드 ${t > 0 ? "+" : ""}${t}` : "코드 0"));
     wrap.classList.toggle("shifted", !!t);
   });
 }
@@ -8078,7 +8122,7 @@ document.getElementById("eraserTool").addEventListener("click", ()=>setTool("era
 /* 맞춤: "page" = 악보 한 장이 화면에 다 들어오게(가로 화면에서도 위아래 스크롤 없이),
  *       "width" = 폭 맞춤(최대 1200px). 확대/축소·핀치는 그 위에 곱해진다. */
 let lastSheetAspect = 0.707; // A4 세로
-let spreadPref = false; try{ spreadPref = localStorage.getItem("mls-spread") === "1"; }catch(e){}
+let spreadPref = false; try{ const sp = localStorage.getItem("mls-spread"); spreadPref = sp === null ? !!(window.matchMedia && matchMedia("(pointer:coarse) and (min-width:744px)").matches) : sp === "1"; }catch(e){}   // 태블릿(터치)은 처음부터 두 쪽 보기 — 가로일 때만 실제로 펼쳐진다
 function spreadOn(){ const vp = document.getElementById("sheetViewport"), vw = (vp && vp.clientWidth) || window.innerWidth; return spreadPref && window.innerWidth >= 768 && vw >= 680 && vw > (window.innerHeight * 0.95) && state.sheets.length > 0; }   // 창을 줄이면(스플릿뷰·스테이지 매니저) 보이는 악보 영역 폭 기준으로 판단   // 세로로 들면 한 쪽 보기가 더 크게 보인다
 let spreadStep = 2; try{ spreadStep = localStorage.getItem("mls-spread-step") === "1" ? 1 : 2; }catch(e){}
 let spreadBase = 0;                                   // 두 쪽 보기에서 왼쪽 자리 페이지 (편집 대상은 base 또는 base+1)
@@ -9728,7 +9772,7 @@ document.getElementById("toggleRightPanel").addEventListener("click", ()=>{ stat
  * warm(기존) · clean(A) · dark(B 스테이지 다크) · slate(C). 악보 종이는 모든 테마에서 흰색 그대로.
  * "전체화면에서는 스테이지 다크": 연주할 때만 어둡게 — 무대·합주실에서 눈부심을 줄인다. */
 const THEMES = [
-  {key:"pro",   name:"프로 · DAW",       hint:"Logic·Ableton 감성 다크 · 일렉트릭 블루", sw:["#0E0F12","#18191E","#3B82F6","#10B981"]},
+  {key:"pro",   name:"스테이지 · 콘솔",   hint:"스튜디오 콘솔 다크 · 앰버 불빛 · 녹음 레드", sw:["#16140F","#1F1C16","#F2A93B","#E5484D"]},
   {key:"warm",  name:"웜 스튜디오",     hint:"지금까지 쓰던 베이지 · 테라코타",       sw:["#e7dcc8","#f9f4ed","#c67139","#201e1d"]},
   {key:"clean", name:"A · 클린 라이트",  hint:"가장 또렷함 · 밝은 레슨실, 책상 작업",   sw:["#eef1f5","#ffffff","#2457e6","#0f1729"]},
   {key:"dark",  name:"B · 스테이지 다크", hint:"악보만 밝게 · 무대, 합주실, 어두운 곳", sw:["#0d0f12","#171a1f","#ffb224","#f3f4f6"]},
@@ -10845,8 +10889,8 @@ function setSpreadStep(n){ spreadStep = n; try{ localStorage.setItem("mls-spread
 function syncSpreadBtns(){ document.body.classList.toggle("noSpread", !(window.innerWidth >= 768 && (((document.getElementById("sheetViewport")||{}).clientWidth) || window.innerWidth) >= 680 && window.innerWidth > window.innerHeight * 0.95));
   document.body.classList.toggle("spreadActive", spreadOn());
   ["spreadStepBtn","focusStepBtn"].forEach(id=>{ const b = document.getElementById(id); if(b){ b.textContent = spreadStep === 1 ? "넘김 1쪽" : "넘김 2쪽"; b.classList.toggle("active", spreadStep === 1); } });
-  const eff = spreadOn(), lbl = spreadPref ? "📖📖 2쪽" : "📖 1쪽";
-  ["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(!b) return; b.textContent = lbl; b.classList.toggle("active", spreadPref); b.title = spreadPref ? (window.innerWidth < 768 || window.innerWidth <= window.innerHeight ? "세로 화면이라 1쪽으로 보여요 — 가로로 돌리면 2쪽" : "두 쪽 보기 중 — 누르면 한 쪽 보기") : "한 쪽 보기 중 — 누르면 두 쪽 보기"; });
+  const eff = spreadOn(), lbl = spreadPref ? ssIcon("page2") + "2쪽" : ssIcon("page1") + "1쪽";
+  ["spreadBtn","focusSpreadBtn"].forEach(id=>{ const b = document.getElementById(id); if(!b) return; b.innerHTML = lbl; b.classList.toggle("active", spreadPref); b.title = spreadPref ? (window.innerWidth < 768 || window.innerWidth <= window.innerHeight ? "세로 화면이라 1쪽으로 보여요 — 가로로 돌리면 2쪽" : "두 쪽 보기 중 — 누르면 한 쪽 보기") : "한 쪽 보기 중 — 누르면 두 쪽 보기"; });
 }
 function setSpread(on){
   spreadPref = !!on; try{ localStorage.setItem("mls-spread", on ? "1" : "0"); }catch(e){}
@@ -10901,7 +10945,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.23-2";
+const APP_BUILD = "2026.11.23-3";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

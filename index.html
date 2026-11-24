@@ -1465,6 +1465,13 @@
     body.zen #setlistBar, body.focusMode #setlistBar{top:calc(max(10px, env(safe-area-inset-top)) + 14px);}
     body.hasSetlistBar.zen .sheetViewport, body.hasSetlistBar.focusMode .sheetViewport{padding-top:calc(max(10px, env(safe-area-inset-top)) + 68px) !important;}
   }
+  /* 작업 화면 위 도구 줄: 접지 않고 한 줄로 — 창이 좁으면 양옆으로 끌어서(손가락·마우스) 본다 */
+  .sheetTopBar{flex-wrap:nowrap !important; height:auto !important; min-height:44px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch;}
+  .sheetTopBar::-webkit-scrollbar{display:none;}
+  .sheetTopBar > *{flex-shrink:0;}
+  .sheetTopBar.dragScroll{cursor:grabbing; user-select:none; -webkit-user-select:none;}
+  .sheetTopBar .keyCtl{margin-left:auto;}
+  .markerPill .del{padding:0 4px;}
 </style>
 </head>
 <body class="noAnim">
@@ -1736,7 +1743,7 @@
       <div class="markBars" id="markBars">
         <div class="row" style="gap:6px; align-items:center;">
           <span class="markBarLabel">송폼</span>
-          <button class="icon" id="markerShapeBtn" title="마커 모양: 마디 구간 브래킷 ↔ 지점 핀">▐ 구간</button>
+          <button class="icon" id="markerShapeBtn" hidden>지점</button>
           <div class="row wrap" id="formTypeBar" style="gap:4px;"></div>
         </div>
         <div class="row" id="instRow" style="gap:6px; align-items:center; flex-wrap:wrap;">
@@ -9266,8 +9273,8 @@ function placeMarkerAt(key, xPct, yPct){
   }
   const ft = findFormType(key); if(!ft) return;
   const marker = {id:uid(), type:ft.key, label:ft.label, color:ft.color, xPct:(xPct), yPct:(yPct), bar:null};
-  if(state.markerShape === "bracket"){
-    // A song-form section spans bars, not a point — brackets are the musically
+  if(false){
+    // (구간 브래킷은 없앴다: 송폼은 위치만 찍는다) A song-form section spans bars, not a point — brackets are the musically
     // correct default. Starts one system tall; drag the bottom handle to fit.
     marker.shape = "bracket";
     marker.xPct = Math.max(1, Math.min(94, xPct));
@@ -9312,14 +9319,12 @@ function renderMarkers(){
   const stage = document.getElementById("sheetStage");
   sheet.markers.forEach(m=>{
     if(m.kind === "inst"){ if(instTagVisible(m)) renderInstTag(m, sheet, stage); return; }
-    if(m.shape === "bracket"){ renderBracketMarker(m, sheet, stage); return; }
     const pill = document.createElement("div");
     pill.className = "markerPill";
     pill.style.left = m.xPct+"%"; pill.style.top = m.yPct+"%";
     pill.style.background = m.color;
-    const barText = m.bar ? `${m.bar}m` : "#";
-    pill.innerHTML = `${m.label}<span class="bar">${barText}</span><span class="del">✕</span>`;
-    pill.querySelector(".bar").addEventListener("click", (ev)=>{
+    pill.innerHTML = `${escapeHtml(m.label)}${m.bar ? `<span class="bar">${escapeHtml(m.bar)}m</span>` : ""}<span class="del">✕</span>`;
+    pill.querySelector(".bar")?.addEventListener("click", (ev)=>{
       ev.stopPropagation();
       const input = prompt("마디 번호:", m.bar || "");
       if(input===null) return;
@@ -10821,7 +10826,7 @@ function updateChipActive(){
 function closeChipPop(){ chipPop.classList.remove("open"); setTimeout(()=>{ if(!chipPop.classList.contains("open")) chipPop.hidden = true; }, 220); }
 function toggleChipPop(){ if(chipPop.classList.contains("open")){ closeChipPop(); return; } buildChipPop(); chipPop.hidden = false; const r = document.getElementById("chipAdd").getBoundingClientRect(); chipPop.style.top = (r.bottom + 6) + "px"; chipPop.style.left = Math.max(8, Math.min(window.innerWidth - chipPop.offsetWidth - 8, r.right - chipPop.offsetWidth)) + "px"; void chipPop.offsetWidth; chipPop.classList.add("open"); }
 function buildChipPop(){
-  chipPop.innerHTML = `<h4>섹션 추가 — 고른 뒤 악보에서 위치를 탭</h4><div class="cpTypes"></div>`;
+  chipPop.innerHTML = `<h4>섹션 마킹 — 고른 뒤 악보에서 시작 위치를 탭</h4><div class="cpTypes"></div>`;
   const tw = chipPop.querySelector(".cpTypes");
   allFormTypes().forEach(ft=>{
     const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<span class="cd" style="background:${ft.color}"></span>${escapeHtml(ft.label)}`;
@@ -10829,7 +10834,6 @@ function buildChipPop(){
     tw.appendChild(b);
   });
   const nb = document.createElement("button"); nb.type = "button"; nb.textContent = "＋ 새 이름"; nb.addEventListener("click", async ()=>{ await addCustomFormType(); buildChipPop(); }); tw.appendChild(nb);
-  const shape = document.createElement("button"); shape.type = "button"; shape.textContent = (state.markerShape === "bracket" ? "▐ 구간(브래킷)" : "● 핀") + " · 바꾸기"; shape.addEventListener("click", ()=>{ document.getElementById("markerShapeBtn").click(); buildChipPop(); }); tw.appendChild(shape);
   if(chipItems.length){
     const h = document.createElement("h4"); h.textContent = "이 곡의 섹션 — 이름 바꾸기 · 삭제"; chipPop.appendChild(h);
     chipItems.forEach(it=>{
@@ -10844,6 +10848,17 @@ function buildChipPop(){
   }
 }
 document.getElementById("chipAdd").addEventListener("click", (e)=>{ e.stopPropagation(); toggleChipPop(); });
+/* 위 도구 줄: 마우스로도 양옆으로 끌어서 스크롤 (조금이라도 끌었으면 버튼 클릭은 무시) */
+(function(){
+  const bar = document.querySelector(".sheetTopBar"); if(!bar) return;
+  let d = null, moved = false;
+  bar.addEventListener("pointerdown", (e)=>{ if(e.pointerType !== "mouse" || e.button !== 0 || bar.scrollWidth <= bar.clientWidth + 1) return; if(e.target.closest("input,select,.zoomPct")) return; d = {x:e.clientX, sl:bar.scrollLeft}; moved = false; });
+  window.addEventListener("pointermove", (e)=>{ if(!d) return; const dx = e.clientX - d.x; if(!moved && Math.abs(dx) < 6) return; moved = true; bar.classList.add("dragScroll"); bar.scrollLeft = d.sl - dx; });
+  window.addEventListener("pointerup", ()=>{ if(!d) return; d = null; bar.classList.remove("dragScroll"); });
+  bar.addEventListener("click", (e)=>{ if(moved){ e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+  bar.addEventListener("wheel", (e)=>{ if(Math.abs(e.deltaY) > Math.abs(e.deltaX) && bar.scrollWidth > bar.clientWidth + 1 && !e.ctrlKey && !e.metaKey){ bar.scrollLeft += e.deltaY; e.preventDefault(); } }, {passive:false});
+})();
+
 document.addEventListener("pointerdown", (e)=>{ if(chipPop.classList.contains("open") && !e.target.closest("#chipPop") && !e.target.closest("#chipAdd")) closeChipPop(); }, true);
 renderChipBar();
 
@@ -10972,7 +10987,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.24-4";
+const APP_BUILD = "2026.11.24-5";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

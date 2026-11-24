@@ -394,7 +394,7 @@
 
   /* Form Type Badges & Markers */
   .markerPill{
-    position:absolute; transform:translate(-50%,-50%); padding:4px 10px; border-radius:20px;
+    position:absolute; transform:translate(-50%,-50%); padding:3px 8px; border-radius:20px;
     font-size:11px; font-weight:700; color:#fff; white-space:nowrap; cursor:grab; user-select:none;
     box-shadow:0 4px 12px rgba(0,0,0,0.25); z-index:5; display:flex; align-items:center; gap:4px;
     backdrop-filter:blur(4px); border:1px solid rgba(255,255,255,0.2);
@@ -2076,15 +2076,20 @@ try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persis
 
 /* ---------- State ---------- */
 const FORM_TYPES = [
-  {key:"intro", label:"인트로", color:"#8a8073"},
-  {key:"verse", label:"벌스", color:"#7c8f5e"},
-  {key:"prechorus", label:"프리코러스", color:"#a6748b"},
-  {key:"chorus", label:"코러스", color:"#c67139"},
-  {key:"bridge", label:"브릿지", color:"#c99a3b"},
-  {key:"interlude", label:"간주", color:"#5e8b7e"},
-  {key:"outro", label:"아웃트로", color:"#8c6e4f"},
-  {key:"tag", label:"태그", color:"#b2622d"},
+  {key:"intro", label:"인트로", abbr:"Intro", color:"#8a8073"},
+  {key:"verse", label:"벌스", abbr:"V", color:"#7c8f5e"},
+  {key:"prechorus", label:"프리코러스", abbr:"PreC", color:"#a6748b"},
+  {key:"chorus", label:"코러스", abbr:"C", color:"#c67139"},
+  {key:"bridge", label:"브릿지", abbr:"Bridge", color:"#c99a3b"},
+  {key:"interlude", label:"간주", abbr:"Interlude", color:"#5e8b7e"},
+  {key:"outro", label:"아웃트로", abbr:"Outro", color:"#8c6e4f"},
+  {key:"tag", label:"태그", abbr:"Tag", color:"#b2622d"},
+  {key:"secA", label:"A", abbr:"A", color:"#4f6d8f"},
+  {key:"secB", label:"B", abbr:"B", color:"#8a5a8c"},
+  {key:"secC", label:"C", abbr:"C", color:"#3f7f8f"},
 ];
+// 악보 위 마커에는 짧은 약어로 (벌스 → V, 코러스 → C …). 직접 만든 이름은 그대로.
+function formAbbr(m){ const ft = findFormType(m.type); return (ft && ft.abbr && m.label === ft.label) ? ft.abbr : m.label; }   // 이름을 직접 바꾼 마커는 바꾼 이름 그대로
 const CUSTOM_TYPE_COLORS = ["#a6748b","#c99a3b","#7c8f5e","#5e8b7e","#8c6e4f","#b2622d","#8a8073","#c67139"];
 let customFormTypes = [];
 function allFormTypes(){ return FORM_TYPES.concat(customFormTypes); }
@@ -9146,7 +9151,7 @@ function renderFormTypeBar(){
     b.className = "formTypeBtn icon";
     b.dataset.key = ft.key;
     b.draggable = true;
-    b.innerHTML = `<span class="dot" style="background:${ft.color}"></span>${ft.label}`;
+    b.innerHTML = `<span class="dot" style="background:${ft.color}"></span>${ft.abbr && ft.abbr !== ft.label ? `<b>${escapeHtml(ft.abbr)}</b> ` : ""}${escapeHtml(ft.label)}`;
     b.addEventListener("click", ()=> setPlacingType(placingType===ft.key ? null : ft.key));
     b.addEventListener("dragstart", (ev)=>{
       ev.dataTransfer.setData("text/plain", ft.key);
@@ -9320,10 +9325,10 @@ function renderMarkers(){
   sheet.markers.forEach(m=>{
     if(m.kind === "inst"){ if(instTagVisible(m)) renderInstTag(m, sheet, stage); return; }
     const pill = document.createElement("div");
-    pill.className = "markerPill";
+    pill.className = "markerPill"; pill.title = m.label;
     pill.style.left = m.xPct+"%"; pill.style.top = m.yPct+"%";
     pill.style.background = m.color;
-    pill.innerHTML = `${escapeHtml(m.label)}${m.bar ? `<span class="bar">${escapeHtml(m.bar)}m</span>` : ""}<span class="del">✕</span>`;
+    pill.innerHTML = `${escapeHtml(formAbbr(m))}${m.bar ? `<span class="bar">${escapeHtml(m.bar)}m</span>` : ""}<span class="del">✕</span>`;
     pill.querySelector(".bar")?.addEventListener("click", (ev)=>{
       ev.stopPropagation();
       const input = prompt("마디 번호:", m.bar || "");
@@ -10829,7 +10834,7 @@ function buildChipPop(){
   chipPop.innerHTML = `<h4>섹션 마킹 — 고른 뒤 악보에서 시작 위치를 탭</h4><div class="cpTypes"></div>`;
   const tw = chipPop.querySelector(".cpTypes");
   allFormTypes().forEach(ft=>{
-    const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<span class="cd" style="background:${ft.color}"></span>${escapeHtml(ft.label)}`;
+    const b = document.createElement("button"); b.type = "button"; b.innerHTML = `<span class="cd" style="background:${ft.color}"></span>${ft.abbr && ft.abbr !== ft.label ? `<b>${escapeHtml(ft.abbr)}</b> ` : ""}${escapeHtml(ft.label)}`;
     b.addEventListener("click", ()=>{ closeChipPop(); setPlacingType(ft.key); showToast(`"${ft.label}" — 악보에서 놓을 위치를 탭하세요`, {ms:2600}); });
     tw.appendChild(b);
   });
@@ -10987,7 +10992,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.24-5";
+const APP_BUILD = "2026.11.24-6";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

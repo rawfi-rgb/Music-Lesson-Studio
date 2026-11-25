@@ -1476,12 +1476,19 @@
   .markerPill{background:none !important; border:0 !important; box-shadow:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
     padding:0 2px !important; gap:2px !important; font-size:12px; font-weight:800; letter-spacing:.01em; line-height:1.1;
     text-shadow:0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff;}
-  .markerPill .del{display:none; font-size:10px; color:var(--paper-ink, #222); opacity:.55;}
-  @media (hover:hover){ .markerPill:hover .del{display:inline;} }
+  /* ✕는 글자 폭에 끼우지 않고 옆에 띄움 — 호버 때 마커 폭이 바뀌어 글자가 밀리고 떨리던 문제 */
+  .markerPill .del{position:absolute; left:100%; top:50%; transform:translateY(-50%); padding:0 3px 0 2px !important;
+    font-size:10px; color:var(--paper-ink, #222); opacity:0; pointer-events:none; transition:opacity .12s;}
+  .markerPill{border-radius:6px !important; transition:background-color .12s, filter .12s;}
+  @media (hover:hover){
+    .markerPill:hover{background:color-mix(in srgb, currentColor 14%, transparent) !important; filter:brightness(.78) saturate(1.25); z-index:6;}
+    .markerPill:hover .del{opacity:.6; pointer-events:auto;}
+    .markerPill .del:hover{opacity:1;}
+  }
   .markerPill .bar{background:none; padding:0; font-size:9px;}
   /* 송폼 마커 글씨를 악보 폭에 비례 — 확대·축소·화면 크기가 바뀌어도 악보와 같은 비율로 */
   .sheetStage{container-type:inline-size;}
-  @supports (font-size:1cqw){ .markerPill{font-size:max(5px, 2.6cqw);} .markerPill .bar{font-size:max(4px, 1.9cqw);} .markerPill .del{font-size:max(4px, 1.8cqw);} }
+  @supports (font-size:1cqw){ .markerPill{font-size:max(6px, 3.4cqw);} .markerPill .bar{font-size:max(4px, 2.3cqw);} .markerPill .del{font-size:max(5px, 2.2cqw);} }
 </style>
 </head>
 <body class="noAnim">
@@ -11002,7 +11009,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.24-9";
+const APP_BUILD = "2026.11.24-10";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

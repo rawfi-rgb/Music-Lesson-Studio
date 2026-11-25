@@ -1,6 +1,6 @@
 {
-  "name": "SetStand",
-  "short_name": "SetStand",
+  "name": "RawfiNote",
+  "short_name": "RawfiNote",
   "description": "콘티 · 악보 · 메트로놈을 한 화면에서",
   "start_url": "./",
   "scope": "./",

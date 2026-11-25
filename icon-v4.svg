@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- SetStand "Rec Note": 오선 위 음표 머리 = 녹음 버튼. 전체 채움(iOS·안드로이드가 모서리를 직접 깎음) -->
+  <!-- RawfiNote "Rec Note": 오선 위 음표 머리 = 녹음 버튼. 전체 채움(iOS·안드로이드가 모서리를 직접 깎음) -->
   <rect width="1024" height="1024" fill="#1D1A14"/>
   <path d="M168 360H856M168 432H856M168 504H856M168 576H856M168 648H856" stroke="#EDE5D6" stroke-width="18" stroke-linecap="round" fill="none"/>
   <path d="M636 560V236C650 318 760 336 764 452" stroke="#EDE5D6" stroke-width="34" fill="none" stroke-linecap="round" stroke-linejoin="round"/>

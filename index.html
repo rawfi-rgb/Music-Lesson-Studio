@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>SetStand</title>
+<title>RawfiNote</title>
 <link rel="icon" type="image/png" sizes="32x32" href="icon-v4-32.png">
 <link rel="apple-touch-icon" href="icon-v4-180.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-v4-180.png">
@@ -12,8 +12,8 @@
 <link rel="manifest" href="manifest-v3.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="SetStand">
-<meta name="application-name" content="SetStand">
+<meta name="apple-mobile-web-app-title" content="RawfiNote">
+<meta name="application-name" content="RawfiNote">
 <meta name="theme-color" content="#16140F">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1498,7 +1498,7 @@
   <button class="fileBtn" id="setlistBtn" title="콘티 — 곡 순서 · Key · BPM · 송폼 · 연결 메모"><span><svg class="ssI" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h7"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="3"/></svg>콘티</span></button>
   <h1>
     <svg class="appMark" viewBox="0 0 1024 1024" aria-hidden="true"><rect width="1024" height="1024" rx="228" fill="#2A2620"/><path d="M168 360H856M168 432H856M168 504H856M168 576H856M168 648H856" stroke="#EDE5D6" stroke-width="34" stroke-linecap="round"/><path d="M636 560V236C650 318 760 336 764 452" stroke="#EDE5D6" stroke-width="50" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="536" cy="612" r="118" fill="#E5484D" stroke="#2A2620" stroke-width="30"/></svg>
-    <span class="appTitle">SetStand</span>
+    <span class="appTitle">RawfiNote</span>
     <span class="logo-badge">PRO</span>
   </h1>
   <div id="songHL" aria-live="polite"></div>
@@ -3325,7 +3325,7 @@ async function readProjectFile(file){
   catch(err){
     throw new Error(`프로젝트 파일이 아니거나 저장 도중 잘린 파일이에요. (${file.name || "이름 없음"}, ${Math.round((file.size||0)/1024)}KB)`);
   }
-  if(!data || !Array.isArray(data.pages)) throw new Error("SetStand 프로젝트 파일이 아니에요.");
+  if(!data || !Array.isArray(data.pages)) throw new Error("RawfiNote 프로젝트 파일이 아니에요.");
   return data;
 }
 
@@ -3549,7 +3549,7 @@ async function openProjectFromPicker(){
     let h = null;
     try{
       [h] = await window.showOpenFilePicker({id:"mls-icloud", multiple:false,
-        types:[{description:"SetStand 프로젝트", accept:{"application/json":[".json"]}}]});
+        types:[{description:"RawfiNote 프로젝트", accept:{"application/json":[".json"]}}]});
     }catch(err){
       if(err && err.name === "AbortError") return;     // 사용자가 닫음
       ilog("showOpenFilePicker 실패 → 일반 파일 고르기로 전환: " + errText(err));   // 내장 화면(iframe)에서는 SecurityError
@@ -3602,7 +3602,7 @@ async function quickSave(){
     try{
       h = await window.showSaveFilePicker({id:"mls-icloud",
         suggestedName: sanitizeFilename(currentProjectName || "새 프로젝트") + ".mlsproj.json",
-        types:[{description:"SetStand 프로젝트", accept:{"application/json":[".json"]}}]});
+        types:[{description:"RawfiNote 프로젝트", accept:{"application/json":[".json"]}}]});
     }catch(err){ return; }
     if(!currentProjectName) currentProjectName = h.name.replace(/\.mlsproj\.json$/i, "").replace(/\.json$/i, "");
     try{
@@ -9108,7 +9108,7 @@ function armMediaTurner(on){
   }
   if(!mediaAudio){ mediaAudio = new Audio(silentWavUrl()); mediaAudio.loop = true; }
   mediaAudio.play().catch(()=>{});
-  try{ navigator.mediaSession.metadata = new MediaMetadata({title:"페이지 터너 대기 중", artist:"SetStand"}); navigator.mediaSession.playbackState = "playing"; }catch(err){}
+  try{ navigator.mediaSession.metadata = new MediaMetadata({title:"페이지 터너 대기 중", artist:"RawfiNote"}); navigator.mediaSession.playbackState = "playing"; }catch(err){}
   const h = {nexttrack:goNextPage, seekforward:goNextPage, previoustrack:goPrevPage, seekbackward:goPrevPage,
     play:()=>{ goNextPage(); }, pause:()=>{ goNextPage(); if(mediaAudio) mediaAudio.play().catch(()=>{}); }};
   Object.keys(h).forEach(a=>{ try{ navigator.mediaSession.setActionHandler(a, ()=>{ lastTurnerKey = "미디어 키 · " + a; h[a](); }); }catch(err){} });
@@ -11009,7 +11009,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.24-10";
+const APP_BUILD = "2026.11.25-1";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외

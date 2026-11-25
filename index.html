@@ -1481,7 +1481,7 @@
   .markerPill .bar{background:none; padding:0; font-size:9px;}
   /* 송폼 마커 글씨를 악보 폭에 비례 — 확대·축소·화면 크기가 바뀌어도 악보와 같은 비율로 */
   .sheetStage{container-type:inline-size;}
-  @supports (font-size:1cqw){ .markerPill{font-size:max(4px, 1.7cqw);} .markerPill .bar{font-size:max(3px, 1.3cqw);} .markerPill .del{font-size:max(4px, 1.3cqw);} }
+  @supports (font-size:1cqw){ .markerPill{font-size:max(5px, 2.6cqw);} .markerPill .bar{font-size:max(4px, 1.9cqw);} .markerPill .del{font-size:max(4px, 1.8cqw);} }
 </style>
 </head>
 <body class="noAnim">
@@ -11002,7 +11002,7 @@ syncAppHeight();
  * 맥 Dock / 아이패드 홈 화면 앱은 예전 페이지를 캐시에 들고 있을 수 있다.
  * 시작할 때와 앱으로 돌아올 때 서버의 최신 index.html 을 확인해, 버전이 다르면
  * 시작 직후에는 바로 새로고침, 사용 중이면 "새 버전" 안내를 띄운다. */
-const APP_BUILD = "2026.11.24-8";
+const APP_BUILD = "2026.11.24-9";
 const BUILD_RE = new RegExp("APP_BUILD" + " = \"([0-9A-Za-z.\\-]+)\"");
 async function checkForUpdate(fromStartup){
   if(!/^https?:$/.test(location.protocol) || window.claude) return; // Artifact 버전은 제외
